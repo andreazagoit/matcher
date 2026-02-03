@@ -1,5 +1,7 @@
 import { VALUES_OPTIONS, type Value } from "./data";
 
+export { VALUES_OPTIONS, type Value };
+
 /**
  * Ottieni tutti i valori disponibili
  */

@@ -1,5 +1,7 @@
 import { INTERESTS_OPTIONS, type Interest } from "./data";
 
+export { INTERESTS_OPTIONS, type Interest };
+
 /**
  * Ottieni tutti gli interessi disponibili
  */

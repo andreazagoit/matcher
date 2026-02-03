@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { VALUES_OPTIONS } from "../values/data";
-import { INTERESTS_OPTIONS } from "../interests/data";
+import { VALUES_OPTIONS } from "@/lib/models/values/operations";
+import { INTERESTS_OPTIONS } from "@/lib/models/interests/operations";
 
 // Schema per Value enum
 export const valueSchema = z.enum(VALUES_OPTIONS as unknown as [string, ...string[]]);

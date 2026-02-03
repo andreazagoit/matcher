@@ -1,4 +1,4 @@
-import { userResolvers } from "./user";
+import { userResolvers } from "../models/users/resolver";
 
 export const resolvers = {
   Query: {
@@ -8,3 +8,4 @@ export const resolvers = {
     ...userResolvers.Mutation,
   },
 };
+

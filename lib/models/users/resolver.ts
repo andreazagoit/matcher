@@ -5,8 +5,8 @@ import {
   getUserById,
   getAllUsers,
   findMatches,
-} from "@/db";
-import type { CreateUserInput, UpdateUserInput } from "@/db";
+} from "./operations";
+import type { CreateUserInput, UpdateUserInput } from "./validator";
 
 export const userResolvers = {
   Query: {
