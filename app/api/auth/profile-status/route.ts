@@ -1,0 +1,53 @@
+/**
+ * Profile Status API
+ * GET /api/auth/profile-status
+ * 
+ * Check if user has completed their profile/test
+ */
+
+import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
+import { hasCompleteProfile } from "@/lib/models/profiles/operations";
+import { getUserById } from "@/lib/models/users/operations";
+
+export async function GET(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("user_id")?.value;
+
+    if (!userId) {
+      return Response.json(
+        { authenticated: false, hasProfile: false },
+        { status: 200 }
+      );
+    }
+
+    const user = await getUserById(userId);
+    if (!user) {
+      return Response.json(
+        { authenticated: false, hasProfile: false },
+        { status: 200 }
+      );
+    }
+
+    const hasProfile = await hasCompleteProfile(userId);
+
+    return Response.json({
+      authenticated: true,
+      hasProfile,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error("Profile status error:", error);
+    return Response.json(
+      { error: "Failed to check profile status" },
+      { status: 500 }
+    );
+  }
+}
+

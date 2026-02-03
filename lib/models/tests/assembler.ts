@@ -33,11 +33,18 @@ function assembleSection(section: Section, answers: TestAnswersJson): ProfileAxi
     const answer = answers[question.id];
     if (answer === undefined) continue;
 
-    if (question.type === "closed" && typeof answer === "number") {
-      // Valore 1-5 → indice 0-4
-      const index = Math.max(0, Math.min(4, answer - 1));
-      const sentence = question.options[index];
-      if (sentence) sentences.push(sentence);
+    if (question.type === "closed") {
+      if (typeof answer === "number") {
+        // Valore 1-5 → indice 0-4
+        const index = Math.max(0, Math.min(4, answer - 1));
+        const sentence = question.options[index];
+        if (sentence) sentences.push(sentence);
+      } else if (typeof answer === "string") {
+        // Stringa diretta dell'opzione selezionata
+        if (question.options.includes(answer)) {
+          sentences.push(answer);
+        }
+      }
     }
 
     if (question.type === "open" && typeof answer === "string") {

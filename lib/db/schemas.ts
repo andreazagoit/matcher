@@ -10,3 +10,8 @@ export * from "../models/tests/schema";
 // 3. Profiles (dipende da users) - profilo standard con 4 embeddings
 export * from "../models/profiles/schema";
 
+// 4. OAuth 2.0 (dipende da users)
+export * from "../models/oauth-clients/schema";
+export * from "../models/oauth-codes/schema";
+export * from "../models/oauth-tokens/schema";
+

@@ -88,7 +88,8 @@ export const userTypeDefs = `#graphql
     me: User
     
     # Matching (richiede profilo completato)
-    findMatches(userId: ID!, options: MatchOptions): [User!]!
+    # Se userId non è fornito, usa l'utente autenticato
+    findMatches(userId: ID, options: MatchOptions): [User!]!
   }
 
   extend type Mutation {
