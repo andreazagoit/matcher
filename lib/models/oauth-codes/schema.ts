@@ -62,3 +62,4 @@ export const oauthAuthorizationCodesRelations = relations(oauthAuthorizationCode
 export type OAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
 export type NewOAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferInsert;
 
+
