@@ -1,22 +1,3 @@
-// Valori personali selezionabili
-export const VALUES_OPTIONS = [
-  "famiglia",
-  "carriera",
-  "amicizia",
-  "avventura",
-  "stabilità",
-  "creatività",
-  "spiritualità",
-  "salute",
-  "libertà",
-  "onestà",
-  "lealtà",
-  "ambizione",
-  "empatia",
-  "rispetto",
-  "crescita personale",
-] as const;
-
 // Interessi selezionabili
 export const INTERESTS_OPTIONS = [
   "sport",
@@ -41,7 +22,5 @@ export const INTERESTS_OPTIONS = [
   "meditazione",
 ] as const;
 
-export type Value = (typeof VALUES_OPTIONS)[number];
 export type Interest = (typeof INTERESTS_OPTIONS)[number];
-
 

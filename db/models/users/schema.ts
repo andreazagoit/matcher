@@ -7,7 +7,8 @@ import {
   pgEnum,
 } from "drizzle-orm/pg-core";
 import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
-import { VALUES_OPTIONS, INTERESTS_OPTIONS } from "../constants";
+import { VALUES_OPTIONS } from "../values/data";
+import { INTERESTS_OPTIONS } from "../interests/data";
 
 // Enum PostgreSQL
 export const valueEnum = pgEnum("value_enum", VALUES_OPTIONS);

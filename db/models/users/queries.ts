@@ -1,7 +1,8 @@
-import { db } from "../index";
+import { db } from "../../index";
 import { users } from "./schema";
 import type { User, NewUser } from "./schema";
-import type { Value, Interest } from "../constants";
+import type { Value } from "../values/data";
+import type { Interest } from "../interests/data";
 import { generateUserEmbeddings } from "@/lib/embeddings";
 import {
   createUserSchema,
@@ -170,7 +171,7 @@ export async function findMatches(
   const valuesEmbeddingJson = JSON.stringify(currentUser.valuesEmbedding);
   const interestsEmbeddingJson = JSON.stringify(currentUser.interestsEmbedding);
 
-  const matches = await db.execute<UserMatch>(sql`
+  const matches = await db.execute(sql`
     SELECT 
       id,
       first_name AS "firstName",
@@ -193,6 +194,6 @@ export async function findMatches(
     LIMIT ${limit}
   `);
 
-  return matches.rows as UserMatch[];
+  return matches as unknown as UserMatch[];
 }
 

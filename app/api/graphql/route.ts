@@ -9,24 +9,7 @@ const server = new ApolloServer({
 });
 
 const handler = startServerAndCreateNextHandler<NextRequest>(server, {
-  context: async (req) => ({
-    req,
-    // In produzione, aggiungere qui l'autenticazione
-    // user: await getUser(req),
-  }),
+  context: async (req) => ({ req }),
 });
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{}> }
-) {
-  return handler(request);
-}
-
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{}> }
-) {
-  return handler(request);
-}
-
+export { handler as GET, handler as POST };

@@ -1,4 +1,5 @@
-import { VALUES_OPTIONS, INTERESTS_OPTIONS } from "@/db/constants";
+import { VALUES_OPTIONS } from "@/db/models/values/data";
+import { INTERESTS_OPTIONS } from "@/db/models/interests/data";
 
 // Normalizza caratteri accentati per GraphQL enum
 function normalizeForEnum(str: string): string {

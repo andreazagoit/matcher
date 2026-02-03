@@ -1,5 +1,7 @@
-import type { Value, Interest } from "../constants";
-import { createUser } from "../users";
+import "dotenv/config";
+import type { Value } from "../models/values/data";
+import type { Interest } from "../models/interests/data";
+import { createUser } from "../models/users";
 
 // 25 utenti statici per test
 const seedUsers: {
