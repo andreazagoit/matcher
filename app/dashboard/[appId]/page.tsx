@@ -98,6 +98,7 @@ export default function AppDetailPage() {
     if (activeTab === "users" && users.length === 0 && !loadingUsers) {
       fetchUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const fetchUsers = async () => {
@@ -177,7 +178,7 @@ export default function AppDetailPage() {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
-    
+
     const encoder = new TextEncoder();
     const data = encoder.encode(codeVerifier);
     const digest = await crypto.subtle.digest('SHA-256', data);
@@ -185,15 +186,15 @@ export default function AppDetailPage() {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
-    
+
     return { codeVerifier, codeChallenge };
   };
 
   const testOAuthFlow = async () => {
     if (!app) return;
-    
+
     const testCallbackUri = `${window.location.origin}/dashboard/oauth-test-callback`;
-    
+
     // Check if test callback URI is in redirect URIs
     if (!app.redirectUris?.includes(testCallbackUri)) {
       // Add it automatically
@@ -211,15 +212,15 @@ export default function AppDetailPage() {
         console.error('Failed to add test callback URI:', error);
       }
     }
-    
+
     const { codeVerifier, codeChallenge } = await generatePKCE();
     const state = crypto.randomUUID();
-    
+
     // Store for callback handling
     sessionStorage.setItem('oauth_test_state', state);
     sessionStorage.setItem('oauth_test_code_verifier', codeVerifier);
     sessionStorage.setItem('oauth_test_client_id', app.clientId);
-    
+
     // Build OAuth URL
     const authUrl = new URL(`${window.location.origin}/oauth/authorize`);
     authUrl.searchParams.set('client_id', app.clientId);
@@ -229,25 +230,25 @@ export default function AppDetailPage() {
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
-    
+
     // Open in new popup window
     const width = 500;
     const height = 700;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
     window.open(
-      authUrl.toString(), 
-      'oauth_test', 
+      authUrl.toString(),
+      'oauth_test',
       `width=${width},height=${height},left=${left},top=${top},popup=yes`
     );
   };
 
   const testApiConnection = async () => {
     if (!app) return;
-    
+
     setTestingApi(true);
     setTestResult(null);
-    
+
     try {
       const response = await fetch("/api/graphql", {
         method: "POST",
@@ -259,9 +260,9 @@ export default function AppDetailPage() {
           query: `query { users { id firstName lastName email } }`,
         }),
       });
-      
+
       const result = await response.json();
-      
+
       if (result.errors) {
         setTestResult({
           success: false,
@@ -344,11 +345,10 @@ export default function AppDetailPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === tab.id
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`px-4 py-3 text-sm font-medium transition-colors relative ${activeTab === tab.id
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             {tab.label}
             {activeTab === tab.id && (
@@ -688,7 +688,7 @@ async function findMatches(userId: string) {
                         {new Date(user.authorizedAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {user.lastActivity 
+                        {user.lastActivity
                           ? new Date(user.lastActivity).toLocaleDateString()
                           : "-"
                         }

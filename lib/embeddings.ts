@@ -1,5 +1,7 @@
 import OpenAI from "openai";
-import type { EmbeddingAxis } from "@/lib/models/tests/types";
+
+/** Assi di embedding supportati */
+export type EmbeddingAxis = "psychological" | "values" | "interests" | "behavioral";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -83,7 +85,7 @@ export async function generateAllUserEmbeddings(
   descriptions: Record<EmbeddingAxis, string>
 ): Promise<UserEmbeddings> {
   const axes: EmbeddingAxis[] = ["psychological", "values", "interests", "behavioral"];
-  
+
   // Filtra assi con descrizioni valide
   const validAxes = axes.filter(
     (axis) => descriptions[axis] && descriptions[axis].trim().length > 0

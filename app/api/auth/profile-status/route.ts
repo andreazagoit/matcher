@@ -5,12 +5,11 @@
  * Check if user has completed their profile/test
  */
 
-import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { hasCompleteProfile } from "@/lib/models/profiles/operations";
 import { getUserById } from "@/lib/models/users/operations";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get("user_id")?.value;

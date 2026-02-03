@@ -41,9 +41,7 @@ export async function POST(request: NextRequest) {
       .values({
         userId,
         testName: TEST_NAME,
-        version: "1.0",
         status: "completed",
-        progress: 100,
         answers,
         completedAt: new Date(),
       })

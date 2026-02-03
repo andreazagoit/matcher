@@ -39,11 +39,11 @@ export async function handleRefreshToken(
 ): Promise<TokenResponse> {
   // 1. Validate client
   const client = await validateClientCredentials(request.clientId, request.clientSecret);
-  
+
   // For public clients, just verify client exists
   if (!client) {
     const publicClient = await getClientByClientId(request.clientId);
-    if (!publicClient || publicClient.clientType !== "public") {
+    if (!publicClient || !publicClient.isActive) {
       throw OAuthErrors.invalidClient("Invalid client credentials");
     }
   }
@@ -70,15 +70,21 @@ export async function handleRefreshToken(
 
   // 5. Validate scope (must be subset of original scope)
   let scope = storedToken.scope;
-  
+
   if (request.scope) {
     const originalScopes = storedToken.scope.split(" ");
-    const { valid, scopes, invalid } = validateScopes(request.scope, originalScopes);
-    
+    const { valid, scopes, invalid } = validateScopes(request.scope);
+
     if (!valid) {
-      throw OAuthErrors.invalidScope(`Invalid scopes: ${invalid.join(", ")}. Must be subset of original scope.`);
+      throw OAuthErrors.invalidScope(`Invalid scopes: ${invalid.join(", ")}.`);
     }
-    
+
+    // Check that requested scopes are a subset of original scopes
+    const notInOriginal = scopes.filter(s => !originalScopes.includes(s));
+    if (notInOriginal.length > 0) {
+      throw OAuthErrors.invalidScope(`Scopes ${notInOriginal.join(", ")} not in original grant.`);
+    }
+
     scope = scopes.join(" ");
   }
 

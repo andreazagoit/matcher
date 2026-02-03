@@ -135,8 +135,8 @@ export async function updateApp(
  * Delete app
  */
 export async function deleteApp(id: string): Promise<boolean> {
-  const result = await db.delete(oauthApps).where(eq(oauthApps.id, id));
-  return (result.rowCount ?? 0) > 0;
+  const result = await db.delete(oauthApps).where(eq(oauthApps.id, id)).returning();
+  return result.length > 0;
 }
 
 /**
@@ -151,10 +151,10 @@ export async function rotateSecretKey(id: string): Promise<{ app: OAuthApp; secr
 
   const [updated] = await db
     .update(oauthApps)
-    .set({ 
+    .set({
       secretKey: newSecretKey,
-      secretKeyHash: newSecretKeyHash, 
-      updatedAt: new Date() 
+      secretKeyHash: newSecretKeyHash,
+      updatedAt: new Date()
     })
     .where(eq(oauthApps.id, id))
     .returning();
@@ -214,6 +214,7 @@ export const getAllClients = getAllApps;
 
 export async function validateClientCredentials(
   clientId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _clientSecret?: string
 ): Promise<OAuthApp | null> {
   // For OAuth authorization_code, we only validate client_id

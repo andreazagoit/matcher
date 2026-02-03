@@ -4,7 +4,6 @@
  */
 
 import {
-  validateClientCredentials,
   clientSupportsGrant,
   isRedirectUriAllowed,
   getClientByClientId,
@@ -78,7 +77,7 @@ export async function validateAuthorizeRequest(
   // 5. Validate scope (dynamic - validated against all supported scopes)
   const requestedScope = request.scope || "openid profile";
   const { valid, scopes, invalid } = validateScopes(requestedScope);
-  
+
   if (!valid) {
     throw OAuthErrors.invalidScope(`Invalid scopes: ${invalid.join(", ")}`);
   }

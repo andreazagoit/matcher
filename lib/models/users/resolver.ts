@@ -9,7 +9,7 @@ import {
   findMatches,
   getProfileByUserId,
 } from "@/lib/models/profiles/operations";
-import { hasScope, requireAuth } from "@/lib/auth/middleware";
+import { hasScope } from "@/lib/auth/middleware";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
 import type { User } from "./schema";
 import type { GraphQLContext } from "@/app/api/graphql/route";
@@ -57,12 +57,12 @@ export const userResolvers = {
       if (!context.auth.isAuthenticated) {
         throw new AuthError("Authentication required");
       }
-      
+
       // M2M has full access
       if (!context.auth.fullAccess && !hasScope(context.auth, "read:profile")) {
         throw new AuthError("Insufficient scope. Required: read:profile", "FORBIDDEN");
       }
-      
+
       return await getAllUsers();
     },
 
@@ -74,16 +74,16 @@ export const userResolvers = {
       if (!context.auth.isAuthenticated) {
         return null;
       }
-      
+
       // M2M doesn't have a user context
       if (context.auth.authType === "api_key") {
         return null;
       }
-      
+
       if (!context.auth.userId) {
         return null;
       }
-      
+
       return context.auth.user || await getUserById(context.auth.userId);
     },
 
@@ -99,31 +99,31 @@ export const userResolvers = {
       if (!context.auth.isAuthenticated) {
         throw new AuthError("Authentication required");
       }
-      
+
       // Check scope (M2M bypasses this via fullAccess)
       if (!hasScope(context.auth, "read:matches")) {
         throw new AuthError("Insufficient scope. Required: read:matches", "FORBIDDEN");
       }
-      
+
       // Determine target user
       let targetUserId = userId;
-      
+
       // If no userId provided and it's an OAuth user, use their ID
       if (!targetUserId && context.auth.authType === "oauth") {
         targetUserId = context.auth.userId;
       }
-      
+
       if (!targetUserId) {
         throw new Error("User ID required. Provide userId parameter or authenticate as a user.");
       }
-      
+
       const matches = await findMatches(targetUserId, {
         limit: options?.limit ?? 10,
         gender: options?.gender,
         minAge: options?.minAge,
         maxAge: options?.maxAge,
       });
-      
+
       // Return only users
       return matches.map((match) => match.user);
     },
@@ -142,11 +142,11 @@ export const userResolvers = {
       if (!context.auth.isAuthenticated) {
         throw new AuthError("Authentication required");
       }
-      
+
       if (!hasScope(context.auth, "write:profile")) {
         throw new AuthError("Insufficient scope. Required: write:profile", "FORBIDDEN");
       }
-      
+
       return await createUser(input);
     },
 
@@ -162,16 +162,16 @@ export const userResolvers = {
       if (!context.auth.isAuthenticated) {
         throw new AuthError("Authentication required");
       }
-      
+
       if (!hasScope(context.auth, "write:profile")) {
         throw new AuthError("Insufficient scope. Required: write:profile", "FORBIDDEN");
       }
-      
+
       // OAuth users can only update their own profile
       if (context.auth.authType === "oauth" && context.auth.userId !== id) {
         throw new AuthError("You can only update your own profile", "FORBIDDEN");
       }
-      
+
       return await updateUser(id, input);
     },
 
@@ -187,12 +187,12 @@ export const userResolvers = {
       if (!context.auth.isAuthenticated) {
         throw new AuthError("Authentication required");
       }
-      
+
       // Only M2M can delete users
       if (!context.auth.fullAccess) {
         throw new AuthError("This operation requires M2M API key access", "FORBIDDEN");
       }
-      
+
       return await deleteUser(id);
     },
   },

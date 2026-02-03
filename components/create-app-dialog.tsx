@@ -71,13 +71,13 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
       }
 
       const data = await res.json();
-      
+
       // Store secret key temporarily to show on the app page
       sessionStorage.setItem(`new_secret_${data.app.id}`, data.credentials.secretKey);
-      
+
       onCreated?.();
       handleOpenChange(false);
-      
+
       // Navigate directly to the app page
       router.push(`/dashboard/${data.app.id}`);
     } catch (err) {
@@ -92,7 +92,7 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
         <DialogHeader>
           <DialogTitle>Create New App</DialogTitle>
           <DialogDescription>
-            You'll get credentials for both OAuth and M2M access.
+            You&apos;ll get credentials for both OAuth and M2M access.
           </DialogDescription>
         </DialogHeader>
 

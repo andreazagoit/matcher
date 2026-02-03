@@ -4,7 +4,7 @@
 
 import crypto from "crypto";
 import { db } from "@/lib/db/drizzle";
-import { eq, and, isNull, gt } from "drizzle-orm";
+import { eq, and, isNull, gt, lt } from "drizzle-orm";
 import { oauthAuthorizationCodes, type OAuthAuthorizationCode } from "./schema";
 import { OAUTH_CONFIG } from "@/lib/oauth/config";
 
@@ -78,11 +78,9 @@ export async function markCodeAsUsed(code: string): Promise<void> {
 export async function cleanupExpiredCodes(): Promise<number> {
   const result = await db
     .delete(oauthAuthorizationCodes)
-    .where(
-      // Delete codes that are expired OR used more than 1 hour ago
-      eq(oauthAuthorizationCodes.expiresAt, new Date(0)) // placeholder, fix below
-    );
-  return result.rowCount ?? 0;
+    .where(lt(oauthAuthorizationCodes.expiresAt, new Date()))
+    .returning();
+  return result.length;
 }
 
 

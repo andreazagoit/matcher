@@ -7,7 +7,6 @@ import {
   index,
   pgEnum,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 
 /**
  * Schema Utenti - Dati anagrafici base
@@ -31,7 +30,7 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     // ==========================================
     // DATI ANAGRAFICI
     // ==========================================

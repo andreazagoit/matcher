@@ -74,7 +74,7 @@ function AuthorizeContent() {
             setStep(data.hasProfile ? "consent" : "questionnaire");
           }
         }
-      } catch (e) {
+      } catch {
         // Not authenticated, continue with login
       }
     }
@@ -108,7 +108,7 @@ function AuthorizeContent() {
         const clientData = await res.json();
         setClient(clientData);
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError("Failed to validate request");
         setLoading(false);
       }
@@ -297,13 +297,12 @@ function AuthorizeContent() {
           {["auth", "questionnaire", "consent"].map((s, i) => (
             <div key={s} className="flex items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  step === s
-                    ? "bg-primary text-primary-foreground"
-                    : i < ["auth", "questionnaire", "consent"].indexOf(step)
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${step === s
+                  ? "bg-primary text-primary-foreground"
+                  : i < ["auth", "questionnaire", "consent"].indexOf(step)
                     ? "bg-primary/30 text-primary"
                     : "bg-muted text-muted-foreground"
-                }`}
+                  }`}
               >
                 {i < ["auth", "questionnaire", "consent"].indexOf(step) ? (
                   <CheckCircle2Icon className="w-4 h-4" />
@@ -313,11 +312,10 @@ function AuthorizeContent() {
               </div>
               {i < 2 && (
                 <div
-                  className={`w-12 h-0.5 mx-1 ${
-                    i < ["auth", "questionnaire", "consent"].indexOf(step)
-                      ? "bg-primary/50"
-                      : "bg-muted"
-                  }`}
+                  className={`w-12 h-0.5 mx-1 ${i < ["auth", "questionnaire", "consent"].indexOf(step)
+                    ? "bg-primary/50"
+                    : "bg-muted"
+                    }`}
                 />
               )}
             </div>

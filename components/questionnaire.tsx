@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { QUESTIONS, SECTIONS, type Section, type Question, TOTAL_QUESTIONS } from "@/lib/models/tests/questions";
+import { QUESTIONS, SECTIONS, type Section, TOTAL_QUESTIONS } from "@/lib/models/tests/questions";
 import { ChevronLeftIcon, ChevronRightIcon, CheckCircle2Icon } from "lucide-react";
 
 interface QuestionnaireProps {
@@ -150,17 +150,15 @@ export function Questionnaire({ onComplete, onSkip }: QuestionnaireProps) {
                   <button
                     key={index}
                     onClick={() => handleAnswer(option)}
-                    className={`w-full text-left p-4 rounded-lg border transition-all ${
-                      isSelected
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-accent"
-                    }`}
+                    className={`w-full text-left p-4 rounded-lg border transition-all ${isSelected
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-accent"
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? "border-primary bg-primary" : "border-muted-foreground"
-                        }`}
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground"
+                          }`}
                       >
                         {isSelected && <CheckCircle2Icon className="w-3 h-3 text-primary-foreground" />}
                       </div>

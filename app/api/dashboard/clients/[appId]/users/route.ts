@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db/drizzle";
-import { eq, and, isNotNull, desc } from "drizzle-orm";
+import { eq, and, isNotNull, desc, inArray } from "drizzle-orm";
 import { getAppById } from "@/lib/models/oauth-clients/operations";
-import { oauthAccessTokens, oauthRefreshTokens } from "@/lib/db/schemas";
+import { oauthAccessTokens } from "@/lib/db/schemas";
 import { users } from "@/lib/models/users/schema";
 
 interface RouteContext {
@@ -54,9 +54,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         email: users.email,
       })
       .from(users)
-      .where(
-        users.id.in ? users.id.in(userIds) : eq(users.id, userIds[0])
-      );
+      .where(inArray(users.id, userIds));
 
     // Combine token data with user data
     const authorizedUsers = authorizedTokens

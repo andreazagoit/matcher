@@ -7,7 +7,7 @@
 
 export type Section = "psychological" | "values" | "interests" | "behavioral";
 
-export type Question = 
+export type Question =
   | { id: string; type: "closed"; text: string; options: string[] }
   | { id: string; type: "open"; text: string; placeholder?: string };
 

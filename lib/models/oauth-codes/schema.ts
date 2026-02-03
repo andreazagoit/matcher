@@ -7,7 +7,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
-import { oauthClients } from "@/lib/models/oauth-clients/schema";
 
 /**
  * OAuth 2.0 Authorization Codes
@@ -23,24 +22,24 @@ export const oauthAuthorizationCodes = pgTable(
 
     // The authorization code
     code: text("code").unique().notNull(),
-    
+
     // References
     clientId: text("client_id").notNull(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    
+
     // Request details
     redirectUri: text("redirect_uri").notNull(),
     scope: text("scope").notNull(),
     state: text("state"),
-    
+
     // PKCE (RFC 7636)
     codeChallenge: text("code_challenge"),
     codeChallengeMethod: text("code_challenge_method"), // 'S256' | 'plain'
-    
+
     // Lifecycle
     expiresAt: timestamp("expires_at").notNull(),
     usedAt: timestamp("used_at"), // NULL = not used yet
-    
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

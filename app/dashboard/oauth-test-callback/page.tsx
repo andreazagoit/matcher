@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,50 +14,11 @@ interface TokenResponse {
   scope?: string;
 }
 
-export default function OAuthTestCallbackPage() {
+function OAuthCallbackContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<TokenResponse | null>(null);
-
-  useEffect(() => {
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
-    const errorParam = searchParams.get("error");
-    const errorDescription = searchParams.get("error_description");
-
-    if (errorParam) {
-      setStatus("error");
-      setError(errorDescription || errorParam);
-      return;
-    }
-
-    if (!code) {
-      setStatus("error");
-      setError("No authorization code received");
-      return;
-    }
-
-    // Verify state
-    const storedState = sessionStorage.getItem("oauth_test_state");
-    if (state !== storedState) {
-      setStatus("error");
-      setError("State mismatch - possible CSRF attack");
-      return;
-    }
-
-    const codeVerifier = sessionStorage.getItem("oauth_test_code_verifier");
-    const clientId = sessionStorage.getItem("oauth_test_client_id");
-
-    if (!codeVerifier || !clientId) {
-      setStatus("error");
-      setError("Missing PKCE code verifier or client ID");
-      return;
-    }
-
-    // Exchange code for tokens
-    exchangeCodeForTokens(code, codeVerifier, clientId);
-  }, [searchParams]);
 
   const exchangeCodeForTokens = async (code: string, codeVerifier: string, clientId: string) => {
     try {
@@ -96,108 +57,171 @@ export default function OAuthTestCallbackPage() {
     }
   };
 
+  const processCallback = () => {
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+    const errorParam = searchParams.get("error");
+    const errorDescription = searchParams.get("error_description");
+
+    if (errorParam) {
+      setStatus("error");
+      setError(errorDescription || errorParam);
+      return;
+    }
+
+    if (!code) {
+      setStatus("error");
+      setError("No authorization code received");
+      return;
+    }
+
+    // Verify state
+    const storedState = sessionStorage.getItem("oauth_test_state");
+    if (state !== storedState) {
+      setStatus("error");
+      setError("State mismatch - possible CSRF attack");
+      return;
+    }
+
+    const codeVerifier = sessionStorage.getItem("oauth_test_code_verifier");
+    const clientId = sessionStorage.getItem("oauth_test_client_id");
+
+    if (!codeVerifier || !clientId) {
+      setStatus("error");
+      setError("Missing PKCE code verifier or client ID");
+      return;
+    }
+
+    // Exchange code for tokens
+    exchangeCodeForTokens(code, codeVerifier, clientId);
+  };
+
+  useEffect(() => {
+    processCallback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          {status === "loading" && (
-            <>
-              <Loader2Icon className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-              <CardTitle>Exchanging Code for Tokens...</CardTitle>
-              <CardDescription>Please wait while we complete the OAuth flow</CardDescription>
-            </>
-          )}
-          {status === "success" && (
-            <>
-              <CheckCircleIcon className="h-12 w-12 mx-auto mb-4 text-green-500" />
-              <CardTitle className="text-green-500">OAuth Test Successful!</CardTitle>
-              <CardDescription>The OAuth flow completed successfully</CardDescription>
-            </>
-          )}
-          {status === "error" && (
-            <>
-              <XCircleIcon className="h-12 w-12 mx-auto mb-4 text-red-500" />
-              <CardTitle className="text-red-500">OAuth Test Failed</CardTitle>
-              <CardDescription>{error}</CardDescription>
-            </>
-          )}
-        </CardHeader>
-        
-        {status === "success" && tokens && (
-          <CardContent className="space-y-4">
+    <Card className="w-full max-w-lg">
+      <CardHeader className="text-center">
+        {status === "loading" && (
+          <>
+            <Loader2Icon className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+            <CardTitle>Exchanging Code for Tokens...</CardTitle>
+            <CardDescription>Please wait while we complete the OAuth flow</CardDescription>
+          </>
+        )}
+        {status === "success" && (
+          <>
+            <CheckCircleIcon className="h-12 w-12 mx-auto mb-4 text-green-500" />
+            <CardTitle className="text-green-500">OAuth Test Successful!</CardTitle>
+            <CardDescription>The OAuth flow completed successfully</CardDescription>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <XCircleIcon className="h-12 w-12 mx-auto mb-4 text-red-500" />
+            <CardTitle className="text-red-500">OAuth Test Failed</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </>
+        )}
+      </CardHeader>
+
+      {status === "success" && tokens && (
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Access Token</label>
+            <div className="relative">
+              <pre className="bg-muted p-3 rounded-lg text-xs font-mono overflow-x-auto pr-10">
+                {tokens.access_token}
+              </pre>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-1 right-1 h-8 w-8 p-0"
+                onClick={() => copyToClipboard(tokens.access_token)}
+              >
+                <CopyIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {tokens.refresh_token && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Access Token</label>
+              <label className="text-sm font-medium text-foreground">Refresh Token</label>
               <div className="relative">
                 <pre className="bg-muted p-3 rounded-lg text-xs font-mono overflow-x-auto pr-10">
-                  {tokens.access_token}
+                  {tokens.refresh_token}
                 </pre>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="absolute top-1 right-1 h-8 w-8 p-0"
-                  onClick={() => copyToClipboard(tokens.access_token)}
+                  onClick={() => copyToClipboard(tokens.refresh_token!)}
                 >
                   <CopyIcon className="h-4 w-4" />
                 </Button>
               </div>
             </div>
+          )}
 
-            {tokens.refresh_token && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Refresh Token</label>
-                <div className="relative">
-                  <pre className="bg-muted p-3 rounded-lg text-xs font-mono overflow-x-auto pr-10">
-                    {tokens.refresh_token}
-                  </pre>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-1 right-1 h-8 w-8 p-0"
-                    onClick={() => copyToClipboard(tokens.refresh_token!)}
-                  >
-                    <CopyIcon className="h-4 w-4" />
-                  </Button>
-                </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Token Type:</span>
+              <span className="ml-2 text-foreground">{tokens.token_type}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Expires In:</span>
+              <span className="ml-2 text-foreground">{tokens.expires_in}s</span>
+            </div>
+            {tokens.scope && (
+              <div className="col-span-2">
+                <span className="text-muted-foreground">Scopes:</span>
+                <span className="ml-2 text-foreground">{tokens.scope}</span>
               </div>
             )}
+          </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Token Type:</span>
-                <span className="ml-2 text-foreground">{tokens.token_type}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Expires In:</span>
-                <span className="ml-2 text-foreground">{tokens.expires_in}s</span>
-              </div>
-              {tokens.scope && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Scopes:</span>
-                  <span className="ml-2 text-foreground">{tokens.scope}</span>
-                </div>
-              )}
-            </div>
+          <Button className="w-full mt-4" onClick={() => window.close()}>
+            Close Window
+          </Button>
+        </CardContent>
+      )}
 
-            <Button className="w-full mt-4" onClick={() => window.close()}>
-              Close Window
-            </Button>
-          </CardContent>
-        )}
-
-        {status === "error" && (
-          <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => window.close()}>
-              Close Window
-            </Button>
-          </CardContent>
-        )}
-      </Card>
-    </div>
+      {status === "error" && (
+        <CardContent>
+          <Button variant="outline" className="w-full" onClick={() => window.close()}>
+            Close Window
+          </Button>
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
+function LoadingFallback() {
+  return (
+    <Card className="w-full max-w-lg">
+      <CardHeader className="text-center">
+        <Loader2Icon className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+        <CardTitle>Loading...</CardTitle>
+        <CardDescription>Initializing OAuth callback</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+export default function OAuthTestCallbackPage() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Suspense fallback={<LoadingFallback />}>
+        <OAuthCallbackContent />
+      </Suspense>
+    </div>
+  );
+}
 

@@ -8,7 +8,7 @@
 
 import type { ProfileAxis } from "@/lib/models/profiles/schema";
 import type { TestAnswersJson } from "./schema";
-import { QUESTIONS, SECTIONS, type Section, type Question } from "./questions";
+import { QUESTIONS, type Section } from "./questions";
 
 // ============================================
 // OUTPUT
