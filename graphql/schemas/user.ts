@@ -40,8 +40,8 @@ export const userTypeDefs = `#graphql
     lastName: String!
     email: String!
     birthDate: String!
-    values: [Value!]
-    interests: [Interest!]
+    values: [Value!]!
+    interests: [Interest!]!
   }
 
   input UpdateUserInput {

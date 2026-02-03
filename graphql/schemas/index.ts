@@ -5,6 +5,7 @@ const baseTypeDefs = `#graphql
     user(id: ID!): User
     users: [User!]!
     me: User
+    findMatches(userId: ID!, limit: Int = 10): [User!]!
   }
 
   type Mutation {

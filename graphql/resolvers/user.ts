@@ -1,80 +1,54 @@
-import { GraphQLError } from "graphql";
-import { eq } from "drizzle-orm";
-import { db, users } from "@/db";
-import type { User, NewUser } from "@/db/schemas";
+import {
+  createUser,
+  updateUser,
+  deleteUser,
+  getUserById,
+  getAllUsers,
+  findMatches,
+} from "@/db";
+import type { CreateUserInput, UpdateUserInput } from "@/db";
 
 export const userResolvers = {
   Query: {
     user: async (_: unknown, { id }: { id: string }) => {
-      const result = await db.query.users.findFirst({
-        where: eq(users.id, id),
-      });
-      return result || null;
+      return await getUserById(id);
     },
 
     users: async () => {
-      return await db.query.users.findMany();
+      return await getAllUsers();
     },
 
     me: async (_: unknown, __: unknown, context: { userId?: string }) => {
       const userId = context.userId;
       if (!userId) return null;
+      return await getUserById(userId);
+    },
 
-      return await db.query.users.findFirst({
-        where: eq(users.id, userId),
-      });
+    findMatches: async (
+      _: unknown,
+      { userId, limit = 10 }: { userId: string; limit?: number }
+    ) => {
+      return await findMatches(userId, { limit });
     },
   },
 
   Mutation: {
     createUser: async (
       _: unknown,
-      {
-        input,
-      }: {
-        input: Omit<NewUser, "id" | "createdAt" | "updatedAt">;
-      }
+      { input }: { input: CreateUserInput }
     ) => {
-      const [newUser] = await db
-        .insert(users)
-        .values({ ...input })
-        .returning();
-
-      return newUser;
+      return await createUser(input);
     },
 
     updateUser: async (
       _: unknown,
-      {
-        id,
-        input,
-      }: {
-        id: string;
-        input: Partial<Omit<User, "id" | "createdAt" | "updatedAt">>;
-      }
+      { id, input }: { id: string; input: UpdateUserInput }
     ) => {
-      const [updatedUser] = await db
-        .update(users)
-        .set({ ...input, updatedAt: new Date() })
-        .where(eq(users.id, id))
-        .returning();
-
-      if (!updatedUser) {
-        throw new GraphQLError("User not found", {
-          extensions: { code: "NOT_FOUND" },
-        });
-      }
-
-      return updatedUser;
+      return await updateUser(id, input);
     },
 
     deleteUser: async (_: unknown, { id }: { id: string }) => {
-      const [deleted] = await db
-        .delete(users)
-        .where(eq(users.id, id))
-        .returning();
-
-      return !!deleted;
+      return await deleteUser(id);
     },
   },
 };
