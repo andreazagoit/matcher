@@ -1,38 +1,64 @@
-import { VALUES_OPTIONS } from "@/lib/models/values/operations";
-import { INTERESTS_OPTIONS } from "@/lib/models/interests/operations";
-
-// Genera enum GraphQL dai valori (già in formato standard)
-const valuesEnum = VALUES_OPTIONS.join("\n    ");
-const interestsEnum = INTERESTS_OPTIONS.join("\n    ");
+/**
+ * GraphQL Schema per Users
+ * 
+ * NUOVA ARCHITETTURA:
+ * - User: solo dati anagrafici base
+ * - Profile: profilo con traits + embeddings (per matching)
+ * - Test: sessioni e risposte ai questionari
+ * 
+ * Values/Interests ora fanno parte del sistema test, non più dell'utente direttamente.
+ */
 
 export const userTypeDefs = `#graphql
-  enum Value {
-    ${valuesEnum}
-  }
-
-  enum Interest {
-    ${interestsEnum}
-  }
-
+  """
+  Utente base - dati anagrafici
+  """
   type User {
     id: ID!
     firstName: String!
     lastName: String!
     email: String!
     birthDate: String!
-    values: [Value!]!
-    interests: [Interest!]!
+    gender: Gender
     createdAt: String!
     updatedAt: String!
+    
+    # Relazione con profilo (opzionale, esiste dopo test completato)
+    profile: UserProfile
   }
+
+  """
+  Profilo utente con traits e dati per matching
+  """
+  type UserProfile {
+    id: ID!
+    userId: ID!
+    
+    # Traits aggregati per asse
+    psychologicalTraits: JSON
+    valuesTraits: JSON
+    interestsTraits: JSON
+    behavioralTraits: JSON
+    
+    # Descrizioni testuali generate
+    psychologicalDescription: String
+    valuesDescription: String
+    interestsDescription: String
+    behavioralDescription: String
+    
+    # Timestamps
+    createdAt: String!
+    updatedAt: String!
+    embeddingsComputedAt: String
+  }
+
 
   input CreateUserInput {
     firstName: String!
     lastName: String!
     email: String!
     birthDate: String!
-    values: [Value!]!
-    interests: [Value!]!
+    gender: Gender
   }
 
   input UpdateUserInput {
@@ -40,15 +66,29 @@ export const userTypeDefs = `#graphql
     lastName: String
     email: String
     birthDate: String
-    values: [Value!]
-    interests: [Interest!]
+    gender: Gender
+  }
+
+  enum Gender {
+    man
+    woman
+    non_binary
+  }
+
+  input MatchOptions {
+    limit: Int = 10
+    gender: [Gender!]
+    minAge: Int
+    maxAge: Int
   }
 
   extend type Query {
     user(id: ID!): User
     users: [User!]!
     me: User
-    findMatches(userId: ID!, limit: Int = 10): [User!]!
+    
+    # Matching (richiede profilo completato)
+    findMatches(userId: ID!, options: MatchOptions): [User!]!
   }
 
   extend type Mutation {

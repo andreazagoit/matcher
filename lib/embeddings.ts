@@ -1,36 +1,129 @@
 import OpenAI from "openai";
+import type { EmbeddingAxis } from "@/lib/models/tests/types";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
 /**
- * Genera embedding per un array di valori/interessi
+ * Genera embedding per un testo descrittivo
+ * 
+ * @param text - Testo semantico (es. "Persona introversa, empatica...")
+ * @returns Vettore embedding (1536 dimensioni)
  */
-export async function generateEmbedding(
-  items: string[]
-): Promise<number[]> {
+export async function generateEmbedding(text: string): Promise<number[]> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is required");
   }
 
-  if (items.length === 0) {
-    throw new Error("Cannot generate embedding for empty array");
+  if (!text || text.trim().length === 0) {
+    throw new Error("Cannot generate embedding for empty text");
   }
-
-  // Crea un testo descrittivo dai valori/interessi
-  const text = items.join(", ");
 
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small", // 1536 dimensions
-    input: text,
+    input: text.trim(),
   });
 
   return response.data[0].embedding;
 }
 
 /**
- * Genera embeddings per values e interests
+ * Genera embedding batch per più testi (più efficiente)
+ */
+export async function generateEmbeddingsBatch(
+  texts: string[]
+): Promise<number[][]> {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is required");
+  }
+
+  const validTexts = texts.filter((t) => t && t.trim().length > 0);
+  if (validTexts.length === 0) {
+    throw new Error("No valid texts to embed");
+  }
+
+  const response = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: validTexts.map((t) => t.trim()),
+  });
+
+  return response.data.map((d) => d.embedding);
+}
+
+// ============================================
+// EMBEDDINGS PER ASSI (dal sistema test)
+// ============================================
+
+/** Risultato embeddings per tutti gli assi */
+export interface UserEmbeddings {
+  psychological: number[] | null;
+  values: number[] | null;
+  interests: number[] | null;
+  behavioral: number[] | null;
+}
+
+/**
+ * Genera embeddings per tutti gli assi dalle descrizioni testuali
+ * 
+ * @param descriptions - Descrizioni testuali per ogni asse (output di transform.ts)
+ * @returns Embeddings per ogni asse (null se descrizione mancante)
+ * 
+ * @example
+ * const descriptions = {
+ *   psychological: "Persona introversa, empatica, riflessiva...",
+ *   values: "Priorità: famiglia, crescita personale...",
+ *   interests: "Passioni: trekking, lettura, cinema...",
+ *   behavioral: "Risponde lentamente, preferisce conversazioni profonde..."
+ * };
+ * 
+ * const embeddings = await generateAllUserEmbeddings(descriptions);
+ */
+export async function generateAllUserEmbeddings(
+  descriptions: Record<EmbeddingAxis, string>
+): Promise<UserEmbeddings> {
+  const axes: EmbeddingAxis[] = ["psychological", "values", "interests", "behavioral"];
+  
+  // Filtra assi con descrizioni valide
+  const validAxes = axes.filter(
+    (axis) => descriptions[axis] && descriptions[axis].trim().length > 0
+  );
+
+  if (validAxes.length === 0) {
+    return {
+      psychological: null,
+      values: null,
+      interests: null,
+      behavioral: null,
+    };
+  }
+
+  // Genera embeddings in batch (più efficiente)
+  const textsToEmbed = validAxes.map((axis) => descriptions[axis]);
+  const embeddings = await generateEmbeddingsBatch(textsToEmbed);
+
+  // Mappa risultati
+  const result: UserEmbeddings = {
+    psychological: null,
+    values: null,
+    interests: null,
+    behavioral: null,
+  };
+
+  validAxes.forEach((axis, index) => {
+    result[axis] = embeddings[index];
+  });
+
+  return result;
+}
+
+// ============================================
+// LEGACY: Supporto per vecchio sistema
+// ============================================
+
+/**
+ * @deprecated Usa generateAllUserEmbeddings con il nuovo sistema test
+ * Genera embeddings per values e interests (vecchio formato array)
  */
 export async function generateUserEmbeddings(
   values: string[],
@@ -40,9 +133,13 @@ export async function generateUserEmbeddings(
     throw new Error("Values and interests are required");
   }
 
-  const [valuesEmbedding, interestsEmbedding] = await Promise.all([
-    generateEmbedding(values),
-    generateEmbedding(interests),
+  // Converte array in testo descrittivo
+  const valuesText = `Valori importanti: ${values.join(", ")}`;
+  const interestsText = `Interessi: ${interests.join(", ")}`;
+
+  const [valuesEmbedding, interestsEmbedding] = await generateEmbeddingsBatch([
+    valuesText,
+    interestsText,
   ]);
 
   return { valuesEmbedding, interestsEmbedding };

@@ -11,23 +11,54 @@ export const USER_FRAGMENT = gql`
     lastName
     email
     birthDate
-    values
-    interests
+    gender
     createdAt
     updatedAt
   }
 `;
 
-export const USER_MATCH_FRAGMENT = gql`
-  fragment UserMatchFields on User {
+export const PROFILE_FRAGMENT = gql`
+  fragment ProfileFields on UserProfile {
     id
-    firstName
-    lastName
-    email
-    birthDate
-    values
-    interests
+    userId
+    psychologicalTraits
+    valuesTraits
+    interestsTraits
+    behavioralTraits
+    psychologicalDescription
+    valuesDescription
+    interestsDescription
+    behavioralDescription
+    createdAt
+    updatedAt
+    embeddingsComputedAt
+  }
+`;
+
+export const USER_WITH_PROFILE_FRAGMENT = gql`
+  ${USER_FRAGMENT}
+  ${PROFILE_FRAGMENT}
+  fragment UserWithProfile on User {
+    ...UserFields
+    profile {
+      ...ProfileFields
+    }
+  }
+`;
+
+export const USER_MATCH_FRAGMENT = gql`
+  ${USER_FRAGMENT}
+  fragment UserMatchFields on UserMatch {
+    user {
+      ...UserFields
+    }
     similarity
+    breakdown {
+      psychological
+      values
+      interests
+      behavioral
+    }
   }
 `;
 
@@ -40,6 +71,15 @@ export const GET_USER = gql`
   query GetUser($id: ID!) {
     user(id: $id) {
       ...UserFields
+    }
+  }
+`;
+
+export const GET_USER_WITH_PROFILE = gql`
+  ${USER_WITH_PROFILE_FRAGMENT}
+  query GetUserWithProfile($id: ID!) {
+    user(id: $id) {
+      ...UserWithProfile
     }
   }
 `;
@@ -63,10 +103,10 @@ export const GET_ME = gql`
 `;
 
 export const FIND_MATCHES = gql`
-  ${USER_MATCH_FRAGMENT}
-  query FindMatches($userId: ID!, $limit: Int) {
-    findMatches(userId: $userId, limit: $limit) {
-      ...UserMatchFields
+  ${USER_FRAGMENT}
+  query FindMatches($userId: ID!, $options: MatchOptions) {
+    findMatches(userId: $userId, options: $options) {
+      ...UserFields
     }
   }
 `;

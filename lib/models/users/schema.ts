@@ -4,46 +4,64 @@ import {
   text,
   date,
   timestamp,
-  pgEnum,
   index,
+  pgEnum,
 } from "drizzle-orm/pg-core";
-import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
-import { VALUES_OPTIONS } from "@/lib/models/values/operations";
-import { INTERESTS_OPTIONS } from "@/lib/models/interests/operations";
+import { relations } from "drizzle-orm";
 
-// Enum PostgreSQL
-export const valueEnum = pgEnum("value_enum", VALUES_OPTIONS);
-export const interestEnum = pgEnum("interest_enum", INTERESTS_OPTIONS);
+/**
+ * Schema Utenti - Dati anagrafici base
+ * 
+ * ARCHITETTURA NORMALIZZATA:
+ * - users: dati base (questa tabella)
+ * - test_sessions: sessioni di test
+ * - test_answers: risposte ai test
+ * - user_profiles: profilo calcolato + embeddings (per matching)
+ * 
+ * Vantaggi:
+ * - Tabella users snella
+ * - Storico test completo
+ * - Versioning questionari
+ * - Confronto risposte raw tra utenti
+ */
+
+export const genderEnum = pgEnum("gender", ["man", "woman", "non_binary"]);
 
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    
+    // ==========================================
+    // DATI ANAGRAFICI
+    // ==========================================
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     email: text("email").notNull().unique(),
     birthDate: date("birth_date").notNull(),
-    // Obbligatori, senza default
-    values: valueEnum("values").array().notNull(),
-    interests: interestEnum("interests").array().notNull(),
-    // Embeddings obbligatori (1536 = OpenAI embedding size)
-    valuesEmbedding: vector("values_embedding", { dimensions: 1536 }).notNull(),
-    interestsEmbedding: vector("interests_embedding", { dimensions: 1536 }).notNull(),
+    gender: genderEnum("gender"),
+
+    // ==========================================
+    // TIMESTAMPS
+    // ==========================================
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    // Indici HNSW per vector similarity search
-    index("values_embedding_idx").using(
-      "hnsw",
-      table.valuesEmbedding.op("vector_cosine_ops")
-    ),
-    index("interests_embedding_idx").using(
-      "hnsw",
-      table.interestsEmbedding.op("vector_cosine_ops")
-    ),
+    index("users_email_idx").on(table.email),
   ]
 );
+
+// ==========================================
+// RELATIONS (definite qui, riferimenti lazy)
+// ==========================================
+
+// Le relazioni con test_sessions e user_profiles sono definite
+// nei rispettivi file schema per evitare circular imports
+
+// ==========================================
+// TIPI INFERITI
+// ==========================================
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

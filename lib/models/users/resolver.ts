@@ -4,9 +4,20 @@ import {
   deleteUser,
   getUserById,
   getAllUsers,
-  findMatches,
 } from "./operations";
+import {
+  findMatches,
+  getProfileByUserId,
+} from "@/lib/models/profiles/operations";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
+import type { User } from "./schema";
+
+interface MatchOptions {
+  limit?: number;
+  gender?: ("man" | "woman" | "non_binary")[];
+  minAge?: number;
+  maxAge?: number;
+}
 
 export const userResolvers = {
   Query: {
@@ -26,9 +37,17 @@ export const userResolvers = {
 
     findMatches: async (
       _: unknown,
-      { userId, limit = 10 }: { userId: string; limit?: number }
+      { userId, options }: { userId: string; options?: MatchOptions }
     ) => {
-      return await findMatches(userId, { limit });
+      const matches = await findMatches(userId, {
+        limit: options?.limit ?? 10,
+        gender: options?.gender,
+        minAge: options?.minAge,
+        maxAge: options?.maxAge,
+      });
+      
+      // Ritorna solo gli utenti
+      return matches.map((match) => match.user);
     },
   },
 
@@ -49,6 +68,13 @@ export const userResolvers = {
 
     deleteUser: async (_: unknown, { id }: { id: string }) => {
       return await deleteUser(id);
+    },
+  },
+
+  // Field resolvers
+  User: {
+    profile: async (user: User) => {
+      return await getProfileByUserId(user.id);
     },
   },
 };

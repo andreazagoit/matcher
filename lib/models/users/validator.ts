@@ -1,45 +1,27 @@
 import { z } from "zod";
-import { VALUES_OPTIONS } from "@/lib/models/values/operations";
-import { INTERESTS_OPTIONS } from "@/lib/models/interests/operations";
 
-// Schema per Value enum
-export const valueSchema = z.enum(VALUES_OPTIONS as unknown as [string, ...string[]]);
+/**
+ * Validators per Users
+ * 
+ * NUOVA ARCHITETTURA:
+ * - Users: solo dati anagrafici base
+ * - Values/Interests: ora fanno parte del sistema test (tests/types.ts)
+ */
 
-// Schema per Interest enum
-export const interestSchema = z.enum(INTERESTS_OPTIONS as unknown as [string, ...string[]]);
-
-// Schema per creare un utente
+// Schema per creare un utente (solo dati base)
 export const createUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.email(),
-  birthDate: z.string(),
-  values: z
-    .array(valueSchema)
-    .min(1, "At least one value is required")
-    .max(10, "Maximum 10 values allowed"),
-  interests: z
-    .array(interestSchema)
-    .min(1, "At least one interest is required")
-    .max(10, "Maximum 10 interests allowed"),
+  email: z.string().email("Invalid email"),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
 });
 
 // Schema per aggiornare un utente (tutti i campi opzionali)
 export const updateUserSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
-  email: z.email().optional(),
-  birthDate: z.string().optional(),
-  values: z
-    .array(valueSchema)
-    .min(1, "At least one value is required")
-    .max(10, "Maximum 10 values allowed")
-    .optional(),
-  interests: z
-    .array(interestSchema)
-    .min(1, "At least one interest is required")
-    .max(10, "Maximum 10 interests allowed")
-    .optional(),
+  email: z.string().email().optional(),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
