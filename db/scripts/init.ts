@@ -2,14 +2,14 @@ import postgres from "postgres";
 
 const client = postgres(process.env.DATABASE_URL!);
 
-async function enablePgvector() {
-  console.log("🔧 Enabling pgvector extension...");
+async function init() {
+  console.log("🔧 Initializing database extensions...");
 
   try {
     await client`CREATE EXTENSION IF NOT EXISTS vector`;
-    console.log("✅ pgvector enabled!");
+    console.log("✅ pgvector extension enabled!");
   } catch (error) {
-    console.error("❌ Failed:", error);
+    console.error("❌ Init failed:", error);
     process.exit(1);
   }
 
@@ -17,5 +17,5 @@ async function enablePgvector() {
   process.exit(0);
 }
 
-enablePgvector();
+init();
 

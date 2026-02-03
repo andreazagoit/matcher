@@ -43,11 +43,5 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// SQL per creare gli indici HNSW (eseguire dopo db:push)
-export const createIndexesSQL = `
-CREATE INDEX IF NOT EXISTS values_embedding_idx ON users USING hnsw (values_embedding vector_cosine_ops);
-CREATE INDEX IF NOT EXISTS interests_embedding_idx ON users USING hnsw (interests_embedding vector_cosine_ops);
-`;
-
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

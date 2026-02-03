@@ -44,3 +44,4 @@ export const INTERESTS_OPTIONS = [
 export type Value = (typeof VALUES_OPTIONS)[number];
 export type Interest = (typeof INTERESTS_OPTIONS)[number];
 
+

@@ -1,13 +1,18 @@
 import { VALUES_OPTIONS, INTERESTS_OPTIONS } from "@/db/constants";
 
-// Genera enum GraphQL dai valori
-const valuesEnum = VALUES_OPTIONS.map((v) =>
-  v.toUpperCase().replace(/ /g, "_")
-).join("\n    ");
+// Normalizza caratteri accentati per GraphQL enum
+function normalizeForEnum(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Rimuove accenti
+    .toUpperCase()
+    .replace(/ /g, "_")
+    .replace(/[^A-Z0-9_]/g, ""); // Solo lettere, numeri, underscore
+}
 
-const interestsEnum = INTERESTS_OPTIONS.map((i) =>
-  i.toUpperCase().replace(/ /g, "_")
-).join("\n    ");
+// Genera enum GraphQL dai valori
+const valuesEnum = VALUES_OPTIONS.map((v) => normalizeForEnum(v)).join("\n    ");
+const interestsEnum = INTERESTS_OPTIONS.map((i) => normalizeForEnum(i)).join("\n    ");
 
 export const userTypeDefs = `#graphql
   enum Value {
