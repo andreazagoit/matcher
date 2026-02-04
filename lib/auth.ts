@@ -1,10 +1,12 @@
 import NextAuth from "next-auth";
 
+const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
 /**
  * Auth.js Configuration
  * 
  * Uses our own OAuth provider (Matcher) for authentication.
- * No separate login - all auth goes through OAuth flow.
+ * The authorization endpoint (/oauth/authorize) handles login directly.
  */
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
@@ -13,16 +15,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: "Matcher",
             type: "oauth",
 
-            // Our OAuth endpoints
+            // Our OAuth endpoints (relative to baseUrl)
             authorization: {
-                url: "http://localhost:3000/oauth/authorize",
+                url: `${baseUrl}/oauth/authorize`,
                 params: {
                     scope: "openid profile email",
                     response_type: "code",
                 },
             },
-            token: "http://localhost:3000/oauth/token",
-            userinfo: "http://localhost:3000/oauth/userinfo",
+            token: `${baseUrl}/oauth/token`,
+            userinfo: `${baseUrl}/oauth/userinfo`,
 
             // System OAuth app credentials (from seed)
             clientId: process.env.OAUTH_CLIENT_ID!,
@@ -63,7 +65,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
     },
 
-    pages: {
-        signIn: "/login",
-    },
+    // Don't redirect to a separate login page - authorize page handles login
+    // pages: {
+    //     signIn: "/login",
+    // },
 });

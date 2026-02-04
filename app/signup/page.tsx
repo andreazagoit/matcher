@@ -51,8 +51,8 @@ export default function SignupPage() {
                 throw new Error(data.error || "Registration failed");
             }
 
-            // Registration successful
-            window.location.href = "/account"; // Redirect to account/onboarding
+            // Registration successful - redirect to complete profile
+            router.push("/complete-profile");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");
             setLoading(false);

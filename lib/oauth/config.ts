@@ -53,7 +53,21 @@ export const SCOPES = {
   "read:profile": "Read your profile",
   "write:profile": "Update your profile",
   "read:matches": "Find compatible users",
+  match: "Access matching functionality",
 } as const;
+
+/**
+ * Scopes that require a completed profile/questionnaire
+ */
+export const SCOPES_REQUIRING_PROFILE = ["match", "read:matches"];
+
+/**
+ * Check if the requested scopes require a completed profile
+ */
+export function scopesRequireProfile(scopes: string): boolean {
+  const requestedScopes = scopes.split(" ").filter(Boolean);
+  return requestedScopes.some((s) => SCOPES_REQUIRING_PROFILE.includes(s));
+}
 
 export type Scope = keyof typeof SCOPES;
 

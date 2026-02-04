@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SCOPES } from "@/lib/oauth/config";
+import { SCOPES, scopesRequireProfile } from "@/lib/oauth/config";
 import { Questionnaire } from "@/components/questionnaire";
 import { CheckCircle2Icon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
 
@@ -62,6 +62,9 @@ function AuthorizeContent() {
   const codeChallenge = searchParams.get("code_challenge");
   const codeChallengeMethod = searchParams.get("code_challenge_method") || "S256";
 
+  // Check if scopes require a completed profile
+  const requiresProfile = scopesRequireProfile(scope);
+
   // Check if already authenticated on mount
   useEffect(() => {
     async function checkAuth() {
@@ -71,7 +74,12 @@ function AuthorizeContent() {
           const data = await res.json();
           if (data.authenticated) {
             setUser(data.user);
-            setStep(data.hasProfile ? "consent" : "questionnaire");
+            // Only require questionnaire if scopes need it AND user hasn't completed it
+            if (requiresProfile && !data.hasProfile) {
+              setStep("questionnaire");
+            } else {
+              setStep("consent");
+            }
           }
         }
       } catch {
@@ -79,7 +87,7 @@ function AuthorizeContent() {
       }
     }
     checkAuth();
-  }, []);
+  }, [requiresProfile]);
 
   useEffect(() => {
     async function validateRequest() {
@@ -140,7 +148,12 @@ function AuthorizeContent() {
       // Check if user has profile
       const statusRes = await fetch("/api/auth/profile-status");
       const status = await statusRes.json();
-      setStep(status.hasProfile ? "consent" : "questionnaire");
+      // Questionnaire only if scopes require it AND user hasn't completed it
+      if (requiresProfile && !status.hasProfile) {
+        setStep("questionnaire");
+      } else {
+        setStep("consent");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -180,7 +193,8 @@ function AuthorizeContent() {
 
       const data = await res.json();
       setUser(data.user);
-      setStep("questionnaire"); // New users always need to complete questionnaire
+      // New users need questionnaire only if scopes require it
+      setStep(requiresProfile ? "questionnaire" : "consent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {

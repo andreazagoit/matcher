@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { user, session } = await signUp({
+    const { user } = await signUp({
       email,
       password,
       firstName,
@@ -36,13 +36,13 @@ export async function POST(request: NextRequest) {
       gender,
     });
 
-    // Set user ID cookie for OAuth flow
+    // Set user ID cookie for session
     const cookieStore = await cookies();
     cookieStore.set("user_id", user.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return Response.json({
@@ -52,10 +52,6 @@ export async function POST(request: NextRequest) {
         firstName: user.firstName,
         lastName: user.lastName,
       },
-      session: session ? {
-        access_token: session.access_token,
-        expires_at: session.expires_at,
-      } : null,
     });
   } catch (error) {
     console.error("Signup error:", error);
@@ -65,5 +61,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
