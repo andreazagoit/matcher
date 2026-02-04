@@ -13,7 +13,7 @@ import {
     SidebarMenuItem,
     SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Settings, Compass, Plus, Rss } from "lucide-react"
+import { LayoutDashboard, Settings, Compass, Plus, Rss, LayoutGrid } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -30,13 +30,37 @@ export function AppSidebar() {
     return (
         <Sidebar>
             <SidebarHeader className="h-16 border-b flex items-center justify-center px-4 shrink-0">
-                <Link href="/dashboard" className="flex items-center gap-2 font-semibold w-full">
+                <Link href="/spaces" className="flex items-center gap-2 font-semibold w-full">
                     <span>Matcher</span>
                 </Link>
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupLabel>Application</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname === "/feed"}>
+                                    <Link href="/feed">
+                                        <Rss />
+                                        <span>Feed</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname === "/spaces"}>
+                                    <Link href="/spaces">
+                                        <LayoutGrid />
+                                        <span>Spaces</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup>
+                    <SidebarGroupLabel>Management</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
@@ -47,15 +71,6 @@ export function AppSidebar() {
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname === "/dashboard/feed"}>
-                                    <Link href="/dashboard/feed">
-                                        <Rss />
-                                        <span>Feed</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>

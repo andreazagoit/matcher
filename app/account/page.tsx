@@ -109,8 +109,8 @@ export default function AccountPage() {
                         <UserCircle className="w-8 h-8" />
                         Il mio Account
                     </h1>
-                    <Link href="/dashboard">
-                        <Button variant="outline">Vai alla Dashboard</Button>
+                    <Link href="/spaces">
+                        <Button variant="outline">Vai a Spaces</Button>
                     </Link>
                 </div>
 

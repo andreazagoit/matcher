@@ -112,7 +112,7 @@ export default function SpaceDetailPage() {
       if (data.space) {
         setSpace(data.space);
       } else {
-        router.push("/dashboard");
+        router.push("/spaces");
       }
     } catch (error) {
       console.error("Failed to fetch space:", error);
@@ -135,7 +135,7 @@ export default function SpaceDetailPage() {
         }
       `, { id: spaceId });
 
-      router.push("/dashboard");
+      router.push("/spaces");
     } catch (error) {
       console.error("Failed to delete space", error);
       alert("Failed to delete space");
@@ -160,7 +160,7 @@ export default function SpaceDetailPage() {
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link href="/dashboard" className="hover:text-foreground transition">Spaces</Link>
+        <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
         <span>/</span>
         <span className="text-foreground">{space.name}</span>
       </div>
@@ -189,7 +189,7 @@ export default function SpaceDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/dashboard/${spaceId}/settings`}>
+          <Link href={`/spaces/${spaceId}/settings`}>
             <Button variant="outline">Settings</Button>
           </Link>
           <Button variant="destructive" size="icon" onClick={handleDelete}>

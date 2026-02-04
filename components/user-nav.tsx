@@ -46,7 +46,7 @@ export function UserNav() {
     }, []);
 
     const handleLogin = () => {
-        signIn("matcher", { callbackUrl: "/dashboard" });
+        signIn("matcher", { callbackUrl: "/spaces" });
     };
 
     const handleLogout = async () => {

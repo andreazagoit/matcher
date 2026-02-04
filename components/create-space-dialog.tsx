@@ -78,7 +78,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
       handleOpenChange(false);
 
       // Navigate directly to the space page
-      router.push(`/dashboard/${data.createSpace.id}`);
+      router.push(`/spaces/${data.createSpace.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create space");
       setLoading(false);

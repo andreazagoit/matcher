@@ -83,7 +83,7 @@ export default function SpaceSettingsPage() {
                     requiresApproval: data.space.requiresApproval,
                 });
             } else {
-                router.push("/dashboard");
+                router.push("/spaces");
             }
         } catch (error) {
             console.error("Failed to fetch space:", error);
@@ -146,7 +146,7 @@ export default function SpaceSettingsPage() {
         }
       `, { id: spaceId });
 
-            router.push("/dashboard");
+            router.push("/spaces");
         } catch (error) {
             console.error("Failed to delete space", error);
             setError("Failed to delete space");
@@ -168,16 +168,16 @@ export default function SpaceSettingsPage() {
         <div className="max-w-4xl mx-auto py-8 px-4">
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-                <Link href="/dashboard" className="hover:text-foreground transition">Spaces</Link>
+                <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
                 <span>/</span>
-                <Link href={`/dashboard/${spaceId}`} className="hover:text-foreground transition">{space.name}</Link>
+                <Link href={`/spaces/${spaceId}`} className="hover:text-foreground transition">{space.name}</Link>
                 <span>/</span>
                 <span className="text-foreground">Settings</span>
             </div>
 
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <Link href={`/dashboard/${spaceId}`}>
+                    <Link href={`/spaces/${spaceId}`}>
                         <Button variant="ghost" size="icon">
                             <ChevronLeft className="w-5 h-5" />
                         </Button>

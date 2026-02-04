@@ -9,6 +9,10 @@ export const postTypeDefs = `#graphql
     author: User!
   }
 
+  extend type Query {
+    globalFeed(limit: Int, offset: Int): [Post!]
+  }
+
   extend type Space {
     feed(limit: Int, offset: Int): [Post!]
   }

@@ -42,7 +42,7 @@ export default function CompleteProfilePage() {
                 sessionStorage.removeItem("oauth_redirect");
                 window.location.href = oauthRedirect;
             } else {
-                router.push("/dashboard");
+                router.push("/spaces");
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save assessment");
@@ -103,7 +103,7 @@ export default function CompleteProfilePage() {
                                 sessionStorage.removeItem("oauth_redirect");
                                 window.location.href = oauthRedirect;
                             } else {
-                                router.push("/dashboard");
+                                router.push("/spaces");
                             }
                         }}
                     />

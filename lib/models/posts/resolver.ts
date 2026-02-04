@@ -6,6 +6,16 @@ import { users } from "@/lib/models/users/schema";
 import { GraphQLError } from "graphql";
 
 export const postResolvers = {
+    Query: {
+        globalFeed: async (_: any, { limit = 20, offset = 0 }) => {
+            return db.query.posts.findMany({
+                limit,
+                offset,
+                orderBy: (posts, { desc }) => [desc(posts.createdAt)],
+            });
+        },
+    },
+
     Post: {
         author: async (parent: any) => {
             return db.query.users.findFirst({
