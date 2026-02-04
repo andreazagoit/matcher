@@ -14,6 +14,7 @@ export const createUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email"),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  gender: z.enum(["man", "woman", "non_binary"]).optional(),
 });
 
 // Schema per aggiornare un utente (tutti i campi opzionali)
@@ -22,6 +23,7 @@ export const updateUserSchema = z.object({
   lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  gender: z.enum(["man", "woman", "non_binary"]).optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

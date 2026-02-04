@@ -42,8 +42,8 @@ export const apps = pgTable(
     accessTokenTtl: text("access_token_ttl").default("3600"), // 1 hour
     refreshTokenTtl: text("refresh_token_ttl").default("2592000"), // 30 days
 
-    // Owner (for dashboard management)
-    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    // Owner (mandatory)
+    ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 
     // Status
     isActive: boolean("is_active").default(true).notNull(),

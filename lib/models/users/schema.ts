@@ -6,6 +6,7 @@ import {
   timestamp,
   index,
   pgEnum,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -37,6 +38,12 @@ export const users = pgTable(
     email: text("email").notNull().unique(),
     birthDate: date("birth_date").notNull(),
     gender: genderEnum("gender"),
+
+    // ==========================================
+    // BETTER-AUTH FIELDS
+    // ==========================================
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
 
     // ==========================================
     // TIMESTAMPS

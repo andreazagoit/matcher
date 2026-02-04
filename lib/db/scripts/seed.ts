@@ -6,12 +6,16 @@ import { profiles } from "../../models/profiles/schema";
 import { QUESTIONS, SECTIONS, ASSESSMENT_NAME } from "../../models/assessments/questions";
 import { assembleProfile } from "../../models/assessments/assembler";
 import { generateAllUserEmbeddings } from "../../embeddings";
+import { createApp } from "../../models/apps/operations";
 
 /**
  * Seed - Crea 25 utenti con test completati e profili
  */
 
 const SEED_USERS = [
+  // Admin user
+  { firstName: "Admin", lastName: "System", email: "admin@matcher.local", birthDate: "1990-01-01", gender: "man" as const },
+  // Regular users
   { firstName: "Mario", lastName: "Rossi", email: "mario.rossi@example.com", birthDate: "1995-03-15", gender: "man" as const },
   { firstName: "Laura", lastName: "Bianchi", email: "laura.bianchi@example.com", birthDate: "1998-07-22", gender: "woman" as const },
   { firstName: "Alessandro", lastName: "Verdi", email: "alessandro.verdi@example.com", birthDate: "1992-11-08", gender: "man" as const },
@@ -105,7 +109,28 @@ async function seed() {
   }
 
   try {
-    for (let i = 0; i < SEED_USERS.length; i++) {
+    // 0. Create system app owner (Admin) and App
+    const adminData = SEED_USERS[0];
+    const [adminUser] = await db.insert(users).values(adminData).returning();
+    console.log(`  🔑 Created Admin User: ${adminData.email}`);
+
+    const systemApp = await createApp({
+      name: "Matcher System",
+      description: "Official Matcher System App for internal use",
+      redirectUris: [
+        "http://localhost:3000/api/auth/callback/matcher", // Auth.js callback
+        "http://localhost:3000/oauth/callback",
+        "http://localhost:3000/dashboard/oauth-test-callback",
+      ],
+      ownerId: adminUser.id,
+    });
+    console.log(`  🔑 Created System App:`);
+    console.log(`     Client ID: ${systemApp.clientId}`);
+    console.log(`     Secret Key: ${systemApp.secretKey}`);
+    console.log(`     ⚠️  Add these to .env as OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET`);
+
+    // Process other users (skip admin)
+    for (let i = 1; i < SEED_USERS.length; i++) {
       const userData = SEED_USERS[i];
 
       // 1. Crea user

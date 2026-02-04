@@ -1,4 +1,13 @@
 import Link from "next/link";
+import { User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function DashboardLayout({
   children,
@@ -16,7 +25,7 @@ export default function DashboardLayout({
             </div>
             <span className="text-xl font-bold text-foreground">Matcher</span>
           </Link>
-          
+
           <nav className="flex items-center gap-6">
             <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition">
               Apps
@@ -24,11 +33,20 @@ export default function DashboardLayout({
             <Link href="/docs" className="text-muted-foreground hover:text-foreground transition">
               Docs
             </Link>
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted/80 transition-colors">
+                  <User className="w-5 h-5" />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Il mio Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/account" className="cursor-pointer">Gestisci Profilo</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </div>
       </header>

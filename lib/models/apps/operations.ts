@@ -51,7 +51,7 @@ export async function createApp(params: {
   name: string;
   description?: string;
   redirectUris?: string[];
-  ownerId?: string;
+  ownerId: string;
 }): Promise<CreateAppResult> {
   const clientId = generateClientId();
   const secretKey = generateSecretKey();

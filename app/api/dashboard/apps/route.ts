@@ -5,6 +5,7 @@
  */
 
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import {
   getAllApps,
   createApp,
@@ -45,10 +46,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("user_id")?.value;
+
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { app, clientId, secretKey } = await createApp({
       name,
       description,
       redirectUris,
+      ownerId: userId,
     });
 
     return Response.json({
