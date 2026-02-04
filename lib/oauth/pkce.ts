@@ -22,17 +22,12 @@ export function generateCodeChallenge(verifier: string): string {
 
 /**
  * Verify code challenge matches verifier
+ * OAuth 2.1 requires S256 only (plain is deprecated)
  */
 export function verifyCodeChallenge(
   verifier: string,
-  challenge: string,
-  method: "S256" | "plain" = "S256"
+  challenge: string
 ): boolean {
-  if (method === "plain") {
-    return verifier === challenge;
-  }
-
-  // S256
   const expectedChallenge = generateCodeChallenge(verifier);
   return expectedChallenge === challenge;
 }

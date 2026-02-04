@@ -122,7 +122,7 @@ export function generateRefreshToken(params: {
 }): { token: string; jti: string; expiresAt: Date } {
   const ttl = params.ttl || OAUTH_CONFIG.refreshTokenTtl;
   const jti = generateJti();
-  
+
   // Opaque token with embedded data
   const payload: RefreshTokenPayload = {
     jti,
@@ -146,10 +146,15 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
     if (parts.length !== 3) return null;
 
     const [headerB64, payloadB64, signature] = parts;
-    
-    // Verify signature
+
+    // Verify signature (timing-safe comparison)
     const expectedSignature = sign(`${headerB64}.${payloadB64}`, JWT_SECRET);
-    if (signature !== expectedSignature) return null;
+    const sigBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+    if (sigBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+      return null;
+    }
 
     // Decode payload
     const payload: AccessTokenPayload = JSON.parse(base64urlDecode(payloadB64));

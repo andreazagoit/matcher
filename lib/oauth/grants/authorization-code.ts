@@ -35,7 +35,7 @@ export interface AuthorizeRequest {
   scope?: string;
   state?: string;
   codeChallenge?: string;
-  codeChallengeMethod?: "S256" | "plain";
+  codeChallengeMethod?: "S256";
 }
 
 export interface AuthorizeValidationResult {
@@ -44,7 +44,7 @@ export interface AuthorizeValidationResult {
   redirectUri: string;
   state?: string;
   codeChallenge?: string;
-  codeChallengeMethod?: "S256" | "plain";
+  codeChallengeMethod?: "S256";
 }
 
 /**
@@ -87,8 +87,8 @@ export async function validateAuthorizeRequest(
     throw OAuthErrors.invalidRequest("PKCE code_challenge is required");
   }
 
-  if (request.codeChallengeMethod && request.codeChallengeMethod !== "S256" && request.codeChallengeMethod !== "plain") {
-    throw OAuthErrors.invalidRequest("Invalid code_challenge_method. Use 'S256' or 'plain'");
+  if (request.codeChallengeMethod && request.codeChallengeMethod !== "S256") {
+    throw OAuthErrors.invalidRequest("Invalid code_challenge_method. Only 'S256' is supported");
   }
 
   return {
@@ -173,8 +173,7 @@ export async function exchangeCodeForTokens(
 
     const validPkce = verifyCodeChallenge(
       request.codeVerifier,
-      authCode.codeChallenge,
-      (authCode.codeChallengeMethod as "S256" | "plain") || "S256"
+      authCode.codeChallenge
     );
 
     if (!validPkce) {
