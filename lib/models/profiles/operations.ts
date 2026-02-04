@@ -6,7 +6,6 @@ import {
   profiles,
   DEFAULT_MATCHING_WEIGHTS,
   type Profile,
-  type ProfileAxis,
 } from "./schema";
 import { generateAllUserEmbeddings } from "@/lib/embeddings";
 
@@ -15,10 +14,10 @@ import { generateAllUserEmbeddings } from "@/lib/embeddings";
 // ============================================
 
 export interface ProfileData {
-  psychological: ProfileAxis;
-  values: ProfileAxis;
-  interests: ProfileAxis;
-  behavioral: ProfileAxis;
+  psychologicalDesc: string;
+  valuesDesc: string;
+  interestsDesc: string;
+  behavioralDesc: string;
 }
 
 /**
@@ -32,10 +31,10 @@ export async function upsertProfile(
 ): Promise<Profile> {
   // Genera embeddings da descrizioni testuali
   const embeddings = await generateAllUserEmbeddings({
-    psychological: data.psychological.description,
-    values: data.values.description,
-    interests: data.interests.description,
-    behavioral: data.behavioral.description,
+    psychological: data.psychologicalDesc,
+    values: data.valuesDesc,
+    interests: data.interestsDesc,
+    behavioral: data.behavioralDesc,
   });
 
   const now = new Date();
@@ -45,10 +44,10 @@ export async function upsertProfile(
     .insert(profiles)
     .values({
       userId,
-      psychological: data.psychological,
-      values: data.values,
-      interests: data.interests,
-      behavioral: data.behavioral,
+      psychologicalDesc: data.psychologicalDesc,
+      valuesDesc: data.valuesDesc,
+      interestsDesc: data.interestsDesc,
+      behavioralDesc: data.behavioralDesc,
       psychologicalEmbedding: embeddings.psychological,
       valuesEmbedding: embeddings.values,
       interestsEmbedding: embeddings.interests,
@@ -59,10 +58,10 @@ export async function upsertProfile(
     .onConflictDoUpdate({
       target: profiles.userId,
       set: {
-        psychological: data.psychological,
-        values: data.values,
-        interests: data.interests,
-        behavioral: data.behavioral,
+        psychologicalDesc: data.psychologicalDesc,
+        valuesDesc: data.valuesDesc,
+        interestsDesc: data.interestsDesc,
+        behavioralDesc: data.behavioralDesc,
         psychologicalEmbedding: embeddings.psychological,
         valuesEmbedding: embeddings.values,
         interestsEmbedding: embeddings.interests,

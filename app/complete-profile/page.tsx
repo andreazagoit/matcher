@@ -20,7 +20,7 @@ export default function CompleteProfilePage() {
         }
     }, [status, router]);
 
-    const handleQuestionnaireComplete = async (answers: Record<string, string>) => {
+    const handleQuestionnaireComplete = async (answers: Record<string, number | string>) => {
         setLoading(true);
         setError(null);
 

@@ -2,30 +2,21 @@
  * Assembler - Converte risposte → ProfileData
  * 
  * Input: { questionId: valore }
- * - Chiuse: valore 1-5
- * - Aperte: stringa
+ * - Chiuse: indice 1-5 → prende l'opzione corrispondente (self-contained)
+ * - Aperte: stringa → applica il template della domanda
+ * 
+ * Output: 4 descrizioni testuali (una per asse)
  */
 
-import type { ProfileAxis } from "@/lib/models/profiles/schema";
 import type { AssessmentAnswersJson } from "./schema";
-import { QUESTIONS, type Section } from "./questions";
-
-// ============================================
-// OUTPUT
-// ============================================
-
-export interface ProfileData {
-  psychological: ProfileAxis;
-  values: ProfileAxis;
-  interests: ProfileAxis;
-  behavioral: ProfileAxis;
-}
+import { QUESTIONS, type Section, type OpenQuestion } from "./questions";
+import type { ProfileData } from "@/lib/models/profiles/operations";
 
 // ============================================
 // ASSEMBLAGGIO
 // ============================================
 
-function assembleSection(section: Section, answers: AssessmentAnswersJson): ProfileAxis {
+function assembleSection(section: Section, answers: AssessmentAnswersJson): string {
   const questions = QUESTIONS[section];
   const sentences: string[] = [];
 
@@ -49,16 +40,16 @@ function assembleSection(section: Section, answers: AssessmentAnswersJson): Prof
 
     if (question.type === "open" && typeof answer === "string") {
       const text = answer.trim();
-      if (text) sentences.push(text);
+      if (text) {
+        // Applica il template della domanda
+        const openQ = question as OpenQuestion;
+        const sentence = openQ.template.replace("{answer}", text);
+        sentences.push(sentence);
+      }
     }
   }
 
-  const description = sentences.join(". ") + ".";
-
-  return {
-    traits: {},
-    description,
-  };
+  return sentences.join(". ") + ".";
 }
 
 // ============================================
@@ -72,10 +63,8 @@ function assembleSection(section: Section, answers: AssessmentAnswersJson): Prof
  * 
  * @example
  * const answers = {
- *   "psy-1": 5,        // "Amo conoscere gente nuova..."
- *   "psy-2": 1,        // "Ho bisogno di stare solo/a..."
- *   "psy-open": "Sono curioso e riflessivo",
- *   "val-1": 4,
+ *   "psy-1": 5,        // → prende options[4]
+ *   "psy-open": "curiosa e riflessiva",  // → "Mi descrivo come una persona curiosa e riflessiva"
  *   ...
  * };
  * 
@@ -83,9 +72,9 @@ function assembleSection(section: Section, answers: AssessmentAnswersJson): Prof
  */
 export function assembleProfile(answers: AssessmentAnswersJson): ProfileData {
   return {
-    psychological: assembleSection("psychological", answers),
-    values: assembleSection("values", answers),
-    interests: assembleSection("interests", answers),
-    behavioral: assembleSection("behavioral", answers),
+    psychologicalDesc: assembleSection("psychological", answers),
+    valuesDesc: assembleSection("values", answers),
+    interestsDesc: assembleSection("interests", answers),
+    behavioralDesc: assembleSection("behavioral", answers),
   };
 }

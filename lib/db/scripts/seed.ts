@@ -147,24 +147,24 @@ async function seed() {
         status: "completed",
       });
 
-      // 4. Assembla ProfileData
+      // 4. Assembla ProfileData (ora restituisce semplici stringhe)
       const profileData = assembleProfile(answers);
 
       // 5. Genera embeddings
       const embeddings = await generateAllUserEmbeddings({
-        psychological: profileData.psychological.description,
-        values: profileData.values.description,
-        interests: profileData.interests.description,
-        behavioral: profileData.behavioral.description,
+        psychological: profileData.psychologicalDesc,
+        values: profileData.valuesDesc,
+        interests: profileData.interestsDesc,
+        behavioral: profileData.behavioralDesc,
       });
 
       // 6. Crea profilo
       await db.insert(profiles).values({
         userId: user.id,
-        psychological: profileData.psychological,
-        values: profileData.values,
-        interests: profileData.interests,
-        behavioral: profileData.behavioral,
+        psychologicalDesc: profileData.psychologicalDesc,
+        valuesDesc: profileData.valuesDesc,
+        interestsDesc: profileData.interestsDesc,
+        behavioralDesc: profileData.behavioralDesc,
         psychologicalEmbedding: embeddings.psychological,
         valuesEmbedding: embeddings.values,
         interestsEmbedding: embeddings.interests,

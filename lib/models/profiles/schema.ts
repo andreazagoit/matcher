@@ -2,7 +2,7 @@ import {
   pgTable,
   uuid,
   timestamp,
-  jsonb,
+  text,
   index,
   real,
 } from "drizzle-orm/pg-core";
@@ -11,17 +11,12 @@ import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 
 /**
- * User Profiles - Profilo Utente Standard (SEMPLIFICATO)
+ * User Profiles - Profilo Utente (SEMPLIFICATO)
  * 
  * PRINCIPI:
  * 1. Un profilo per utente (1:1)
- * 2. Struttura STANDARD indipendente dalla versione dell'assessment
- * 3. Retrocompatibile: qualsiasi versione dell'assessment genera lo stesso formato
- * 
- * Il profilo contiene:
- * - 4 assi di traits (psychological, values, interests, behavioral)
- * - 4 embeddings per ANN matching
- * - Ogni asse ha: traits normalizzati (0-1) + descrizione testuale
+ * 2. 4 descrizioni testuali (per display e rigenerazione)
+ * 3. 4 embeddings per ANN matching
  */
 
 // Dimensione embedding (OpenAI text-embedding-3-small = 1536)
@@ -39,34 +34,20 @@ export const profiles = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
 
     // ==========================================
-    // TRAITS STANDARD (struttura fissa, retrocompatibile)
+    // 4 DESCRIZIONI (testo per display e embedding)
     // ==========================================
 
-    /**
-     * Asse PSYCHOLOGICAL (dominante per ANN)
-     * Traits: extraversion, openness, conscientiousness, agreeableness,
-     *         emotionalStability, empathy, impulsivity
-     */
-    psychological: jsonb("psychological").$type<ProfileAxis>(),
+    /** Descrizione asse PSYCHOLOGICAL */
+    psychologicalDesc: text("psychological_desc"),
 
-    /**
-     * Asse VALUES
-     * Traits: honesty, loyalty, workLifeBalance, independence, tradition, progressivism
-     */
-    values: jsonb("values").$type<ProfileAxis>(),
+    /** Descrizione asse VALUES */
+    valuesDesc: text("values_desc"),
 
-    /**
-     * Asse INTERESTS
-     * Traits: activeLifestyle, socialActivities, culturalInterests
-     * + hobbies list
-     */
-    interests: jsonb("interests").$type<ProfileAxis>(),
+    /** Descrizione asse INTERESTS */
+    interestsDesc: text("interests_desc"),
 
-    /**
-     * Asse BEHAVIORAL
-     * Traits: responsiveness, communicationDepth, interactionFrequency
-     */
-    behavioral: jsonb("behavioral").$type<ProfileAxis>(),
+    /** Descrizione asse BEHAVIORAL */
+    behavioralDesc: text("behavioral_desc"),
 
     // ==========================================
     // 4 EMBEDDINGS (per ANN Search)
@@ -126,59 +107,6 @@ export const profiles = pgTable(
     index("profiles_user_idx").on(table.userId),
   ]
 );
-
-// ============================================
-// TYPES STANDARD (retrocompatibili)
-// ============================================
-
-/**
- * Struttura standard per ogni asse del profilo
- * Questa struttura NON cambia tra versioni del test
- */
-export interface ProfileAxis {
-  /** Traits normalizzati 0-1 */
-  traits: Record<string, number>;
-
-  /** Descrizione testuale (input per embedding) */
-  description: string;
-
-  /** Dati extra (es. lista hobby per profiles) */
-  extra?: Record<string, unknown>;
-}
-
-/**
- * Traits standard per ogni asse
- * Queste chiavi sono FISSE e retrocompatibili
- */
-export const STANDARD_TRAITS = {
-  psychological: [
-    "extraversion",
-    "openness",
-    "conscientiousness",
-    "agreeableness",
-    "emotionalStability",
-    "empathy",
-    "impulsivity",
-  ],
-  values: [
-    "honesty",
-    "loyalty",
-    "workLifeBalance",
-    "independence",
-    "tradition",
-    "progressivism",
-  ],
-  interests: [
-    "activeLifestyle",
-    "socialActivities",
-    "culturalInterests",
-  ],
-  behavioral: [
-    "responsiveness",
-    "communicationDepth",
-    "interactionFrequency",
-  ],
-} as const;
 
 // ============================================
 // RELATIONS

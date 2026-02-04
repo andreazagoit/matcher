@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { QUESTIONS, SECTIONS, type Section, TOTAL_QUESTIONS } from "@/lib/models/assessments/questions";
-import { ChevronLeftIcon, ChevronRightIcon, CheckCircle2Icon } from "lucide-react";
+import { QUESTIONS, SECTIONS, type Section, TOTAL_QUESTIONS, type ClosedQuestion } from "@/lib/models/assessments/questions";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 interface QuestionnaireProps {
-  onComplete: (answers: Record<string, string>) => void;
+  onComplete: (answers: Record<string, number | string>) => void;
   onSkip?: () => void;
 }
 
@@ -39,7 +39,7 @@ const SECTION_LABELS: Record<Section, { title: string; description: string; emoj
 export function Questionnaire({ onComplete, onSkip }: QuestionnaireProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [showingSectionIntro, setShowingSectionIntro] = useState(true);
 
   const currentSection = SECTIONS[currentSectionIndex];
@@ -50,16 +50,21 @@ export function Questionnaire({ onComplete, onSkip }: QuestionnaireProps) {
   const totalAnswered = Object.keys(answers).length;
   const progress = (totalAnswered / TOTAL_QUESTIONS) * 100;
 
-  const handleAnswer = (answer: string) => {
+  const handleClosedAnswer = (value: number) => {
     setAnswers((prev) => ({
       ...prev,
-      [currentQuestion.id]: answer,
+      [currentQuestion.id]: value,
     }));
 
-    // Auto-advance for closed questions
-    if (currentQuestion.type === "closed") {
-      setTimeout(() => goNext(), 300);
-    }
+    // Auto-advance after selection
+    setTimeout(() => goNext(), 300);
+  };
+
+  const handleOpenAnswer = (text: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [currentQuestion.id]: text,
+    }));
   };
 
   const goNext = () => {
@@ -86,7 +91,8 @@ export function Questionnaire({ onComplete, onSkip }: QuestionnaireProps) {
     }
   };
 
-  const canGoNext = !!answers[currentQuestion?.id];
+  const currentAnswer = answers[currentQuestion?.id];
+  const canGoNext = currentAnswer !== undefined && currentAnswer !== "";
   const isFirstQuestion = currentSectionIndex === 0 && currentQuestionIndex === 0;
   const isLastQuestion = currentSectionIndex === SECTIONS.length - 1 && currentQuestionIndex === questions.length - 1;
 
@@ -121,6 +127,11 @@ export function Questionnaire({ onComplete, onSkip }: QuestionnaireProps) {
     );
   }
 
+  // Get scale labels for current question
+  const scaleLabels = currentQuestion.type === "closed"
+    ? (currentQuestion as ClosedQuestion).scaleLabels
+    : ["1", "5"];
+
   return (
     <div className="space-y-6">
       {/* Progress */}
@@ -139,40 +150,51 @@ export function Questionnaire({ onComplete, onSkip }: QuestionnaireProps) {
       {/* Question Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-medium">{currentQuestion.text}</CardTitle>
+          <CardTitle className="text-lg font-medium leading-relaxed">
+            {currentQuestion.text}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {currentQuestion.type === "closed" ? (
-            <div className="space-y-3">
-              {currentQuestion.options.map((option, index) => {
-                const isSelected = answers[currentQuestion.id] === option;
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleAnswer(option)}
-                    className={`w-full text-left p-4 rounded-lg border transition-all ${isSelected
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-accent"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
+            <div className="space-y-4">
+              {/* Scale labels */}
+              <div className="flex justify-between text-sm text-muted-foreground px-2">
+                <span>{scaleLabels[0]}</span>
+                <span>{scaleLabels[1]}</span>
+              </div>
+
+              {/* 1-5 Scale with clickable dots */}
+              <div className="flex items-center justify-between gap-2 py-2">
+                {[1, 2, 3, 4, 5].map((value) => {
+                  const isSelected = currentAnswer === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => handleClosedAnswer(value)}
+                      className="flex flex-col items-center gap-2 group flex-1"
+                    >
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground"
-                          }`}
+                        className={`
+                          w-12 h-12 rounded-full border-2 flex items-center justify-center
+                          transition-all duration-200 cursor-pointer mx-auto
+                          ${isSelected
+                            ? "border-primary bg-primary text-primary-foreground scale-110"
+                            : "border-muted-foreground/30 bg-background text-muted-foreground hover:border-primary/50 hover:bg-primary/10"
+                          }
+                        `}
                       >
-                        {isSelected && <CheckCircle2Icon className="w-3 h-3 text-primary-foreground" />}
+                        <span className="text-lg font-semibold">{value}</span>
                       </div>
-                      <span className="text-sm">{option}</span>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
               <Textarea
-                value={answers[currentQuestion.id] || ""}
-                onChange={(e) => handleAnswer(e.target.value)}
+                value={(currentAnswer as string) || ""}
+                onChange={(e) => handleOpenAnswer(e.target.value)}
                 placeholder={currentQuestion.placeholder}
                 className="min-h-32"
               />

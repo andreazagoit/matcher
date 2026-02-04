@@ -202,7 +202,7 @@ function AuthorizeContent() {
     }
   };
 
-  const handleQuestionnaireComplete = async (answers: Record<string, string>) => {
+  const handleQuestionnaireComplete = async (answers: Record<string, number | string>) => {
     setAuthLoading(true);
     setError(null);
 
