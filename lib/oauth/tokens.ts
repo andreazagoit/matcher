@@ -6,7 +6,7 @@
 import crypto from "crypto";
 import { db } from "@/lib/db/drizzle";
 import { eq, and, isNull, gt } from "drizzle-orm";
-import { oauthAccessTokens, oauthRefreshTokens } from "@/lib/models/oauth-tokens/schema";
+import { accessTokens, refreshTokens } from "@/lib/models/tokens/schema";
 import { OAUTH_CONFIG } from "./config";
 
 // Simple JWT implementation (no external deps)
@@ -180,7 +180,7 @@ export async function storeAccessToken(params: {
   expiresAt: Date;
 }) {
   const [token] = await db
-    .insert(oauthAccessTokens)
+    .insert(accessTokens)
     .values({
       tokenHash: params.tokenHash,
       jti: params.jti,
@@ -207,7 +207,7 @@ export async function storeRefreshToken(params: {
   expiresAt: Date;
 }) {
   const [token] = await db
-    .insert(oauthRefreshTokens)
+    .insert(refreshTokens)
     .values({
       tokenHash: params.tokenHash,
       jti: params.jti,
@@ -226,11 +226,11 @@ export async function storeRefreshToken(params: {
  * Find valid access token by jti
  */
 export async function findAccessTokenByJti(jti: string) {
-  const result = await db.query.oauthAccessTokens.findFirst({
+  const result = await db.query.accessTokens.findFirst({
     where: and(
-      eq(oauthAccessTokens.jti, jti),
-      isNull(oauthAccessTokens.revokedAt),
-      gt(oauthAccessTokens.expiresAt, new Date())
+      eq(accessTokens.jti, jti),
+      isNull(accessTokens.revokedAt),
+      gt(accessTokens.expiresAt, new Date())
     ),
   });
   return result;
@@ -240,11 +240,11 @@ export async function findAccessTokenByJti(jti: string) {
  * Find valid refresh token by hash
  */
 export async function findRefreshTokenByHash(hash: string) {
-  const result = await db.query.oauthRefreshTokens.findFirst({
+  const result = await db.query.refreshTokens.findFirst({
     where: and(
-      eq(oauthRefreshTokens.tokenHash, hash),
-      isNull(oauthRefreshTokens.revokedAt),
-      gt(oauthRefreshTokens.expiresAt, new Date())
+      eq(refreshTokens.tokenHash, hash),
+      isNull(refreshTokens.revokedAt),
+      gt(refreshTokens.expiresAt, new Date())
     ),
   });
   return result;
@@ -255,32 +255,32 @@ export async function findRefreshTokenByHash(hash: string) {
  */
 export async function revokeAccessToken(jti: string) {
   await db
-    .update(oauthAccessTokens)
+    .update(accessTokens)
     .set({ revokedAt: new Date() })
-    .where(eq(oauthAccessTokens.jti, jti));
+    .where(eq(accessTokens.jti, jti));
 }
 
 /**
  * Revoke refresh token and associated access token
  */
 export async function revokeRefreshToken(jti: string) {
-  const refreshToken = await db.query.oauthRefreshTokens.findFirst({
-    where: eq(oauthRefreshTokens.jti, jti),
+  const refreshToken = await db.query.refreshTokens.findFirst({
+    where: eq(refreshTokens.jti, jti),
   });
 
   if (refreshToken) {
     // Revoke refresh token
     await db
-      .update(oauthRefreshTokens)
+      .update(refreshTokens)
       .set({ revokedAt: new Date() })
-      .where(eq(oauthRefreshTokens.jti, jti));
+      .where(eq(refreshTokens.jti, jti));
 
     // Revoke associated access token
     if (refreshToken.accessTokenId) {
       await db
-        .update(oauthAccessTokens)
+        .update(accessTokens)
         .set({ revokedAt: new Date() })
-        .where(eq(oauthAccessTokens.id, refreshToken.accessTokenId));
+        .where(eq(accessTokens.id, refreshToken.accessTokenId));
     }
   }
 }

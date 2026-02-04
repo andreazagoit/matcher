@@ -2,7 +2,7 @@
  * Profile Status API
  * GET /api/auth/profile-status
  * 
- * Check if user has completed their profile/test
+ * Check if user has completed their profile/assessment
  */
 
 import { cookies } from "next/headers";

@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db/drizzle";
 import { eq, and, isNotNull, desc, inArray } from "drizzle-orm";
-import { getAppById } from "@/lib/models/oauth-clients/operations";
-import { oauthAccessTokens } from "@/lib/db/schemas";
+import { getAppById } from "@/lib/models/apps/operations";
+import { accessTokens } from "@/lib/db/schemas";
 import { users } from "@/lib/models/users/schema";
 
 interface RouteContext {
@@ -25,19 +25,19 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     // Get all unique users who have tokens for this client
     const authorizedTokens = await db
-      .selectDistinctOn([oauthAccessTokens.userId], {
-        userId: oauthAccessTokens.userId,
-        authorizedAt: oauthAccessTokens.createdAt,
-        lastActivity: oauthAccessTokens.createdAt,
+      .selectDistinctOn([accessTokens.userId], {
+        userId: accessTokens.userId,
+        authorizedAt: accessTokens.createdAt,
+        lastActivity: accessTokens.createdAt,
       })
-      .from(oauthAccessTokens)
+      .from(accessTokens)
       .where(
         and(
-          eq(oauthAccessTokens.clientId, app.clientId),
-          isNotNull(oauthAccessTokens.userId)
+          eq(accessTokens.clientId, app.clientId),
+          isNotNull(accessTokens.userId)
         )
       )
-      .orderBy(oauthAccessTokens.userId, desc(oauthAccessTokens.createdAt));
+      .orderBy(accessTokens.userId, desc(accessTokens.createdAt));
 
     // Get user details
     const userIds = authorizedTokens.map((t) => t.userId).filter(Boolean) as string[];

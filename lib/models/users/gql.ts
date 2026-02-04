@@ -18,7 +18,7 @@ export const USER_FRAGMENT = gql`
 `;
 
 export const PROFILE_FRAGMENT = gql`
-  fragment ProfileFields on UserProfile {
+  fragment ProfileFields on Profile {
     id
     userId
     psychologicalTraits

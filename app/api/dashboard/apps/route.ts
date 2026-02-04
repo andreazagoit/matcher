@@ -1,19 +1,19 @@
 /**
  * Dashboard Apps API
- * GET /api/dashboard/clients - List all apps
- * POST /api/dashboard/clients - Create new app
+ * GET /api/dashboard/apps - List all apps
+ * POST /api/dashboard/apps - Create new app
  */
 
 import { NextRequest } from "next/server";
 import {
   getAllApps,
-  createOAuthApp,
-} from "@/lib/models/oauth-clients/operations";
+  createApp,
+} from "@/lib/models/apps/operations";
 
 export async function GET() {
   try {
     const apps = await getAllApps();
-    
+
     return Response.json({
       apps: apps.map((app) => ({
         id: app.id,
@@ -35,7 +35,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const { name, description, redirectUris } = body;
 
     if (!name) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { app, clientId, secretKey } = await createOAuthApp({
+    const { app, clientId, secretKey } = await createApp({
       name,
       description,
       redirectUris,

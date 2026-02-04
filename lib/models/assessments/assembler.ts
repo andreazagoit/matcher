@@ -7,7 +7,7 @@
  */
 
 import type { ProfileAxis } from "@/lib/models/profiles/schema";
-import type { TestAnswersJson } from "./schema";
+import type { AssessmentAnswersJson } from "./schema";
 import { QUESTIONS, type Section } from "./questions";
 
 // ============================================
@@ -25,7 +25,7 @@ export interface ProfileData {
 // ASSEMBLAGGIO
 // ============================================
 
-function assembleSection(section: Section, answers: TestAnswersJson): ProfileAxis {
+function assembleSection(section: Section, answers: AssessmentAnswersJson): ProfileAxis {
   const questions = QUESTIONS[section];
   const sentences: string[] = [];
 
@@ -81,7 +81,7 @@ function assembleSection(section: Section, answers: TestAnswersJson): ProfileAxi
  * 
  * const profile = assembleProfile(answers);
  */
-export function assembleProfile(answers: TestAnswersJson): ProfileData {
+export function assembleProfile(answers: AssessmentAnswersJson): ProfileData {
   return {
     psychological: assembleSection("psychological", answers),
     values: assembleSection("values", answers),

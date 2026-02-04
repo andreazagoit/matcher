@@ -10,7 +10,7 @@ import { verifyAccessToken, findAccessTokenByJti } from "@/lib/oauth/tokens";
 import { getUserById } from "@/lib/models/users/operations";
 import { validateApiKeyFromRequest } from "./api-key";
 import type { User } from "@/lib/models/users/schema";
-import type { OAuthApp } from "@/lib/models/oauth-clients/schema";
+import type { App } from "@/lib/models/apps/schema";
 
 export interface AuthContext {
   isAuthenticated: boolean;
@@ -25,7 +25,7 @@ export interface AuthContext {
   scopes?: string[];
   user?: User;
   /** For API Key auth */
-  app?: OAuthApp;
+  app?: App;
 }
 
 /**
@@ -34,17 +34,17 @@ export interface AuthContext {
  */
 export async function getAuthContext(request: NextRequest): Promise<AuthContext> {
   const authHeader = request.headers.get("authorization");
-  
+
   if (!authHeader?.startsWith("Bearer ")) {
     return { isAuthenticated: false };
   }
 
   const token = authHeader.slice(7);
-  
+
   // Check if it's an API Key (M2M) - full access
   if (token.startsWith("sk_")) {
     const apiKeyContext = await validateApiKeyFromRequest(request);
-    
+
     if (apiKeyContext) {
       return {
         isAuthenticated: true,
@@ -54,10 +54,10 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext>
         app: apiKeyContext.app,
       };
     }
-    
+
     return { isAuthenticated: false };
   }
-  
+
   // Otherwise try OAuth token
   const decoded = verifyAccessToken(token);
   if (!decoded) {
@@ -102,7 +102,7 @@ export function hasScope(context: AuthContext, requiredScope: string): boolean {
   if (context.fullAccess) {
     return true;
   }
-  
+
   if (context.scopes) {
     return context.scopes.includes(requiredScope);
   }

@@ -54,7 +54,7 @@ export async function generateEmbeddingsBatch(
 }
 
 // ============================================
-// EMBEDDINGS PER ASSI (dal sistema test)
+// EMBEDDINGS PER ASSI (dall'assessment)
 // ============================================
 
 /** Risultato embeddings per tutti gli assi */
@@ -119,31 +119,5 @@ export async function generateAllUserEmbeddings(
   return result;
 }
 
-// ============================================
-// LEGACY: Supporto per vecchio sistema
-// ============================================
 
-/**
- * @deprecated Usa generateAllUserEmbeddings con il nuovo sistema test
- * Genera embeddings per values e interests (vecchio formato array)
- */
-export async function generateUserEmbeddings(
-  values: string[],
-  interests: string[]
-): Promise<{ valuesEmbedding: number[]; interestsEmbedding: number[] }> {
-  if (values.length === 0 || interests.length === 0) {
-    throw new Error("Values and interests are required");
-  }
-
-  // Converte array in testo descrittivo
-  const valuesText = `Valori importanti: ${values.join(", ")}`;
-  const interestsText = `Interessi: ${interests.join(", ")}`;
-
-  const [valuesEmbedding, interestsEmbedding] = await generateEmbeddingsBatch([
-    valuesText,
-    interestsText,
-  ]);
-
-  return { valuesEmbedding, interestsEmbedding };
-}
 

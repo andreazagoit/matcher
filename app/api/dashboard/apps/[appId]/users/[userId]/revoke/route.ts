@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db/drizzle";
 import { eq, and } from "drizzle-orm";
-import { getAppById } from "@/lib/models/oauth-clients/operations";
-import { oauthAccessTokens, oauthRefreshTokens } from "@/lib/db/schemas";
+import { getAppById } from "@/lib/models/apps/operations";
+import { accessTokens, refreshTokens } from "@/lib/db/schemas";
 
 interface RouteContext {
   params: Promise<{ appId: string; userId: string }>;
@@ -25,23 +25,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Revoke all access tokens for this user
     await db
-      .update(oauthAccessTokens)
+      .update(accessTokens)
       .set({ revokedAt: now })
       .where(
         and(
-          eq(oauthAccessTokens.clientId, app.clientId),
-          eq(oauthAccessTokens.userId, userId)
+          eq(accessTokens.clientId, app.clientId),
+          eq(accessTokens.userId, userId)
         )
       );
 
     // Revoke all refresh tokens for this user
     await db
-      .update(oauthRefreshTokens)
+      .update(refreshTokens)
       .set({ revokedAt: now })
       .where(
         and(
-          eq(oauthRefreshTokens.clientId, app.clientId),
-          eq(oauthRefreshTokens.userId, userId)
+          eq(refreshTokens.clientId, app.clientId),
+          eq(refreshTokens.userId, userId)
         )
       );
 

@@ -53,7 +53,7 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
     setError(null);
 
     try {
-      const res = await fetch("/api/dashboard/clients", {
+      const res = await fetch("/api/dashboard/apps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

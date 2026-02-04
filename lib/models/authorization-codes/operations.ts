@@ -5,7 +5,7 @@
 import crypto from "crypto";
 import { db } from "@/lib/db/drizzle";
 import { eq, and, isNull, gt, lt } from "drizzle-orm";
-import { oauthAuthorizationCodes, type OAuthAuthorizationCode } from "./schema";
+import { authorizationCodes, type AuthorizationCode } from "./schema";
 import { OAUTH_CONFIG } from "@/lib/oauth/config";
 
 /**
@@ -26,12 +26,12 @@ export async function createAuthorizationCode(params: {
   state?: string;
   codeChallenge?: string;
   codeChallengeMethod?: "S256" | "plain";
-}): Promise<OAuthAuthorizationCode> {
+}): Promise<AuthorizationCode> {
   const code = generateAuthorizationCode();
   const expiresAt = new Date(Date.now() + OAUTH_CONFIG.authorizationCodeTtl * 1000);
 
   const [authCode] = await db
-    .insert(oauthAuthorizationCodes)
+    .insert(authorizationCodes)
     .values({
       code,
       clientId: params.clientId,
@@ -51,12 +51,12 @@ export async function createAuthorizationCode(params: {
 /**
  * Find valid authorization code
  */
-export async function findAuthorizationCode(code: string): Promise<OAuthAuthorizationCode | null> {
-  const result = await db.query.oauthAuthorizationCodes.findFirst({
+export async function findAuthorizationCode(code: string): Promise<AuthorizationCode | null> {
+  const result = await db.query.authorizationCodes.findFirst({
     where: and(
-      eq(oauthAuthorizationCodes.code, code),
-      isNull(oauthAuthorizationCodes.usedAt),
-      gt(oauthAuthorizationCodes.expiresAt, new Date())
+      eq(authorizationCodes.code, code),
+      isNull(authorizationCodes.usedAt),
+      gt(authorizationCodes.expiresAt, new Date())
     ),
   });
   return result || null;
@@ -67,9 +67,9 @@ export async function findAuthorizationCode(code: string): Promise<OAuthAuthoriz
  */
 export async function markCodeAsUsed(code: string): Promise<void> {
   await db
-    .update(oauthAuthorizationCodes)
+    .update(authorizationCodes)
     .set({ usedAt: new Date() })
-    .where(eq(oauthAuthorizationCodes.code, code));
+    .where(eq(authorizationCodes.code, code));
 }
 
 /**
@@ -77,8 +77,8 @@ export async function markCodeAsUsed(code: string): Promise<void> {
  */
 export async function cleanupExpiredCodes(): Promise<number> {
   const result = await db
-    .delete(oauthAuthorizationCodes)
-    .where(lt(oauthAuthorizationCodes.expiresAt, new Date()))
+    .delete(authorizationCodes)
+    .where(lt(authorizationCodes.expiresAt, new Date()))
     .returning();
   return result.length;
 }

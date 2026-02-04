@@ -1,10 +1,10 @@
 import "dotenv/config";
 import { db } from "../drizzle";
 import { users } from "../../models/users/schema";
-import { testSessions, type TestAnswersJson } from "../../models/tests/schema";
-import { userProfiles } from "../../models/profiles/schema";
-import { QUESTIONS, SECTIONS, TEST_NAME } from "../../models/tests/questions";
-import { assembleProfile } from "../../models/tests/assembler";
+import { assessments, type AssessmentAnswersJson } from "../../models/assessments/schema";
+import { profiles } from "../../models/profiles/schema";
+import { QUESTIONS, SECTIONS, ASSESSMENT_NAME } from "../../models/assessments/questions";
+import { assembleProfile } from "../../models/assessments/assembler";
 import { generateAllUserEmbeddings } from "../../embeddings";
 
 /**
@@ -77,8 +77,8 @@ const OPEN_ANSWERS: Record<string, string[]> = {
  * - Chiuse: 1-5
  * - Aperte: stringa
  */
-function generateRandomAnswers(): TestAnswersJson {
-  const answers: TestAnswersJson = {};
+function generateRandomAnswers(): AssessmentAnswersJson {
+  const answers: AssessmentAnswersJson = {};
 
   for (const section of SECTIONS) {
     for (const question of QUESTIONS[section]) {
@@ -107,24 +107,24 @@ async function seed() {
   try {
     for (let i = 0; i < SEED_USERS.length; i++) {
       const userData = SEED_USERS[i];
-      
+
       // 1. Crea user
       const [user] = await db.insert(users).values(userData).returning();
-      
+
       // 2. Genera risposte test
       const answers = generateRandomAnswers();
-      
-      // 3. Salva test_session
-      await db.insert(testSessions).values({
+
+      // 3. Salva assessment
+      await db.insert(assessments).values({
         userId: user.id,
-        testName: TEST_NAME,
+        assessmentName: ASSESSMENT_NAME,
         answers,
         status: "completed",
       });
-      
+
       // 4. Assembla ProfileData
       const profileData = assembleProfile(answers);
-      
+
       // 5. Genera embeddings
       const embeddings = await generateAllUserEmbeddings({
         psychological: profileData.psychological.description,
@@ -132,9 +132,9 @@ async function seed() {
         interests: profileData.interests.description,
         behavioral: profileData.behavioral.description,
       });
-      
+
       // 6. Crea profilo
-      await db.insert(userProfiles).values({
+      await db.insert(profiles).values({
         userId: user.id,
         psychological: profileData.psychological,
         values: profileData.values,
@@ -144,14 +144,14 @@ async function seed() {
         valuesEmbedding: embeddings.values,
         interestsEmbedding: embeddings.interests,
         behavioralEmbedding: embeddings.behavioral,
-        testVersion: 1,
+        assessmentVersion: 1,
       });
 
       console.log(`  ✓ ${i + 1}/${SEED_USERS.length} - ${userData.firstName} ${userData.lastName}`);
     }
 
     console.log(`\n✅ Created ${SEED_USERS.length} users with test sessions and profiles`);
-    
+
   } catch (error) {
     console.error("❌ Seed failed:", error);
     process.exit(1);

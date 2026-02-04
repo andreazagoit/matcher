@@ -5,7 +5,7 @@
  * Used for M2M (machine-to-machine) authentication
  */
 
-import { validateClientCredentials, clientSupportsGrant } from "@/lib/models/oauth-clients/operations";
+import { validateClientCredentials, clientSupportsGrant } from "@/lib/models/apps/operations";
 import { validateScopes } from "../config";
 import { OAuthErrors } from "../errors";
 import {
@@ -47,7 +47,7 @@ export async function handleClientCredentials(
   // 3. Validate scopes (dynamic - validated against all supported scopes)
   const requestedScope = request.scope || "read:profile";
   const { valid, scopes, invalid } = validateScopes(requestedScope);
-  
+
   if (!valid) {
     throw OAuthErrors.invalidScope(`Invalid scopes: ${invalid.join(", ")}`);
   }

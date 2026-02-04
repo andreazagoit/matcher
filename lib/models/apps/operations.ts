@@ -9,7 +9,7 @@
 import crypto from "crypto";
 import { db } from "@/lib/db/drizzle";
 import { eq } from "drizzle-orm";
-import { oauthApps, type OAuthApp } from "./schema";
+import { apps, type App } from "./schema";
 
 // ============================================
 // CREDENTIAL GENERATION
@@ -36,7 +36,7 @@ export function verifySecret(secret: string, hash: string): boolean {
 // ============================================
 
 export interface CreateAppResult {
-  app: OAuthApp;
+  app: App;
   /** OAuth client_id (can be public) */
   clientId: string;
   /** M2M secret key */
@@ -47,7 +47,7 @@ export interface CreateAppResult {
  * Create a new OAuth App
  * Returns both client_id (for OAuth) and secret_key (for M2M)
  */
-export async function createOAuthApp(params: {
+export async function createApp(params: {
   name: string;
   description?: string;
   redirectUris?: string[];
@@ -58,7 +58,7 @@ export async function createOAuthApp(params: {
   const secretKeyHash = hashSecret(secretKey);
 
   const [app] = await db
-    .insert(oauthApps)
+    .insert(apps)
     .values({
       name: params.name,
       description: params.description,
@@ -80,9 +80,9 @@ export async function createOAuthApp(params: {
 /**
  * Get app by ID
  */
-export async function getAppById(id: string): Promise<OAuthApp | null> {
-  const result = await db.query.oauthApps.findFirst({
-    where: eq(oauthApps.id, id),
+export async function getAppById(id: string): Promise<App | null> {
+  const result = await db.query.apps.findFirst({
+    where: eq(apps.id, id),
   });
   return result || null;
 }
@@ -90,9 +90,9 @@ export async function getAppById(id: string): Promise<OAuthApp | null> {
 /**
  * Get app by client_id (for OAuth flows)
  */
-export async function getAppByClientId(clientId: string): Promise<OAuthApp | null> {
-  const result = await db.query.oauthApps.findFirst({
-    where: eq(oauthApps.clientId, clientId),
+export async function getAppByClientId(clientId: string): Promise<App | null> {
+  const result = await db.query.apps.findFirst({
+    where: eq(apps.clientId, clientId),
   });
   return result || null;
 }
@@ -100,8 +100,8 @@ export async function getAppByClientId(clientId: string): Promise<OAuthApp | nul
 /**
  * Get all apps
  */
-export async function getAllApps(): Promise<OAuthApp[]> {
-  return db.query.oauthApps.findMany({
+export async function getAllApps(): Promise<App[]> {
+  return db.query.apps.findMany({
     orderBy: (apps, { desc }) => [desc(apps.createdAt)],
   });
 }
@@ -109,9 +109,9 @@ export async function getAllApps(): Promise<OAuthApp[]> {
 /**
  * Get apps by owner
  */
-export async function getAppsByOwner(ownerId: string): Promise<OAuthApp[]> {
-  return db.query.oauthApps.findMany({
-    where: eq(oauthApps.ownerId, ownerId),
+export async function getAppsByOwner(ownerId: string): Promise<App[]> {
+  return db.query.apps.findMany({
+    where: eq(apps.ownerId, ownerId),
     orderBy: (apps, { desc }) => [desc(apps.createdAt)],
   });
 }
@@ -121,12 +121,12 @@ export async function getAppsByOwner(ownerId: string): Promise<OAuthApp[]> {
  */
 export async function updateApp(
   id: string,
-  data: Partial<Pick<OAuthApp, "name" | "description" | "redirectUris" | "isActive">>
-): Promise<OAuthApp | null> {
+  data: Partial<Pick<App, "name" | "description" | "redirectUris" | "isActive">>
+): Promise<App | null> {
   const [updated] = await db
-    .update(oauthApps)
+    .update(apps)
     .set({ ...data, updatedAt: new Date() })
-    .where(eq(oauthApps.id, id))
+    .where(eq(apps.id, id))
     .returning();
   return updated || null;
 }
@@ -135,14 +135,14 @@ export async function updateApp(
  * Delete app
  */
 export async function deleteApp(id: string): Promise<boolean> {
-  const result = await db.delete(oauthApps).where(eq(oauthApps.id, id)).returning();
+  const result = await db.delete(apps).where(eq(apps.id, id)).returning();
   return result.length > 0;
 }
 
 /**
  * Rotate secret key
  */
-export async function rotateSecretKey(id: string): Promise<{ app: OAuthApp; secretKey: string } | null> {
+export async function rotateSecretKey(id: string): Promise<{ app: App; secretKey: string } | null> {
   const app = await getAppById(id);
   if (!app) return null;
 
@@ -150,13 +150,13 @@ export async function rotateSecretKey(id: string): Promise<{ app: OAuthApp; secr
   const newSecretKeyHash = hashSecret(newSecretKey);
 
   const [updated] = await db
-    .update(oauthApps)
+    .update(apps)
     .set({
       secretKey: newSecretKey,
       secretKeyHash: newSecretKeyHash,
       updatedAt: new Date()
     })
-    .where(eq(oauthApps.id, id))
+    .where(eq(apps.id, id))
     .returning();
 
   return updated ? { app: updated, secretKey: newSecretKey } : null;
@@ -170,14 +170,14 @@ export async function rotateSecretKey(id: string): Promise<{ app: OAuthApp; secr
  * Validate M2M API Key (direct access)
  * Used for: Authorization: Bearer sk_live_xxx
  */
-export async function validateApiKey(secretKey: string): Promise<OAuthApp | null> {
+export async function validateApiKey(secretKey: string): Promise<App | null> {
   // Get all active apps and check the hash
   // Note: In production with many apps, you'd want to index or cache this
-  const apps = await db.query.oauthApps.findMany({
-    where: eq(oauthApps.isActive, true),
+  const appsList = await db.query.apps.findMany({
+    where: eq(apps.isActive, true),
   });
 
-  for (const app of apps) {
+  for (const app of appsList) {
     if (verifySecret(secretKey, app.secretKeyHash)) {
       return app;
     }
@@ -190,7 +190,7 @@ export async function validateApiKey(secretKey: string): Promise<OAuthApp | null
  * Validate OAuth client (for authorization_code flow)
  * client_id is public, no secret needed for the authorize step
  */
-export async function validateOAuthClient(clientId: string): Promise<OAuthApp | null> {
+export async function validateOAuthClient(clientId: string): Promise<App | null> {
   const app = await getAppByClientId(clientId);
   if (!app || !app.isActive) return null;
   return app;
@@ -199,30 +199,22 @@ export async function validateOAuthClient(clientId: string): Promise<OAuthApp | 
 /**
  * Check if redirect URI is allowed
  */
-export function isRedirectUriAllowed(app: OAuthApp | null, redirectUri: string): boolean {
+export function isRedirectUriAllowed(app: App | null, redirectUri: string): boolean {
   if (!app) return false;
   return app.redirectUris?.includes(redirectUri) ?? false;
 }
-
-// ============================================
-// LEGACY COMPATIBILITY (for existing OAuth code)
-// ============================================
-
-export const getClientByClientId = getAppByClientId;
-export const getClientById = getAppById;
-export const getAllClients = getAllApps;
 
 export async function validateClientCredentials(
   clientId: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _clientSecret?: string
-): Promise<OAuthApp | null> {
+): Promise<App | null> {
   // For OAuth authorization_code, we only validate client_id
   // The secret_key is for M2M, not OAuth
   return validateOAuthClient(clientId);
 }
 
-export function clientSupportsGrant(_app: OAuthApp, grantType: string): boolean {
+export function clientSupportsGrant(_app: App, grantType: string): boolean {
   // All apps support these grant types
   const supportedGrants = ["authorization_code", "refresh_token"];
   return supportedGrants.includes(grantType);

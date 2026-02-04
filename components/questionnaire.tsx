@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { QUESTIONS, SECTIONS, type Section, TOTAL_QUESTIONS } from "@/lib/models/tests/questions";
+import { QUESTIONS, SECTIONS, type Section, TOTAL_QUESTIONS } from "@/lib/models/assessments/questions";
 import { ChevronLeftIcon, ChevronRightIcon, CheckCircle2Icon } from "lucide-react";
 
 interface QuestionnaireProps {

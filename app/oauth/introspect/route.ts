@@ -6,12 +6,12 @@
 
 import { NextRequest } from "next/server";
 import { OAuthError, OAuthErrors } from "@/lib/oauth/errors";
-import { validateClientCredentials } from "@/lib/models/oauth-clients/operations";
+import { validateClientCredentials } from "@/lib/models/apps/operations";
 import { verifyAccessToken, findAccessTokenByJti } from "@/lib/oauth/tokens";
 
 function parseBasicAuth(header: string | null): { clientId: string; clientSecret: string } | null {
   if (!header?.startsWith("Basic ")) return null;
-  
+
   try {
     const decoded = Buffer.from(header.slice(6), "base64").toString();
     const [clientId, clientSecret] = decoded.split(":");
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Verify token
     const decoded = verifyAccessToken(token);
-    
+
     if (!decoded) {
       // Token invalid or expired
       return Response.json({ active: false });

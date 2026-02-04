@@ -6,13 +6,13 @@
 import {
   clientSupportsGrant,
   isRedirectUriAllowed,
-  getClientByClientId,
-} from "@/lib/models/oauth-clients/operations";
+  getAppByClientId,
+} from "@/lib/models/apps/operations";
 import {
   createAuthorizationCode,
   findAuthorizationCode,
   markCodeAsUsed,
-} from "@/lib/models/oauth-codes/operations";
+} from "@/lib/models/authorization-codes/operations";
 import { validateScopes } from "../config";
 import { OAuthErrors } from "../errors";
 import { verifyCodeChallenge } from "../pkce";
@@ -39,7 +39,7 @@ export interface AuthorizeRequest {
 }
 
 export interface AuthorizeValidationResult {
-  client: Awaited<ReturnType<typeof getClientByClientId>>;
+  client: Awaited<ReturnType<typeof getAppByClientId>>;
   scope: string;
   redirectUri: string;
   state?: string;
@@ -59,7 +59,7 @@ export async function validateAuthorizeRequest(
   }
 
   // 2. Validate client
-  const client = await getClientByClientId(request.clientId);
+  const client = await getAppByClientId(request.clientId);
   if (!client || !client.isActive) {
     throw OAuthErrors.invalidRequest("Invalid client_id");
   }
@@ -150,7 +150,7 @@ export async function exchangeCodeForTokens(
   }
 
   // 2. Validate client exists
-  const client = await getClientByClientId(request.clientId);
+  const client = await getAppByClientId(request.clientId);
   if (!client || !client.isActive) {
     throw OAuthErrors.invalidClient("Invalid client");
   }
@@ -185,7 +185,7 @@ export async function exchangeCodeForTokens(
   await markCodeAsUsed(request.code);
 
   // 7. Get client for TTL settings
-  const clientForTtl = client || await getClientByClientId(request.clientId);
+  const clientForTtl = client || await getAppByClientId(request.clientId);
   const accessTtl = parseInt(clientForTtl?.accessTokenTtl || "3600", 10);
   const refreshTtl = parseInt(clientForTtl?.refreshTokenTtl || "2592000", 10);
 

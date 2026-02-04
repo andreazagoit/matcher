@@ -107,8 +107,8 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
- * @deprecated Usa il sistema user_profiles per il matching
+ * @deprecated Usa il sistema profiles per il matching
  * Le funzioni findMatches e UserMatch sono state rimosse
- * Il matching ora avviene tramite user_profiles con embeddings separati
+ * Il matching ora avviene tramite profiles con embeddings separati
  */
 

@@ -8,12 +8,12 @@
  */
 
 import { NextRequest } from "next/server";
-import { validateApiKey } from "@/lib/models/oauth-clients/operations";
-import type { OAuthApp } from "@/lib/models/oauth-clients/schema";
+import { validateApiKey } from "@/lib/models/apps/operations";
+import type { App } from "@/lib/models/apps/schema";
 
 export interface ApiKeyContext {
   type: "api_key";
-  app: OAuthApp;
+  app: App;
   /** M2M has full access, no scope restrictions */
   fullAccess: true;
 }
@@ -26,20 +26,20 @@ export async function validateApiKeyFromRequest(
   request: NextRequest
 ): Promise<ApiKeyContext | null> {
   const authHeader = request.headers.get("authorization");
-  
+
   if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }
 
   const token = authHeader.slice(7); // Remove "Bearer "
-  
+
   // Check if it's an API key (starts with sk_)
   if (!token.startsWith("sk_")) {
     return null;
   }
 
   const app = await validateApiKey(token);
-  
+
   if (!app) {
     return null;
   }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateAppDialog } from "@/components/create-app-dialog";
 
-interface OAuthApp {
+interface App {
   id: string;
   name: string;
   description?: string;
@@ -17,13 +17,13 @@ interface OAuthApp {
 }
 
 export default function DashboardPage() {
-  const [apps, setApps] = useState<OAuthApp[]>([]);
+  const [apps, setApps] = useState<App[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const fetchApps = async () => {
     try {
-      const res = await fetch("/api/dashboard/clients");
+      const res = await fetch("/api/dashboard/apps");
       if (res.ok) {
         const data = await res.json();
         setApps(data.apps);

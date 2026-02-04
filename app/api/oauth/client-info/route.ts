@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { getClientByClientId } from "@/lib/models/oauth-clients/operations";
+import { getAppByClientId } from "@/lib/models/apps/operations";
 
 export async function GET(request: NextRequest) {
   const clientId = request.nextUrl.searchParams.get("client_id");
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "client_id required" }, { status: 400 });
   }
 
-  const client = await getClientByClientId(clientId);
+  const client = await getAppByClientId(clientId);
 
   if (!client || !client.isActive) {
     return Response.json({ error: "Client not found" }, { status: 404 });

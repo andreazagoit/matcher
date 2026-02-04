@@ -15,8 +15,8 @@ import { users } from "@/lib/models/users/schema";
  * Short-lived codes (~10 min) exchanged for tokens
  */
 
-export const oauthAuthorizationCodes = pgTable(
-  "oauth_authorization_codes",
+export const authorizationCodes = pgTable(
+  "authorization_codes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
@@ -43,22 +43,22 @@ export const oauthAuthorizationCodes = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    index("oauth_codes_code_idx").on(table.code),
-    index("oauth_codes_client_idx").on(table.clientId),
-    index("oauth_codes_user_idx").on(table.userId),
+    index("authorization_codes_code_idx").on(table.code),
+    index("authorization_codes_client_idx").on(table.clientId),
+    index("authorization_codes_user_idx").on(table.userId),
   ]
 );
 
 // Relations
-export const oauthAuthorizationCodesRelations = relations(oauthAuthorizationCodes, ({ one }) => ({
+export const authorizationCodesRelations = relations(authorizationCodes, ({ one }) => ({
   user: one(users, {
-    fields: [oauthAuthorizationCodes.userId],
+    fields: [authorizationCodes.userId],
     references: [users.id],
   }),
 }));
 
 // Types
-export type OAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
-export type NewOAuthAuthorizationCode = typeof oauthAuthorizationCodes.$inferInsert;
+export type AuthorizationCode = typeof authorizationCodes.$inferSelect;
+export type NewAuthorizationCode = typeof authorizationCodes.$inferInsert;
 
 

@@ -15,8 +15,8 @@ import { users } from "@/lib/models/users/schema";
  * 
  * PRINCIPI:
  * 1. Un profilo per utente (1:1)
- * 2. Struttura STANDARD indipendente dalla versione del test
- * 3. Retrocompatibile: qualsiasi versione del test genera lo stesso formato
+ * 2. Struttura STANDARD indipendente dalla versione dell'assessment
+ * 3. Retrocompatibile: qualsiasi versione dell'assessment genera lo stesso formato
  * 
  * Il profilo contiene:
  * - 4 assi di traits (psychological, values, interests, behavioral)
@@ -27,11 +27,11 @@ import { users } from "@/lib/models/users/schema";
 // Dimensione embedding (OpenAI text-embedding-3-small = 1536)
 const EMBEDDING_DIMENSIONS = 1536;
 
-export const userProfiles = pgTable(
-  "user_profiles",
+export const profiles = pgTable(
+  "profiles",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     /** Relazione 1:1 con users (UNIQUE) */
     userId: uuid("user_id")
       .notNull()
@@ -41,27 +41,27 @@ export const userProfiles = pgTable(
     // ==========================================
     // TRAITS STANDARD (struttura fissa, retrocompatibile)
     // ==========================================
-    
+
     /**
      * Asse PSYCHOLOGICAL (dominante per ANN)
      * Traits: extraversion, openness, conscientiousness, agreeableness,
      *         emotionalStability, empathy, impulsivity
      */
     psychological: jsonb("psychological").$type<ProfileAxis>(),
-    
+
     /**
      * Asse VALUES
      * Traits: honesty, loyalty, workLifeBalance, independence, tradition, progressivism
      */
     values: jsonb("values").$type<ProfileAxis>(),
-    
+
     /**
      * Asse INTERESTS
      * Traits: activeLifestyle, socialActivities, culturalInterests
      * + hobbies list
      */
     interests: jsonb("interests").$type<ProfileAxis>(),
-    
+
     /**
      * Asse BEHAVIORAL
      * Traits: responsiveness, communicationDepth, interactionFrequency
@@ -71,34 +71,34 @@ export const userProfiles = pgTable(
     // ==========================================
     // 4 EMBEDDINGS (per ANN Search)
     // ==========================================
-    
+
     /** PSYCHOLOGICAL - DOMINANTE per ANN (peso 0.45) */
-    psychologicalEmbedding: vector("psychological_embedding", { 
-      dimensions: EMBEDDING_DIMENSIONS 
+    psychologicalEmbedding: vector("psychological_embedding", {
+      dimensions: EMBEDDING_DIMENSIONS
     }),
 
     /** VALUES (peso 0.25) */
-    valuesEmbedding: vector("values_embedding", { 
-      dimensions: EMBEDDING_DIMENSIONS 
+    valuesEmbedding: vector("values_embedding", {
+      dimensions: EMBEDDING_DIMENSIONS
     }),
 
     /** INTERESTS (peso 0.20) */
-    interestsEmbedding: vector("interests_embedding", { 
-      dimensions: EMBEDDING_DIMENSIONS 
+    interestsEmbedding: vector("interests_embedding", {
+      dimensions: EMBEDDING_DIMENSIONS
     }),
 
     /** BEHAVIORAL (peso 0.10) */
-    behavioralEmbedding: vector("behavioral_embedding", { 
-      dimensions: EMBEDDING_DIMENSIONS 
+    behavioralEmbedding: vector("behavioral_embedding", {
+      dimensions: EMBEDDING_DIMENSIONS
     }),
 
     // ==========================================
     // METADATA
     // ==========================================
-    
-    /** Versione del test che ha generato questo profilo */
-    testVersion: real("test_version").default(1),
-    
+
+    /** Versione dell'assessment che ha generato questo profilo */
+    assessmentVersion: real("assessment_version").default(1),
+
     /** Timestamps */
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -121,7 +121,7 @@ export const userProfiles = pgTable(
       "hnsw",
       table.behavioralEmbedding.op("vector_cosine_ops")
     ),
-    
+
     // Indice su userId
     index("profiles_user_idx").on(table.userId),
   ]
@@ -138,11 +138,11 @@ export const userProfiles = pgTable(
 export interface ProfileAxis {
   /** Traits normalizzati 0-1 */
   traits: Record<string, number>;
-  
+
   /** Descrizione testuale (input per embedding) */
   description: string;
-  
-  /** Dati extra (es. lista hobby per interests) */
+
+  /** Dati extra (es. lista hobby per profiles) */
   extra?: Record<string, unknown>;
 }
 
@@ -153,7 +153,7 @@ export interface ProfileAxis {
 export const STANDARD_TRAITS = {
   psychological: [
     "extraversion",
-    "openness", 
+    "openness",
     "conscientiousness",
     "agreeableness",
     "emotionalStability",
@@ -170,7 +170,7 @@ export const STANDARD_TRAITS = {
   ],
   interests: [
     "activeLifestyle",
-    "socialActivities", 
+    "socialActivities",
     "culturalInterests",
   ],
   behavioral: [
@@ -184,9 +184,9 @@ export const STANDARD_TRAITS = {
 // RELATIONS
 // ============================================
 
-export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
+export const profilesRelations = relations(profiles, ({ one }) => ({
   user: one(users, {
-    fields: [userProfiles.userId],
+    fields: [profiles.userId],
     references: [users.id],
   }),
 }));
@@ -195,8 +195,8 @@ export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
 // INFERRED TYPES
 // ============================================
 
-export type UserProfile = typeof userProfiles.$inferSelect;
-export type NewUserProfile = typeof userProfiles.$inferInsert;
+export type Profile = typeof profiles.$inferSelect;
+export type NewProfile = typeof profiles.$inferInsert;
 
 // ============================================
 // COSTANTI MATCHING

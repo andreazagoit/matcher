@@ -24,13 +24,13 @@ export const userTypeDefs = `#graphql
     updatedAt: String!
     
     # Relazione con profilo (opzionale, esiste dopo test completato)
-    profile: UserProfile
+    profile: Profile
   }
 
   """
   Profilo utente con traits e dati per matching
   """
-  type UserProfile {
+  type Profile {
     id: ID!
     userId: ID!
     

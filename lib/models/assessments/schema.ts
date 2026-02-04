@@ -11,44 +11,44 @@ import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 
 /**
- * Schema per Test Sessions
+ * Schema per Assessments
  * 
- * Salva le risposte dell'utente al test.
- * Il test è identificato da un nome (es: "personality-v1").
+ * Salva le risposte dell'utente all'assessment.
+ * L'assessment è identificato da un nome (es: "personality-v1").
  */
 
-export const testStatusEnum = pgEnum("test_status", [
+export const assessmentStatusEnum = pgEnum("assessment_status", [
   "in_progress",
   "completed",
 ]);
 
-export const testSessions = pgTable(
-  "test_sessions",
+export const assessments = pgTable(
+  "assessments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    
+
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    
-    /** Nome del test (es: "personality-v1") */
-    testName: text("test_name").notNull(),
-    
+
+    /** Nome dell'assessment (es: "personality-v1") */
+    assessmentName: text("assessment_name").notNull(),
+
     /** 
      * Risposte al test
      * Record<questionId, valore>
      * - Chiuse: numero 1-5
      * - Aperte: stringa
      */
-    answers: jsonb("answers").$type<TestAnswersJson>().notNull(),
-    
-    status: testStatusEnum("status").notNull().default("completed"),
-    
+    answers: jsonb("answers").$type<AssessmentAnswersJson>().notNull(),
+
+    status: assessmentStatusEnum("status").notNull().default("completed"),
+
     completedAt: timestamp("completed_at").defaultNow().notNull(),
   },
   (table) => [
-    index("test_sessions_user_idx").on(table.userId),
-    index("test_sessions_test_name_idx").on(table.testName),
+    index("assessments_user_idx").on(table.userId),
+    index("assessments_assessment_name_idx").on(table.assessmentName),
   ]
 );
 
@@ -61,15 +61,15 @@ export const testSessions = pgTable(
  * - Chiuse: valore 1-5 (intero)
  * - Aperte: stringa
  */
-export type TestAnswersJson = Record<string, number | string>;
+export type AssessmentAnswersJson = Record<string, number | string>;
 
 // ============================================
 // RELATIONS
 // ============================================
 
-export const testSessionsRelations = relations(testSessions, ({ one }) => ({
+export const assessmentsRelations = relations(assessments, ({ one }) => ({
   user: one(users, {
-    fields: [testSessions.userId],
+    fields: [assessments.userId],
     references: [users.id],
   }),
 }));
@@ -78,5 +78,5 @@ export const testSessionsRelations = relations(testSessions, ({ one }) => ({
 // INFERRED TYPES
 // ============================================
 
-export type TestSession = typeof testSessions.$inferSelect;
-export type NewTestSession = typeof testSessions.$inferInsert;
+export type Assessment = typeof assessments.$inferSelect;
+export type NewAssessment = typeof assessments.$inferInsert;

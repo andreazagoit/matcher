@@ -3,9 +3,9 @@ import { eq, ne, sql, and, inArray } from "drizzle-orm";
 import { cosineDistance } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 import {
-  userProfiles,
+  profiles,
   DEFAULT_MATCHING_WEIGHTS,
-  type UserProfile,
+  type Profile,
   type ProfileAxis,
 } from "./schema";
 import { generateAllUserEmbeddings } from "@/lib/embeddings";
@@ -25,11 +25,11 @@ export interface ProfileData {
  * Crea o aggiorna il profilo utente
  * Genera automaticamente gli embeddings dalle descrizioni
  */
-export async function upsertUserProfile(
+export async function upsertProfile(
   userId: string,
   data: ProfileData,
-  testVersion: number = 1
-): Promise<UserProfile> {
+  assessmentVersion: number = 1
+): Promise<Profile> {
   // Genera embeddings da descrizioni testuali
   const embeddings = await generateAllUserEmbeddings({
     psychological: data.psychological.description,
@@ -42,7 +42,7 @@ export async function upsertUserProfile(
 
   // Upsert profilo (INSERT or UPDATE on conflict)
   const [profile] = await db
-    .insert(userProfiles)
+    .insert(profiles)
     .values({
       userId,
       psychological: data.psychological,
@@ -53,11 +53,11 @@ export async function upsertUserProfile(
       valuesEmbedding: embeddings.values,
       interestsEmbedding: embeddings.interests,
       behavioralEmbedding: embeddings.behavioral,
-      testVersion,
+      assessmentVersion,
       updatedAt: now,
     })
     .onConflictDoUpdate({
-      target: userProfiles.userId,
+      target: profiles.userId,
       set: {
         psychological: data.psychological,
         values: data.values,
@@ -67,7 +67,7 @@ export async function upsertUserProfile(
         valuesEmbedding: embeddings.values,
         interestsEmbedding: embeddings.interests,
         behavioralEmbedding: embeddings.behavioral,
-        testVersion,
+        assessmentVersion,
         updatedAt: now,
       },
     })
@@ -81,9 +81,9 @@ export async function upsertUserProfile(
  */
 export async function getProfileByUserId(
   userId: string
-): Promise<UserProfile | null> {
-  const result = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, userId),
+): Promise<Profile | null> {
+  const result = await db.query.profiles.findFirst({
+    where: eq(profiles.userId, userId),
   });
   return result || null;
 }
@@ -101,7 +101,7 @@ export async function hasCompleteProfile(userId: string): Promise<boolean> {
 // ============================================
 
 export interface ProfileMatch {
-  profile: UserProfile;
+  profile: Profile;
   user: typeof users.$inferSelect;
   similarity: number;
   breakdown: {
@@ -114,7 +114,7 @@ export interface ProfileMatch {
 
 export interface FindMatchesOptions {
   limit?: number;
-  weights?: typeof DEFAULT_MATCHING_WEIGHTS;
+  weights?: Record<keyof typeof DEFAULT_MATCHING_WEIGHTS, number>;
   /** Filtro per genere (array di valori: "man", "woman", "non_binary") */
   gender?: ("man" | "woman" | "non_binary")[];
   /** Età minima (inclusiva) */
@@ -135,8 +135,8 @@ export async function findMatches(
   userId: string,
   options: FindMatchesOptions = {}
 ): Promise<ProfileMatch[]> {
-  const { 
-    limit = 10, 
+  const {
+    limit = 10,
     weights = DEFAULT_MATCHING_WEIGHTS,
     gender,
     minAge,
@@ -148,7 +148,7 @@ export async function findMatches(
 
   const currentProfile = await getProfileByUserId(userId);
   if (!currentProfile?.psychologicalEmbedding) {
-    throw new Error("Profile not found. Complete the test first.");
+    throw new Error("Profile not found. Complete the assessment first.");
   }
 
   const psychEmbedding = currentProfile.psychologicalEmbedding as number[];
@@ -157,7 +157,7 @@ export async function findMatches(
   const behavioralEmbedding = currentProfile.behavioralEmbedding as number[] | null;
 
   // Costruisci condizioni filtro
-  const filterConditions = [ne(userProfiles.userId, userId)];
+  const filterConditions = [ne(profiles.userId, userId)];
 
   // Filtro genere (solo se specificato)
   if (gender && gender.length > 0) {
@@ -171,7 +171,7 @@ export async function findMatches(
       sql`EXTRACT(YEAR FROM AGE(${users.birthDate})) >= ${minAge}`
     );
   }
-  
+
   if (maxAge !== undefined) {
     filterConditions.push(
       sql`EXTRACT(YEAR FROM AGE(${users.birthDate})) <= ${maxAge}`
@@ -179,23 +179,23 @@ export async function findMatches(
   }
 
   // STAGE 1: ANN Search (usa HNSW) con filtri
-  const whereClause = filterConditions.length > 1 
-    ? and(...filterConditions)! 
+  const whereClause = filterConditions.length > 1
+    ? and(...filterConditions)!
     : filterConditions[0];
 
   const candidateProfiles = await db
     .select({
-      profile: userProfiles,
+      profile: profiles,
       user: users,
       psychSimilarity: sql<number>`1 - (${cosineDistance(
-        userProfiles.psychologicalEmbedding,
+        profiles.psychologicalEmbedding,
         psychEmbedding
       )})`,
     })
-    .from(userProfiles)
-    .innerJoin(users, eq(userProfiles.userId, users.id))
+    .from(profiles)
+    .innerJoin(users, eq(profiles.userId, users.id))
     .where(whereClause)
-    .orderBy(sql`${cosineDistance(userProfiles.psychologicalEmbedding, psychEmbedding)}`)
+    .orderBy(sql`${cosineDistance(profiles.psychologicalEmbedding, psychEmbedding)}`)
     .limit(CANDIDATES);
 
   // STAGE 2: Ranking pesato

@@ -25,7 +25,7 @@ import {
 import { EyeIcon, EyeOffIcon, CopyIcon, RefreshCwIcon, UsersIcon, PlayIcon, CheckCircleIcon, XCircleIcon, Loader2Icon, ExternalLinkIcon } from "lucide-react";
 import { CodeBlock } from "@/components/ui/code-block";
 
-interface OAuthApp {
+interface App {
   id: string;
   name: string;
   description?: string;
@@ -62,7 +62,7 @@ export default function AppDetailPage() {
   const router = useRouter();
   const appId = params.appId as string;
 
-  const [app, setApp] = useState<OAuthApp | null>(null);
+  const [app, setApp] = useState<App | null>(null);
   const [stats, setStats] = useState<AppStats | null>(null);
   const [users, setUsers] = useState<AuthorizedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ export default function AppDetailPage() {
   useEffect(() => {
     async function fetchApp() {
       try {
-        const res = await fetch(`/api/dashboard/clients/${appId}`);
+        const res = await fetch(`/api/dashboard/apps/${appId}`);
         if (res.ok) {
           const data = await res.json();
           setApp(data.app);
@@ -104,7 +104,7 @@ export default function AppDetailPage() {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await fetch(`/api/dashboard/clients/${appId}/users`);
+      const res = await fetch(`/api/dashboard/apps/${appId}/users`);
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users);
@@ -120,7 +120,7 @@ export default function AppDetailPage() {
     if (!confirm("Are you sure? This will invalidate the current secret key. All integrations will need to be updated.")) return;
 
     try {
-      const res = await fetch(`/api/dashboard/clients/${appId}/rotate-secret`, {
+      const res = await fetch(`/api/dashboard/apps/${appId}/rotate-secret`, {
         method: "POST",
       });
       if (res.ok) {
@@ -137,7 +137,7 @@ export default function AppDetailPage() {
     if (!confirm("Are you sure you want to delete this app? This cannot be undone.")) return;
 
     try {
-      const res = await fetch(`/api/dashboard/clients/${appId}`, {
+      const res = await fetch(`/api/dashboard/apps/${appId}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -152,7 +152,7 @@ export default function AppDetailPage() {
     if (!confirm("Revoke this user's access? They will need to re-authorize.")) return;
 
     try {
-      const res = await fetch(`/api/dashboard/clients/${appId}/users/${userId}/revoke`, {
+      const res = await fetch(`/api/dashboard/apps/${appId}/users/${userId}/revoke`, {
         method: "POST",
       });
       if (res.ok) {
@@ -200,7 +200,7 @@ export default function AppDetailPage() {
       // Add it automatically
       try {
         const updatedUris = [...(app.redirectUris || []), testCallbackUri];
-        const res = await fetch(`/api/dashboard/clients/${appId}`, {
+        const res = await fetch(`/api/dashboard/apps/${appId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ redirectUris: updatedUris }),

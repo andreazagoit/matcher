@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { findMatches, getAllUsers } from "./operations";
+import { getAllUsers } from "./operations";
+import { findMatches } from "@/lib/models/profiles/operations";
 
 describe("findMatches", () => {
   let testUserId: string;
@@ -26,21 +27,23 @@ describe("findMatches", () => {
 
     if (matches.length > 0) {
       const match = matches[0];
-      expect(match).toHaveProperty("id");
-      expect(match).toHaveProperty("firstName");
-      expect(match).toHaveProperty("lastName");
-      expect(match).toHaveProperty("email");
-      expect(match).toHaveProperty("values");
-      expect(match).toHaveProperty("interests");
+      expect(match).toHaveProperty("user");
+      expect(match).toHaveProperty("profile");
       expect(match).toHaveProperty("similarity");
+      expect(match).toHaveProperty("breakdown");
       expect(typeof match.similarity).toBe("number");
+
+      // Check user fields
+      expect(match.user).toHaveProperty("id");
+      expect(match.user).toHaveProperty("firstName");
+      expect(match.user).toHaveProperty("lastName");
     }
   });
 
   it("dovrebbe escludere l'utente corrente dai risultati", async () => {
     const matches = await findMatches(testUserId, { limit: 10 });
 
-    const userIds = matches.map((m) => m.id);
+    const userIds = matches.map((m) => m.user.id);
     expect(userIds).not.toContain(testUserId);
   });
 
@@ -67,20 +70,24 @@ describe("findMatches", () => {
   it("dovrebbe lanciare errore per utente non esistente", async () => {
     const fakeUserId = "00000000-0000-0000-0000-000000000000";
 
-    await expect(findMatches(fakeUserId)).rejects.toThrow("User not found");
+    await expect(findMatches(fakeUserId)).rejects.toThrow("Profile not found");
   });
 
   it("dovrebbe accettare pesi personalizzati", async () => {
     const matchesDefault = await findMatches(testUserId, { limit: 5 });
-    const matchesValuesHeavy = await findMatches(testUserId, {
+    const matchesWeights = await findMatches(testUserId, {
       limit: 5,
-      valuesWeight: 0.8,
-      interestsWeight: 0.2,
+      weights: {
+        psychological: 0.8,
+        values: 0.1,
+        interests: 0.05,
+        behavioral: 0.05,
+      },
     });
 
     // Entrambi dovrebbero funzionare
     expect(matchesDefault).toBeDefined();
-    expect(matchesValuesHeavy).toBeDefined();
+    expect(matchesWeights).toBeDefined();
   });
 });
 

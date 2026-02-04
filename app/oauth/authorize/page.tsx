@@ -193,7 +193,7 @@ function AuthorizeContent() {
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/complete-test", {
+      const res = await fetch("/api/auth/complete-assessment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers }),
@@ -201,12 +201,12 @@ function AuthorizeContent() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to save test");
+        throw new Error(data.error || "Failed to save assessment");
       }
 
       setStep("consent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save test");
+      setError(err instanceof Error ? err.message : "Failed to save assessment");
     } finally {
       setAuthLoading(false);
     }

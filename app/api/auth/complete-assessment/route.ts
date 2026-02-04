@@ -1,17 +1,17 @@
 /**
  * Complete Test API
- * POST /api/auth/complete-test
+ * POST /api/auth/complete-assessment
  * 
- * Saves test answers and generates user profile with embeddings
+ * Saves assessment answers and generates user profile with embeddings
  */
 
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db/drizzle";
-import { testSessions } from "@/lib/models/tests/schema";
-import { TEST_NAME } from "@/lib/models/tests/questions";
-import { assembleProfile } from "@/lib/models/tests/assembler";
-import { upsertUserProfile } from "@/lib/models/profiles/operations";
+import { assessments } from "@/lib/models/assessments/schema";
+import { ASSESSMENT_NAME } from "@/lib/models/assessments/questions";
+import { assembleProfile } from "@/lib/models/assessments/assembler";
+import { upsertProfile } from "@/lib/models/profiles/operations";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,12 +35,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Save test session
-    const [testSession] = await db
-      .insert(testSessions)
+    // 1. Save assessment
+    const [assessment] = await db
+      .insert(assessments)
       .values({
         userId,
-        testName: TEST_NAME,
+        assessmentName: ASSESSMENT_NAME,
         status: "completed",
         answers,
         completedAt: new Date(),
@@ -51,17 +51,17 @@ export async function POST(request: NextRequest) {
     const profileData = assembleProfile(answers);
 
     // 3. Generate embeddings and save profile
-    const profile = await upsertUserProfile(userId, profileData, 1);
+    const profile = await upsertProfile(userId, profileData, 1);
 
     return Response.json({
       success: true,
-      testSessionId: testSession.id,
+      assessmentId: assessment.id,
       profileId: profile.id,
     });
   } catch (error) {
-    console.error("Complete test error:", error);
+    console.error("Complete assessment error:", error);
     return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to complete test" },
+      { error: error instanceof Error ? error.message : "Failed to complete assessment" },
       { status: 500 }
     );
   }

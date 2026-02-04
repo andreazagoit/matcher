@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { rotateSecretKey } from "@/lib/models/oauth-clients/operations";
+import { rotateSecretKey } from "@/lib/models/apps/operations";
 
 interface RouteContext {
   params: Promise<{ appId: string }>;
@@ -12,7 +12,7 @@ interface RouteContext {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   const { appId } = await context.params;
-  
+
   try {
     const result = await rotateSecretKey(appId);
 

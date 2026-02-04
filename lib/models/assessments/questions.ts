@@ -1,5 +1,5 @@
 /**
- * Domande del Test
+ * Domande dell'Assessment
  * 
  * Ogni domanda ha un ID univoco.
  * Le opzioni sono frasi descrittive che vanno direttamente nell'embedding.
@@ -498,8 +498,8 @@ export const QUESTIONS: Record<Section, Question[]> = {
 // TEST INFO
 // ============================================
 
-/** Nome/versione del test corrente */
-export const TEST_NAME = "personality-v1";
+/** Nome/versione dell'assessment corrente */
+export const ASSESSMENT_NAME = "personality-v1";
 
 export const SECTIONS: Section[] = ["psychological", "values", "interests", "behavioral"];
 
