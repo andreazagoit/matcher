@@ -6,7 +6,7 @@ import { profiles } from "../../models/profiles/schema";
 import { QUESTIONS, SECTIONS, ASSESSMENT_NAME } from "../../models/assessments/questions";
 import { assembleProfile } from "../../models/assessments/assembler";
 import { generateAllUserEmbeddings } from "../../embeddings";
-import { createApp } from "../../models/apps/operations";
+import { createSpace } from "../../models/spaces/operations";
 
 /**
  * Seed - Crea 25 utenti con test completati e profili
@@ -114,9 +114,10 @@ async function seed() {
     const [adminUser] = await db.insert(users).values(adminData).returning();
     console.log(`  🔑 Created Admin User: ${adminData.email}`);
 
-    const systemApp = await createApp({
+    const systemSpace = await createSpace({
       name: "Matcher System",
-      description: "Official Matcher System App for internal use",
+      slug: "matcher-system",
+      description: "Official Matcher System Space for internal use",
       redirectUris: [
         "http://localhost:3000/api/auth/callback/matcher", // Auth.js callback
         "http://localhost:3000/oauth/callback",
@@ -124,9 +125,9 @@ async function seed() {
       ],
       ownerId: adminUser.id,
     });
-    console.log(`  🔑 Created System App:`);
-    console.log(`     Client ID: ${systemApp.clientId}`);
-    console.log(`     Secret Key: ${systemApp.secretKey}`);
+    console.log(`  🔑 Created System Space:`);
+    console.log(`     Client ID: ${systemSpace.clientId}`);
+    console.log(`     Secret Key: ${systemSpace.secretKey}`);
     console.log(`     ⚠️  Add these to .env as OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET`);
 
     // Process other users (skip admin)

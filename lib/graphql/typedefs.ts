@@ -1,4 +1,7 @@
 import { userTypeDefs } from "../models/users/typedefs";
+import { spaceTypeDefs } from "../models/spaces/typedefs";
+import { memberTypeDefs } from "../models/members/typedefs";
+import { postTypeDefs } from "../models/posts/typedefs";
 
 // Base types - definizioni vuote che vengono estese dai modelli
 const baseTypeDefs = `#graphql
@@ -11,4 +14,4 @@ const baseTypeDefs = `#graphql
   type Mutation
 `;
 
-export const typeDefs = [baseTypeDefs, userTypeDefs];
+export const typeDefs = [baseTypeDefs, userTypeDefs, spaceTypeDefs, memberTypeDefs, postTypeDefs];

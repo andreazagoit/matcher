@@ -15,7 +15,7 @@ async function drop() {
   console.log("🗑️  Dropping all tables...");
 
   try {
-    await client`DROP SCHEMA public CASCADE`;
+    await client`DROP SCHEMA IF EXISTS public CASCADE`;
     await client`CREATE SCHEMA public`;
     console.log("✅ All tables dropped!");
   } catch (error) {

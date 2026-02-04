@@ -5,48 +5,63 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreateAppDialog } from "@/components/create-app-dialog";
+import { CreateSpaceDialog } from "@/components/create-space-dialog";
+import { graphql } from "@/lib/graphql/client";
 
-interface App {
+interface Space {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   clientId: string;
   isActive: boolean;
+  isPublic: boolean;
+  membersCount: number;
   createdAt: string;
 }
 
 export default function DashboardPage() {
-  const [apps, setApps] = useState<App[]>([]);
+  const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const fetchApps = async () => {
+  const fetchSpaces = async () => {
     try {
-      const res = await fetch("/api/dashboard/apps");
-      if (res.ok) {
-        const data = await res.json();
-        setApps(data.apps);
-      }
+      const data = await graphql<{ mySpaces: Space[] }>(`
+        query GetMySpaces {
+          mySpaces {
+            id
+            name
+            slug
+            description
+            clientId
+            isActive
+            isPublic
+            membersCount
+            createdAt
+          }
+        }
+      `);
+      setSpaces(data.mySpaces);
     } catch (error) {
-      console.error("Failed to fetch apps:", error);
+      console.error("Failed to fetch spaces:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchApps();
+    fetchSpaces();
   }, []);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Your Apps</h1>
-          <p className="text-muted-foreground mt-1">Manage your OAuth applications</p>
+          <h1 className="text-3xl font-bold text-foreground">Your Spaces</h1>
+          <p className="text-muted-foreground mt-1">Manage your communities and clubs</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>+ Create App</Button>
+        <Button onClick={() => setCreateDialogOpen(true)}>+ Create Space</Button>
       </div>
 
       {loading ? (
@@ -63,40 +78,47 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
-      ) : apps.length === 0 ? (
+      ) : spaces.length === 0 ? (
         <Card className="text-center">
           <CardHeader>
-            <div className="text-6xl mb-4">🔐</div>
-            <CardTitle>No apps yet</CardTitle>
-            <CardDescription>Create your first app to get started with OAuth and M2M access</CardDescription>
+            <div className="text-6xl mb-4">🪐</div>
+            <CardTitle>No spaces yet</CardTitle>
+            <CardDescription>Create your first space to start building your community</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setCreateDialogOpen(true)}>Create Your First App</Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>Create Your First Space</Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {apps.map((app) => (
-            <Link key={app.id} href={`/dashboard/${app.id}`}>
+          {spaces.map((space) => (
+            <Link key={space.id} href={`/dashboard/${space.id}`}>
               <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
-                      {app.name.charAt(0).toUpperCase()}
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-2xl">
+                      {/* Would use space logo here */}
+                      {space.name.charAt(0).toUpperCase()}
                     </div>
-                    <Badge variant={app.isActive ? "default" : "secondary"}>
-                      {app.isActive ? "Active" : "Inactive"}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="outline">
+                        {space.isPublic ? "Public" : "Private"}
+                      </Badge>
+                      <Badge variant={space.isActive ? "default" : "secondary"}>
+                        {space.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
                   </div>
-                  <CardTitle className="mt-4">{app.name}</CardTitle>
-                  {app.description && (
-                    <CardDescription className="line-clamp-2">{app.description}</CardDescription>
+                  <CardTitle className="mt-4">{space.name}</CardTitle>
+                  {space.description && (
+                    <CardDescription className="line-clamp-2">{space.description}</CardDescription>
                   )}
                 </CardHeader>
                 <CardContent>
-                  <code className="text-xs text-muted-foreground font-mono">
-                    {app.clientId}
-                  </code>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <span className="font-mono">{space.slug}</span>
+                    <span>{space.membersCount} members</span>
+                  </div>
                 </CardContent>
               </Card>
             </Link>
@@ -104,10 +126,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <CreateAppDialog
+      <CreateSpaceDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onCreated={fetchApps}
+        onCreated={fetchSpaces}
       />
     </div>
   );

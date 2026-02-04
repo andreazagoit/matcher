@@ -3,7 +3,7 @@
  * RFC 6749 §6
  */
 
-import { validateClientCredentials, clientSupportsGrant, getAppByClientId } from "@/lib/models/apps/operations";
+import { validateClientCredentials, clientSupportsGrant, getSpaceByClientId } from "@/lib/models/spaces/operations";
 import { validateScopes } from "../config";
 import { OAuthErrors } from "../errors";
 import {
@@ -42,13 +42,13 @@ export async function handleRefreshToken(
 
   // For public clients, just verify client exists
   if (!client) {
-    const publicClient = await getAppByClientId(request.clientId);
+    const publicClient = await getSpaceByClientId(request.clientId);
     if (!publicClient || !publicClient.isActive) {
       throw OAuthErrors.invalidClient("Invalid client credentials");
     }
   }
 
-  const clientForGrant = client || await getAppByClientId(request.clientId);
+  const clientForGrant = client || await getSpaceByClientId(request.clientId);
 
   // 2. Check grant type
   if (!clientForGrant || !clientSupportsGrant(clientForGrant, "refresh_token")) {

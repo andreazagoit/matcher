@@ -13,29 +13,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { graphql } from "@/lib/graphql/client";
 
-interface CreateAppDialogProps {
+interface CreateSpaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: () => void;
 }
 
-export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDialogProps) {
+export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpaceDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
+    slug: "",
     description: "",
-    redirectUris: "",
+    isPublic: true,
   });
 
   const resetForm = () => {
     setFormData({
       name: "",
+      slug: "",
       description: "",
-      redirectUris: "",
+      isPublic: true,
     });
     setError(null);
   };
@@ -53,35 +57,30 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
     setError(null);
 
     try {
-      const res = await fetch("/api/dashboard/apps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          redirectUris: formData.redirectUris
-            .split("\n")
-            .map((uri) => uri.trim())
-            .filter(Boolean),
-        }),
+      const data = await graphql<{ createSpace: { id: string } }>(`
+        mutation CreateSpace($input: CreateSpaceInput!) {
+          createSpace(input: $input) {
+            id
+            name
+            slug
+          }
+        }
+      `, {
+        input: {
+          name: formData.name,
+          slug: formData.slug || undefined,
+          description: formData.description,
+          isPublic: formData.isPublic,
+        }
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to create app");
-      }
-
-      const data = await res.json();
-
-      // Store secret key temporarily to show on the app page
-      sessionStorage.setItem(`new_secret_${data.app.id}`, data.credentials.secretKey);
 
       onCreated?.();
       handleOpenChange(false);
 
-      // Navigate directly to the app page
-      router.push(`/dashboard/${data.app.id}`);
+      // Navigate directly to the space page
+      router.push(`/dashboard/${data.createSpace.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create app");
+      setError(err instanceof Error ? err.message : "Failed to create space");
       setLoading(false);
     }
   };
@@ -90,9 +89,9 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New App</DialogTitle>
+          <DialogTitle>Create New Space</DialogTitle>
           <DialogDescription>
-            You&apos;ll get credentials for both OAuth and M2M access.
+            Create a new community, club, or organization.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,14 +104,25 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">App Name *</Label>
+              <Label htmlFor="name">Space Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                placeholder="My Awesome App"
+                placeholder="FitLife Club"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="slug">URL Slug (optional)</Label>
+              <Input
+                id="slug"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                placeholder="fitlife-club"
+              />
+              <p className="text-xs text-muted-foreground">Will be auto-generated if left empty</p>
             </div>
 
             <div className="space-y-2">
@@ -121,19 +131,17 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="What does your app do?"
+                placeholder="A community for fitness enthusiasts"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Redirect URIs</Label>
-              <Textarea
-                value={formData.redirectUris}
-                onChange={(e) => setFormData({ ...formData, redirectUris: e.target.value })}
-                className="font-mono text-sm h-20"
-                placeholder={"https://myapp.com/callback\nhttp://localhost:3000/callback"}
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch
+                id="is-public"
+                checked={formData.isPublic}
+                onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
               />
-              <p className="text-xs text-muted-foreground">One URI per line. Required for OAuth login flow.</p>
+              <Label htmlFor="is-public">Public Space</Label>
             </div>
           </div>
 
@@ -151,7 +159,7 @@ export function CreateAppDialog({ open, onOpenChange, onCreated }: CreateAppDial
               disabled={loading || !formData.name}
               className="flex-1"
             >
-              {loading ? "Creating..." : "Create App"}
+              {loading ? "Creating..." : "Create Space"}
             </Button>
           </div>
         </form>

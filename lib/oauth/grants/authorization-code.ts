@@ -6,8 +6,8 @@
 import {
   clientSupportsGrant,
   isRedirectUriAllowed,
-  getAppByClientId,
-} from "@/lib/models/apps/operations";
+  getSpaceByClientId,
+} from "@/lib/models/spaces/operations";
 import {
   createAuthorizationCode,
   findAuthorizationCode,
@@ -39,7 +39,7 @@ export interface AuthorizeRequest {
 }
 
 export interface AuthorizeValidationResult {
-  client: Awaited<ReturnType<typeof getAppByClientId>>;
+  client: Awaited<ReturnType<typeof getSpaceByClientId>>;
   scope: string;
   redirectUri: string;
   state?: string;
@@ -59,7 +59,7 @@ export async function validateAuthorizeRequest(
   }
 
   // 2. Validate client
-  const client = await getAppByClientId(request.clientId);
+  const client = await getSpaceByClientId(request.clientId);
   if (!client || !client.isActive) {
     throw OAuthErrors.invalidRequest("Invalid client_id");
   }
@@ -150,7 +150,7 @@ export async function exchangeCodeForTokens(
   }
 
   // 2. Validate client exists
-  const client = await getAppByClientId(request.clientId);
+  const client = await getSpaceByClientId(request.clientId);
   if (!client || !client.isActive) {
     throw OAuthErrors.invalidClient("Invalid client");
   }
@@ -185,7 +185,7 @@ export async function exchangeCodeForTokens(
   await markCodeAsUsed(request.code);
 
   // 7. Get client for TTL settings
-  const clientForTtl = client || await getAppByClientId(request.clientId);
+  const clientForTtl = client || await getSpaceByClientId(request.clientId);
   const accessTtl = parseInt(clientForTtl?.accessTokenTtl || "3600", 10);
   const refreshTtl = parseInt(clientForTtl?.refreshTokenTtl || "2592000", 10);
 

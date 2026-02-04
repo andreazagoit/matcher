@@ -5,7 +5,7 @@
  * Used for M2M (machine-to-machine) authentication
  */
 
-import { validateClientCredentials, clientSupportsGrant } from "@/lib/models/apps/operations";
+import { validateClientCredentials, clientSupportsGrant } from "@/lib/models/spaces/operations";
 import { validateScopes } from "../config";
 import { OAuthErrors } from "../errors";
 import {

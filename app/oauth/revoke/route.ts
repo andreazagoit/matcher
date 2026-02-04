@@ -6,7 +6,7 @@
 
 import { NextRequest } from "next/server";
 import { OAuthError, OAuthErrors } from "@/lib/oauth/errors";
-import { validateClientCredentials } from "@/lib/models/apps/operations";
+import { validateClientCredentials } from "@/lib/models/spaces/operations";
 import {
   verifyAccessToken,
   hashToken,

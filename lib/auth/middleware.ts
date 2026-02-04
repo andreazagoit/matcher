@@ -8,7 +8,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { validateApiKey } from "@/lib/models/apps/operations";
+import { validateApiKey } from "@/lib/models/spaces/operations";
 import { getUserById } from "@/lib/models/users/operations";
 import { db } from "@/lib/db/drizzle";
 import { accessTokens } from "@/lib/models/tokens/schema";
@@ -95,6 +95,23 @@ export async function getAuthContext(req: NextRequest): Promise<AuthContext> {
                 authType: "api_key",
                 appId: app.id,
                 fullAccess: true,
+            };
+        }
+    }
+
+    // 4. Check for session cookie (user_id)
+    // Note: In a real app we would use a proper session ID and lookup
+    const userId = req.cookies.get("user_id")?.value;
+    if (userId) {
+        const user = await getUserById(userId);
+        if (user) {
+            return {
+                isAuthenticated: true,
+                authType: "oauth", // Reuse oauth type as it's a user context
+                userId: user.id,
+                user: user,
+                scopes: [], // Default scopes for logged in user
+                fullAccess: false,
             };
         }
     }
