@@ -84,7 +84,7 @@ export const postResolvers = {
                     where: and(eq(members.spaceId, post.spaceId), eq(members.userId, context.auth.user.id)),
                 });
 
-                if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
+                if (!membership || membership.role !== "admin") {
                     throw new GraphQLError("Forbidden");
                 }
             }

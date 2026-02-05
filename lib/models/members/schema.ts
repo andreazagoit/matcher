@@ -13,7 +13,7 @@ import { spaces } from "@/lib/models/spaces/schema";
  * Members Schema
  * 
  * Represents the relationship between User and Space.
- * Includes Role (owner, admin, member) and Status.
+ * Includes Role (admin, member) and Status.
  */
 
 export const memberRoleEnum = pgEnum("member_role", ["owner", "admin", "member"]);

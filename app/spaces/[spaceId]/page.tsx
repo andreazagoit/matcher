@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,27 +15,18 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   CopyIcon,
   RefreshCwIcon,
   TrashIcon,
-  EllipsisVerticalIcon,
-  ShieldIcon,
-  ShieldCheckIcon,
   SettingsIcon,
 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { graphql } from "@/lib/graphql/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MembersDataTable } from "./members/data-table";
+import type { Member } from "./members/columns";
+import { CreatePost } from "./feed/create-post";
+import { PostList } from "./feed/post-list";
 
 interface Space {
   id: string;
@@ -53,18 +45,7 @@ interface Space {
   members?: Member[];
 }
 
-interface Member {
-  id: string;
-  role: string;
-  status: string;
-  joinedAt: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-}
+// Member type is defined in ./members/columns.tsx
 
 export default function SpaceDetailPage() {
   const params = useParams();
@@ -73,6 +54,16 @@ export default function SpaceDetailPage() {
 
   const [space, setSpace] = useState<Space | null>(null);
   const [loading, setLoading] = useState(true);
+  const { data: session } = useSession();
+  const [feedRefreshTrigger, setFeedRefreshTrigger] = useState(0);
+
+  // Check if current user is an admin of this space
+  const currentUserIsAdmin = useMemo(() => {
+    const userId = session?.user?.id;
+    if (!userId || !space?.members) return false;
+    const currentMember = space.members.find(m => m.user.id === userId);
+    return currentMember?.role === "admin";
+  }, [session?.user?.id, space?.members]);
 
   const fetchSpace = useCallback(async () => {
     try {
@@ -89,7 +80,7 @@ export default function SpaceDetailPage() {
             joinPolicy
             membersCount
             createdAt
-            members(limit: 10) {
+            members(limit: 100) {
               id
               role
               status
@@ -154,13 +145,6 @@ export default function SpaceDetailPage() {
 
   return (
     <PageShell
-      breadcrumbs={
-        <>
-          <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
-          <span>/</span>
-          <span className="text-foreground">{space.name}</span>
-        </>
-      }
       title={space.name}
       subtitle={
         <div className="flex items-center gap-3 mt-1">
@@ -192,11 +176,26 @@ export default function SpaceDetailPage() {
         </div>
       }
     >
-      <Tabs defaultValue="members" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+      <Tabs defaultValue="feed" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+          <TabsTrigger value="feed">Feed</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="developers">Developers</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="feed" className="mt-6">
+          <div className="mx-auto max-w-2xl">
+            <CreatePost
+              spaceId={spaceId}
+              onPostCreated={() => setFeedRefreshTrigger(prev => prev + 1)}
+            />
+            <PostList
+              spaceId={spaceId}
+              isAdmin={currentUserIsAdmin}
+              refreshTrigger={feedRefreshTrigger}
+            />
+          </div>
+        </TabsContent>
 
         <TabsContent value="members" className="mt-6">
           <Card>
@@ -210,61 +209,12 @@ export default function SpaceDetailPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {space.members?.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback>{member.user.firstName[0]}{member.user.lastName[0]}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-sm">{member.user.firstName} {member.user.lastName}</p>
-                            <p className="text-xs text-muted-foreground">{member.user.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {member.role === 'owner' && <Badge variant="default" className="gap-1"><ShieldCheckIcon className="h-3 w-3" /> Owner</Badge>}
-                        {member.role === 'admin' && <Badge variant="secondary" className="gap-1"><ShieldIcon className="h-3 w-3" /> Admin</Badge>}
-                        {member.role === 'member' && <Badge variant="outline">Member</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`capitalize text-sm ${member.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>
-                          {member.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {new Date(member.joinedAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon-xs">
-                              <EllipsisVerticalIcon className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>Promote to Admin</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">Remove</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <MembersDataTable
+                members={(space.members || []) as Member[]}
+                spaceId={spaceId}
+                onMemberUpdated={fetchSpace}
+                isAdmin={currentUserIsAdmin}
+              />
             </CardContent>
           </Card>
         </TabsContent>

@@ -93,7 +93,7 @@ export const memberResolvers = {
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, context.auth.user.id)),
             });
 
-            if (!requester || (requester.role !== "owner" && requester.role !== "admin")) {
+            if (!requester || requester.role !== "admin") {
                 throw new GraphQLError("Forbidden");
             }
 
@@ -116,7 +116,7 @@ export const memberResolvers = {
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, context.auth.user.id)),
             });
 
-            if (!requester || (requester.role !== "owner" && requester.role !== "admin")) {
+            if (!requester || requester.role !== "admin") {
                 throw new GraphQLError("Forbidden");
             }
 

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db/drizzle";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { createSpace, updateSpace, deleteSpace } from "./operations";
@@ -64,7 +64,7 @@ export const spaceResolvers = {
 
             const result = await createSpace({
                 ...input,
-                ownerId: context.auth.user.id,
+                creatorId: context.auth.user.id,
             });
 
             return result.space;
@@ -73,12 +73,12 @@ export const spaceResolvers = {
         updateSpace: async (_: unknown, { id, input }: { id: string; input: UpdateSpaceInput }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            // Check if user is owner or admin of the space
+            // Check if user is admin of the space
             const memberRecord = await db.query.members.findFirst({
                 where: and(
                     eq(members.spaceId, id),
                     eq(members.userId, context.auth.user.id),
-                    or(eq(members.role, "owner"), eq(members.role, "admin"))
+                    eq(members.role, "admin")
                 )
             });
 
@@ -90,16 +90,16 @@ export const spaceResolvers = {
         deleteSpace: async (_: unknown, { id }: { id: string }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            // Only owner can delete? Let's say yes
+            // Only admins can delete spaces
             const memberRecord = await db.query.members.findFirst({
                 where: and(
                     eq(members.spaceId, id),
                     eq(members.userId, context.auth.user.id),
-                    eq(members.role, "owner")
+                    eq(members.role, "admin")
                 )
             });
 
-            if (!memberRecord) throw new GraphQLError("Forbidden: Only owners can delete spaces");
+            if (!memberRecord) throw new GraphQLError("Forbidden: Only admins can delete spaces");
 
             return deleteSpace(id);
         },

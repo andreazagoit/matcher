@@ -171,15 +171,6 @@ export default function SpaceSettingsPage() {
 
     return (
         <PageShell
-            breadcrumbs={
-                <>
-                    <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
-                    <span>/</span>
-                    <Link href={`/spaces/${spaceId}`} className="hover:text-foreground transition">{space.name}</Link>
-                    <span>/</span>
-                    <span className="text-foreground">Settings</span>
-                </>
-            }
             title="Space Settings"
             subtitle="Configure your space's visibility, access, and general information"
             actions={

@@ -85,7 +85,7 @@ async function seedSpaces() {
     console.log(`🌱 Adding ${TEST_SPACES.length} test spaces...\n`);
 
     try {
-        // Find admin user to be the owner
+        // Find admin user to be the creator
         const adminUser = await db.query.users.findFirst({
             where: eq(users.email, "admin@matcher.local"),
         });
@@ -99,10 +99,10 @@ async function seedSpaces() {
             try {
                 const result = await createSpace({
                     ...spaceData,
-                    ownerId: adminUser.id,
+                    creatorId: adminUser.id,
                 });
                 console.log(`  ✓ Created: ${result.space.name} (${result.space.slug})`);
-            } catch (error) {
+            } catch {
                 // Likely already exists (unique slug constraint)
                 console.log(`  ⚠️ Skipped: ${spaceData.name} (already exists)`);
             }

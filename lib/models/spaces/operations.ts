@@ -54,7 +54,7 @@ export async function createSpace(params: {
   slug?: string;
   description?: string;
   redirectUris?: string[];
-  ownerId: string; // We'll use this for the initial member
+  creatorId: string; // The user who creates the space becomes an admin
   visibility?: "public" | "private" | "hidden";
   joinPolicy?: "open" | "apply" | "invite_only";
 }): Promise<CreateSpaceResult> {
@@ -79,11 +79,11 @@ export async function createSpace(params: {
       })
       .returning();
 
-    // Create the owner member
+    // Create the creator as admin
     await tx.insert(members).values({
       spaceId: space.id,
-      userId: params.ownerId,
-      role: "owner",
+      userId: params.creatorId,
+      role: "admin",
       status: "active",
     });
 

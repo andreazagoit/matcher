@@ -109,7 +109,7 @@ async function seed() {
   }
 
   try {
-    // 0. Create system app owner (Admin) and App
+    // 0. Create system admin and Space
     const adminData = SEED_USERS[0];
     const [adminUser] = await db.insert(users).values(adminData).returning();
     console.log(`  🔑 Created Admin User: ${adminData.email}`);
@@ -123,7 +123,7 @@ async function seed() {
         "http://localhost:3000/oauth/callback",
         "http://localhost:3000/dashboard/oauth-test-callback",
       ],
-      ownerId: adminUser.id,
+      creatorId: adminUser.id,
       visibility: "hidden",
       joinPolicy: "invite_only",
     });
