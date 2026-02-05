@@ -11,11 +11,12 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Settings, Compass, Plus, Rss, LayoutGrid } from "lucide-react"
+import { LayoutDashboard, Compass, Plus, Rss, LayoutGrid } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState, useEffect } from "react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface UserInfo {
     id: string;
@@ -26,6 +27,24 @@ interface UserInfo {
 
 export function AppSidebar() {
     const pathname = usePathname()
+    const [user, setUser] = useState<UserInfo | null>(null)
+
+    useEffect(() => {
+        async function checkAuth() {
+            try {
+                const res = await fetch("/api/auth/profile-status")
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.authenticated) {
+                        setUser(data.user)
+                    }
+                }
+            } catch {
+                // Not authenticated
+            }
+        }
+        checkAuth()
+    }, [])
 
     return (
         <Sidebar>
@@ -91,12 +110,32 @@ export function AppSidebar() {
                 </SidebarGroup>
 
             </SidebarContent>
-            <SidebarFooter className="p-4">
-                {/* Footer content if needed, e.g. Matcher Logo or version */}
-                <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                    <Compass className="h-3 w-3" />
-                    <span>Matcher v1.0</span>
-                </div>
+            <SidebarFooter className="border-t p-4">
+                {user ? (
+                    <Link
+                        href="/account"
+                        className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-accent transition-colors group"
+                    >
+                        <Avatar className="h-9 w-9 border-2 border-transparent group-hover:border-primary/20 transition-all">
+                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                                {user.firstName?.[0]}{user.lastName?.[0]}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-semibold truncate text-foreground">
+                                {user.firstName} {user.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate">
+                                View Profile
+                            </span>
+                        </div>
+                    </Link>
+                ) : (
+                    <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                        <Compass className="h-3 w-3" />
+                        <span>Matcher v1.0</span>
+                    </div>
+                )}
             </SidebarFooter>
         </Sidebar>
     )

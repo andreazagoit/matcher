@@ -124,6 +124,8 @@ async function seed() {
         "http://localhost:3000/dashboard/oauth-test-callback",
       ],
       ownerId: adminUser.id,
+      visibility: "hidden",
+      joinPolicy: "invite_only",
     });
     console.log(`  🔑 Created System Space:`);
     console.log(`     Client ID: ${systemSpace.clientId}`);

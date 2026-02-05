@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { PageShell } from "@/components/page-shell";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -8,10 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, ChevronLeft, RefreshCwIcon, SaveIcon, TrashIcon } from "lucide-react";
+import { AlertCircle, ChevronLeft, RefreshCwIcon, SaveIcon } from "lucide-react";
 import { graphql } from "@/lib/graphql/client";
 import {
     AlertDialog,
@@ -31,9 +38,8 @@ interface Space {
     slug: string;
     description?: string;
     isActive: boolean;
-    isPublic: boolean;
-    requiresApproval: boolean;
-    ownerId: string;
+    visibility: string;
+    joinPolicy: string;
 }
 
 export default function SpaceSettingsPage() {
@@ -52,11 +58,11 @@ export default function SpaceSettingsPage() {
         name: "",
         slug: "",
         description: "",
-        isPublic: true,
-        requiresApproval: false,
+        visibility: "public",
+        joinPolicy: "open",
     });
 
-    const fetchSpace = async () => {
+    const fetchSpace = useCallback(async () => {
         try {
             const data = await graphql<{ space: Space }>(`
         query GetSpaceSettings($id: ID!) {
@@ -66,9 +72,8 @@ export default function SpaceSettingsPage() {
             slug
             description
             isActive
-            isPublic
-            requiresApproval
-            ownerId
+            visibility
+            joinPolicy
           }
         }
       `, { id: spaceId });
@@ -79,8 +84,8 @@ export default function SpaceSettingsPage() {
                     name: data.space.name,
                     slug: data.space.slug,
                     description: data.space.description || "",
-                    isPublic: data.space.isPublic,
-                    requiresApproval: data.space.requiresApproval,
+                    visibility: data.space.visibility,
+                    joinPolicy: data.space.joinPolicy,
                 });
             } else {
                 router.push("/spaces");
@@ -91,11 +96,11 @@ export default function SpaceSettingsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [spaceId, router]);
 
     useEffect(() => {
         fetchSpace();
-    }, [spaceId]);
+    }, [fetchSpace]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -111,8 +116,8 @@ export default function SpaceSettingsPage() {
             name
             slug
             description
-            isPublic
-            requiresApproval
+            visibility
+            joinPolicy
           }
         }
       `, {
@@ -121,8 +126,8 @@ export default function SpaceSettingsPage() {
                     name: formData.name,
                     slug: formData.slug || undefined,
                     description: formData.description,
-                    isPublic: formData.isPublic,
-                    requiresApproval: formData.requiresApproval,
+                    visibility: formData.visibility,
+                    joinPolicy: formData.joinPolicy,
                 }
             });
 
@@ -165,31 +170,28 @@ export default function SpaceSettingsPage() {
     if (!space) return null;
 
     return (
-        <div className="max-w-4xl mx-auto py-8 px-4">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-                <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
-                <span>/</span>
-                <Link href={`/spaces/${spaceId}`} className="hover:text-foreground transition">{space.name}</Link>
-                <span>/</span>
-                <span className="text-foreground">Settings</span>
-            </div>
-
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                    <Link href={`/spaces/${spaceId}`}>
-                        <Button variant="ghost" size="icon">
-                            <ChevronLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">Space Settings</h1>
-                        <p className="text-muted-foreground mt-1">Manage your space configuration</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="space-y-8">
+        <PageShell
+            breadcrumbs={
+                <>
+                    <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
+                    <span>/</span>
+                    <Link href={`/spaces/${spaceId}`} className="hover:text-foreground transition">{space.name}</Link>
+                    <span>/</span>
+                    <span className="text-foreground">Settings</span>
+                </>
+            }
+            title="Space Settings"
+            subtitle="Configure your space's visibility, access, and general information"
+            actions={
+                <Link href={`/spaces/${spaceId}`}>
+                    <Button variant="outline" className="gap-2">
+                        <ChevronLeft className="w-4 h-4" />
+                        Back to Space
+                    </Button>
+                </Link>
+            }
+        >
+            <div className="max-w-4xl mx-auto space-y-8">
                 {/* General Settings */}
                 <Card>
                     <CardHeader>
@@ -247,33 +249,41 @@ export default function SpaceSettingsPage() {
 
                             <Separator />
 
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <Label htmlFor="is-public">Public Space</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            Public spaces are visible to everyone and can be discovered
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        id="is-public"
-                                        checked={formData.isPublic}
-                                        onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
-                                    />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="visibility">Visibility</Label>
+                                    <Select
+                                        value={formData.visibility}
+                                        onValueChange={(value) => setFormData({ ...formData, visibility: value })}
+                                    >
+                                        <SelectTrigger id="visibility">
+                                            <SelectValue placeholder="Select visibility" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="public">Public</SelectItem>
+                                            <SelectItem value="private">Private</SelectItem>
+                                            <SelectItem value="hidden">Hidden</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">Public spaces are discoverable by everyone.</p>
                                 </div>
 
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <Label htmlFor="requires-approval">Member Approval</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            Require admin approval for new members
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        id="requires-approval"
-                                        checked={formData.requiresApproval}
-                                        onCheckedChange={(checked) => setFormData({ ...formData, requiresApproval: checked })}
-                                    />
+                                <div className="space-y-2">
+                                    <Label htmlFor="joinPolicy">Join Policy</Label>
+                                    <Select
+                                        value={formData.joinPolicy}
+                                        onValueChange={(value) => setFormData({ ...formData, joinPolicy: value })}
+                                    >
+                                        <SelectTrigger id="joinPolicy">
+                                            <SelectValue placeholder="Select policy" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="open">Open</SelectItem>
+                                            <SelectItem value="apply">Apply (Req. Approval)</SelectItem>
+                                            <SelectItem value="invite_only">Invite Only</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">How users join your space.</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -327,6 +337,6 @@ export default function SpaceSettingsPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </PageShell>
     );
 }

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
 import { graphql } from "@/lib/graphql/client";
@@ -15,34 +17,36 @@ interface Space {
   description?: string;
   clientId: string;
   isActive: boolean;
-  isPublic: boolean;
+  visibility: string;
+  joinPolicy: string;
   membersCount: number;
   createdAt: string;
 }
 
-export default function DashboardPage() {
+export default function DiscoverSpacesPage() {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const fetchSpaces = async () => {
     try {
-      const data = await graphql<{ mySpaces: Space[] }>(`
-        query GetMySpaces {
-          mySpaces {
+      const data = await graphql<{ spaces: Space[] }>(`
+        query GetAllSpaces {
+          spaces {
             id
             name
             slug
             description
             clientId
             isActive
-            isPublic
+            visibility
+            joinPolicy
             membersCount
             createdAt
           }
         }
       `);
-      setSpaces(data.mySpaces);
+      setSpaces(data.spaces);
     } catch (error) {
       console.error("Failed to fetch spaces:", error);
     } finally {
@@ -55,82 +59,87 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Your Spaces</h1>
-          <p className="text-muted-foreground mt-1">Manage your communities and clubs</p>
-        </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>+ Create Space</Button>
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-6 bg-muted rounded w-2/3 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-1/2"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-4 bg-muted rounded w-full"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : spaces.length === 0 ? (
-        <Card className="text-center">
-          <CardHeader>
-            <div className="text-6xl mb-4">🪐</div>
-            <CardTitle>No spaces yet</CardTitle>
-            <CardDescription>Create your first space to start building your community</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setCreateDialogOpen(true)}>Create Your First Space</Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {spaces.map((space) => (
-            <Link key={space.id} href={`/spaces/${space.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+    <>
+      <PageShell
+        title="Discover Spaces"
+        subtitle="Explore and join communities and clubs"
+        actions={
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Space
+          </Button>
+        }
+      >
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-2xl">
-                      {/* Would use space logo here */}
-                      {space.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge variant="outline">
-                        {space.isPublic ? "Public" : "Private"}
-                      </Badge>
-                      <Badge variant={space.isActive ? "default" : "secondary"}>
-                        {space.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                  </div>
-                  <CardTitle className="mt-4">{space.name}</CardTitle>
-                  {space.description && (
-                    <CardDescription className="line-clamp-2">{space.description}</CardDescription>
-                  )}
+                  <div className="h-6 bg-muted rounded w-2/3 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-between items-center text-sm text-muted-foreground">
-                    <span className="font-mono">{space.slug}</span>
-                    <span>{space.membersCount} members</span>
-                  </div>
+                  <div className="h-4 bg-muted rounded w-full"></div>
                 </CardContent>
               </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ) : spaces.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardHeader>
+              <div className="text-6xl mb-4">🪐</div>
+              <CardTitle className="text-2xl">No spaces yet</CardTitle>
+              <CardDescription className="text-lg">Create your first space to start building your community</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => setCreateDialogOpen(true)} size="lg">Create Your First Space</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {spaces.map((space) => (
+              <Link key={space.id} href={`/spaces/${space.id}`}>
+                <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer h-full group">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-3xl font-bold group-hover:scale-110 transition-transform">
+                        {space.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant={space.visibility === "public" ? "outline" : "secondary"}>
+                          {space.visibility === "public" ? "Public" : "Private"}
+                        </Badge>
+                        <Badge variant={space.isActive ? "default" : "secondary"}>
+                          {space.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardTitle className="mt-5 text-2xl group-hover:text-primary transition-colors">{space.name}</CardTitle>
+                    {space.description && (
+                      <CardDescription className="line-clamp-2 mt-2 text-base">{space.description}</CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-center text-sm text-muted-foreground pt-4 border-t border-border/50">
+                      <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">{space.slug}</span>
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        {space.membersCount} members
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </PageShell>
 
       <CreateSpaceDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onCreated={fetchSpaces}
       />
-    </div>
+    </>
   );
 }

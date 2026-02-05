@@ -5,28 +5,27 @@ export const spaceTypeDefs = `#graphql
     slug: String!
     description: String
     logoUrl: String
-    membersCount: Int
-    isPublic: Boolean
-    requiresApproval: Boolean
+    visibility: String!
+    joinPolicy: String!
     createdAt: String!
-    ownerId: ID!
-    owner: User!
     clientId: String
     isActive: Boolean
+    membersCount: Int
   }
 
   input CreateSpaceInput {
     name: String!
     slug: String
     description: String
-    isPublic: Boolean
+    visibility: String
+    joinPolicy: String
   }
 
   input UpdateSpaceInput {
     name: String
     description: String
-    isPublic: Boolean
-    requiresApproval: Boolean
+    visibility: String
+    joinPolicy: String
     logoUrl: String
   }
 

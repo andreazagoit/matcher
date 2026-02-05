@@ -1,13 +1,31 @@
 import { db } from "@/lib/db/drizzle";
-import { eq, or } from "drizzle-orm";
-import { spaces } from "./schema";
-import { users } from "@/lib/models/users/schema";
+import { eq, and, or } from "drizzle-orm";
+import { spaces, type Space } from "./schema";
+import { members } from "@/lib/models/members/schema";
 import { createSpace, updateSpace, deleteSpace } from "./operations";
 import { GraphQLError } from "graphql";
 
+interface ResolverContext {
+    auth?: {
+        user: {
+            id: string;
+        };
+    };
+}
+
+interface CreateSpaceInput {
+    name: string;
+    slug?: string;
+    description?: string;
+    visibility?: "public" | "private" | "hidden";
+    joinPolicy?: "open" | "apply" | "invite_only";
+}
+
+type UpdateSpaceInput = Partial<CreateSpaceInput>;
+
 export const spaceResolvers = {
     Query: {
-        space: async (_: any, { id, slug }: { id?: string; slug?: string }) => {
+        space: async (_: unknown, { id, slug }: { id?: string; slug?: string }) => {
             if (!id && !slug) throw new GraphQLError("ID or Slug required");
 
             const result = await db.query.spaces.findFirst({
@@ -18,24 +36,30 @@ export const spaceResolvers = {
 
         spaces: async () => {
             return db.query.spaces.findMany({
-                where: eq(spaces.isPublic, true),
+                where: eq(spaces.visibility, "public"),
                 orderBy: (spaces, { desc }) => [desc(spaces.createdAt)],
             });
         },
 
-        mySpaces: async (_: any, __: any, context: { auth: { user: { id: string } } }) => {
+        mySpaces: async (_: unknown, __: unknown, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            // Spaces created by me
-            return db.query.spaces.findMany({
-                where: eq(spaces.ownerId, context.auth.user.id),
-                orderBy: (spaces, { desc }) => [desc(spaces.createdAt)],
+            const userMemberships = await db.query.members.findMany({
+                where: eq(members.userId, context.auth.user.id),
+                with: {
+                    space: true
+                }
             });
+
+            return userMemberships
+                .map(m => m.space)
+                .filter((s): s is Space => !!s)
+                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         },
     },
 
     Mutation: {
-        createSpace: async (_: any, { input }: { input: any }, context: { auth: { user: { id: string } } }) => {
+        createSpace: async (_: unknown, { input }: { input: CreateSpaceInput }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
             const result = await createSpace({
@@ -46,35 +70,48 @@ export const spaceResolvers = {
             return result.space;
         },
 
-        updateSpace: async (_: any, { id, input }: { id: string; input: any }, context: { auth: { user: { id: string } } }) => {
+        updateSpace: async (_: unknown, { id, input }: { id: string; input: UpdateSpaceInput }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            const space = await db.query.spaces.findFirst({ where: eq(spaces.id, id) });
-            if (!space) throw new GraphQLError("Space not found");
-            if (space.ownerId !== context.auth.user.id) throw new GraphQLError("Forbidden");
+            // Check if user is owner or admin of the space
+            const memberRecord = await db.query.members.findFirst({
+                where: and(
+                    eq(members.spaceId, id),
+                    eq(members.userId, context.auth.user.id),
+                    or(eq(members.role, "owner"), eq(members.role, "admin"))
+                )
+            });
+
+            if (!memberRecord) throw new GraphQLError("Forbidden: Not an admin of this space");
 
             return updateSpace(id, input);
         },
 
-        deleteSpace: async (_: any, { id }: { id: string }, context: { auth: { user: { id: string } } }) => {
+        deleteSpace: async (_: unknown, { id }: { id: string }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            const space = await db.query.spaces.findFirst({ where: eq(spaces.id, id) });
-            if (!space) throw new GraphQLError("Space not found");
-            if (space.ownerId !== context.auth.user.id) throw new GraphQLError("Forbidden");
+            // Only owner can delete? Let's say yes
+            const memberRecord = await db.query.members.findFirst({
+                where: and(
+                    eq(members.spaceId, id),
+                    eq(members.userId, context.auth.user.id),
+                    eq(members.role, "owner")
+                )
+            });
+
+            if (!memberRecord) throw new GraphQLError("Forbidden: Only owners can delete spaces");
 
             return deleteSpace(id);
         },
     },
 
     Space: {
-        owner: async (parent: any) => {
-            const result = await db.query.users.findFirst({
-                where: eq(users.id, parent.ownerId),
-            });
-            return result;
+        createdAt: (parent: Space) => parent.createdAt?.toISOString(),
+        membersCount: async (parent: Space) => {
+            const result = await db
+                .select({ count: db.$count(members, eq(members.spaceId, parent.id)) })
+                .from(members);
+            return result[0]?.count ?? 0;
         },
-
-        createdAt: (parent: any) => parent.createdAt.toISOString(),
     },
 };

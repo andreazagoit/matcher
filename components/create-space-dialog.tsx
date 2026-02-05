@@ -12,8 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { graphql } from "@/lib/graphql/client";
 
 interface CreateSpaceDialogProps {
@@ -31,7 +36,8 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
     name: "",
     slug: "",
     description: "",
-    isPublic: true,
+    visibility: "public",
+    joinPolicy: "open",
   });
 
   const resetForm = () => {
@@ -39,7 +45,8 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
       name: "",
       slug: "",
       description: "",
-      isPublic: true,
+      visibility: "public",
+      joinPolicy: "open",
     });
     setError(null);
   };
@@ -70,7 +77,8 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
           name: formData.name,
           slug: formData.slug || undefined,
           description: formData.description,
-          isPublic: formData.isPublic,
+          visibility: formData.visibility,
+          joinPolicy: formData.joinPolicy,
         }
       });
 
@@ -135,13 +143,40 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
               />
             </div>
 
-            <div className="flex items-center space-x-2 pt-2">
-              <Switch
-                id="is-public"
-                checked={formData.isPublic}
-                onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
-              />
-              <Label htmlFor="is-public">Public Space</Label>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="visibility">Visibility</Label>
+                <Select
+                  value={formData.visibility}
+                  onValueChange={(value) => setFormData({ ...formData, visibility: value })}
+                >
+                  <SelectTrigger id="visibility">
+                    <SelectValue placeholder="Select visibility" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="hidden">Hidden</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="joinPolicy">Join Policy</Label>
+                <Select
+                  value={formData.joinPolicy}
+                  onValueChange={(value) => setFormData({ ...formData, joinPolicy: value })}
+                >
+                  <SelectTrigger id="joinPolicy">
+                    <SelectValue placeholder="Select policy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="apply">Apply</SelectItem>
+                    <SelectItem value="invite_only">Invite Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 

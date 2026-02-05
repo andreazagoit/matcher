@@ -1,13 +1,22 @@
 import { db } from "@/lib/db/drizzle";
 import { eq, and } from "drizzle-orm";
-import { posts } from "./schema";
+import { posts, type Post } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { users } from "@/lib/models/users/schema";
+import { type Space } from "@/lib/models/spaces/schema";
 import { GraphQLError } from "graphql";
+
+interface ResolverContext {
+    auth?: {
+        user: {
+            id: string;
+        };
+    };
+}
 
 export const postResolvers = {
     Query: {
-        globalFeed: async (_: any, { limit = 20, offset = 0 }) => {
+        globalFeed: async (_: unknown, { limit = 20, offset = 0 }: { limit?: number; offset?: number }) => {
             return db.query.posts.findMany({
                 limit,
                 offset,
@@ -17,16 +26,16 @@ export const postResolvers = {
     },
 
     Post: {
-        author: async (parent: any) => {
+        author: async (parent: Post) => {
             return db.query.users.findFirst({
                 where: eq(users.id, parent.authorId),
             });
         },
-        createdAt: (parent: any) => parent.createdAt.toISOString(),
+        createdAt: (parent: Post) => parent.createdAt.toISOString(),
     },
 
     Space: {
-        feed: async (parent: any, { limit = 20, offset = 0 }) => {
+        feed: async (parent: Space, { limit = 20, offset = 0 }: { limit?: number; offset?: number }) => {
             return db.query.posts.findMany({
                 where: eq(posts.spaceId, parent.id),
                 limit,
@@ -37,7 +46,11 @@ export const postResolvers = {
     },
 
     Mutation: {
-        createPost: async (_: any, { spaceId, content, mediaUrls }: { spaceId: string, content: string, mediaUrls?: string[] }, context: { auth: { user: { id: string } } }) => {
+        createPost: async (
+            _: unknown,
+            { spaceId, content, mediaUrls }: { spaceId: string, content: string, mediaUrls?: string[] },
+            context: ResolverContext
+        ) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
             // Verify membership
@@ -59,7 +72,7 @@ export const postResolvers = {
             return newPost;
         },
 
-        deletePost: async (_: any, { postId }: { postId: string }, context: { auth: { user: { id: string } } }) => {
+        deletePost: async (_: unknown, { postId }: { postId: string }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
             const post = await db.query.posts.findFirst({ where: eq(posts.id, postId) });

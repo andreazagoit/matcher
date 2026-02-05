@@ -8,8 +8,9 @@
 
 import crypto from "crypto";
 import { db } from "@/lib/db/drizzle";
-import { eq } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
+import { members } from "@/lib/models/members/schema";
+import { eq } from "drizzle-orm";
 
 // ============================================
 // CREDENTIAL GENERATION
@@ -53,35 +54,45 @@ export async function createSpace(params: {
   slug?: string;
   description?: string;
   redirectUris?: string[];
-  ownerId: string;
+  ownerId: string; // We'll use this for the initial member
+  visibility?: "public" | "private" | "hidden";
+  joinPolicy?: "open" | "apply" | "invite_only";
 }): Promise<CreateSpaceResult> {
   const clientId = generateClientId();
   const secretKey = generateSecretKey();
   const secretKeyHash = hashSecret(secretKey);
   const slug = params.slug || generateSlug(params.name);
 
-  // Check unique slug if provided manually, otherwise append random if conflict? 
-  // keeping it simple for now, assume generated slug is unique or fail unique constraint
+  return await db.transaction(async (tx) => {
+    const [space] = await tx
+      .insert(spaces)
+      .values({
+        name: params.name,
+        slug,
+        description: params.description,
+        clientId,
+        secretKey,
+        secretKeyHash,
+        redirectUris: params.redirectUris || [],
+        visibility: params.visibility || "public",
+        joinPolicy: params.joinPolicy || "open",
+      })
+      .returning();
 
-  const [space] = await db
-    .insert(spaces)
-    .values({
-      name: params.name,
-      slug,
-      description: params.description,
+    // Create the owner member
+    await tx.insert(members).values({
+      spaceId: space.id,
+      userId: params.ownerId,
+      role: "owner",
+      status: "active",
+    });
+
+    return {
+      space,
       clientId,
       secretKey,
-      secretKeyHash,
-      redirectUris: params.redirectUris || [],
-      ownerId: params.ownerId,
-    })
-    .returning();
-
-  return {
-    space,
-    clientId,
-    secretKey,
-  };
+    };
+  });
 }
 
 export async function getSpaceById(id: string): Promise<Space | null> {
@@ -111,19 +122,12 @@ export async function getAllSpaces(): Promise<Space[]> {
   });
 }
 
-export async function getSpacesByOwner(ownerId: string): Promise<Space[]> {
-  return db.query.spaces.findMany({
-    where: eq(spaces.ownerId, ownerId),
-    orderBy: (spaces, { desc }) => [desc(spaces.createdAt)],
-  });
-}
-
 /**
  * Update space
  */
 export async function updateSpace(
   id: string,
-  data: Partial<Pick<Space, "name" | "slug" | "description" | "redirectUris" | "isActive" | "isPublic" | "logoUrl" | "requiresApproval">>
+  data: Partial<Pick<Space, "name" | "slug" | "description" | "redirectUris" | "isActive" | "visibility" | "logoUrl" | "joinPolicy">>
 ): Promise<Space | null> {
   const [updated] = await db
     .update(spaces)

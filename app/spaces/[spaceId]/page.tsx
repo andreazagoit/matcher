@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   InputGroup,
   InputGroupAddon,
@@ -22,10 +21,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CopyIcon, UsersIcon, RefreshCwIcon, TrashIcon, EllipsisVerticalIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  CopyIcon,
+  RefreshCwIcon,
+  TrashIcon,
+  EllipsisVerticalIcon,
+  ShieldIcon,
+  ShieldCheckIcon,
+  SettingsIcon,
+} from "lucide-react";
+import { PageShell } from "@/components/page-shell";
 import { graphql } from "@/lib/graphql/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Space {
@@ -38,16 +46,10 @@ interface Space {
   // but we might want a way to rotate/view it if we keep that logic
   // For now, let's assume we can't view it again unless rotated
   isActive: boolean;
-  isPublic: boolean;
-  requiresApproval: boolean;
+  visibility: string;
+  joinPolicy: string;
   membersCount: number;
   createdAt: string;
-  owner: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
   members?: Member[];
 }
 
@@ -72,7 +74,7 @@ export default function SpaceDetailPage() {
   const [space, setSpace] = useState<Space | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchSpace = async () => {
+  const fetchSpace = useCallback(async () => {
     try {
       const data = await graphql<{ space: Space }>(`
         query GetSpace($id: ID!) {
@@ -83,16 +85,10 @@ export default function SpaceDetailPage() {
             description
             clientId
             isActive
-            isPublic
-            requiresApproval
+            visibility
+            joinPolicy
             membersCount
             createdAt
-            owner {
-              id
-              firstName
-              lastName
-              email
-            }
             members(limit: 10) {
               id
               role
@@ -119,11 +115,11 @@ export default function SpaceDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [spaceId, router]);
 
   useEffect(() => {
     fetchSpace();
-  }, [spaceId]);
+  }, [fetchSpace]);
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this space? This cannot be undone.")) return;
@@ -157,47 +153,45 @@ export default function SpaceDetailPage() {
   if (!space) return null;
 
   return (
-    <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
-        <span>/</span>
-        <span className="text-foreground">{space.name}</span>
-      </div>
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold">
-            {space.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-              {space.name}
-              <Badge variant={space.isPublic ? "outline" : "secondary"}>
-                {space.isPublic ? "Public" : "Private"}
-              </Badge>
-            </h1>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-              <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">{space.slug}</span>
-              <span>•</span>
-              <span>{space.membersCount} members</span>
-            </div>
-            {space.description && (
-              <p className="text-muted-foreground mt-2">{space.description}</p>
-            )}
-          </div>
+    <PageShell
+      breadcrumbs={
+        <>
+          <Link href="/spaces" className="hover:text-foreground transition">Spaces</Link>
+          <span>/</span>
+          <span className="text-foreground">{space.name}</span>
+        </>
+      }
+      title={space.name}
+      subtitle={
+        <div className="flex items-center gap-3 mt-1">
+          <Badge variant={space.visibility === "public" ? "outline" : "secondary"}>
+            {space.visibility === "public" ? "Public" : "Private"}
+          </Badge>
+          <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">{space.slug}</span>
+          <span className="text-muted-foreground">•</span>
+          <span className="text-muted-foreground font-medium">{space.membersCount} members</span>
+          {space.description && (
+            <>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-muted-foreground italic font-normal">{space.description}</span>
+            </>
+          )}
         </div>
+      }
+      actions={
         <div className="flex gap-2">
           <Link href={`/spaces/${spaceId}/settings`}>
-            <Button variant="outline">Settings</Button>
+            <Button variant="outline" className="gap-2">
+              <SettingsIcon className="h-4 w-4" />
+              Settings
+            </Button>
           </Link>
           <Button variant="destructive" size="icon" onClick={handleDelete}>
             <TrashIcon className="h-4 w-4" />
           </Button>
         </div>
-      </div>
-
+      }
+    >
       <Tabs defaultValue="members" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
           <TabsTrigger value="members">Members</TabsTrigger>
@@ -310,6 +304,6 @@ export default function SpaceDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }

@@ -1,4 +1,4 @@
-export async function graphql<T = any>(query: string, variables?: Record<string, any>): Promise<T> {
+export async function graphql<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const res = await fetch("/api/graphql", {
         method: "POST",
         headers: {

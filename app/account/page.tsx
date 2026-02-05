@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, User, UserCircle } from "lucide-react";
+import { PageShell } from "@/components/page-shell";
+import { Loader2, Save, UserCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 
 interface UserData {
@@ -101,112 +103,117 @@ export default function AccountPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-2xl mx-auto space-y-6">
-                {/* Header with Back Link */}
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold flex items-center gap-2">
-                        <UserCircle className="w-8 h-8" />
-                        Il mio Account
-                    </h1>
-                    <Link href="/spaces">
-                        <Button variant="outline">Vai a Spaces</Button>
-                    </Link>
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Informazioni Personali</CardTitle>
-                        <CardDescription>
-                            Gestisci i tuoi dati personali e le preferenze del profilo.
+        <PageShell
+            title="Account Settings"
+            subtitle="Manage your personal information and profile preferences"
+            actions={
+                <Link href="/spaces">
+                    <Button variant="outline">Back to Spaces</Button>
+                </Link>
+            }
+        >
+            <div className="max-w-2xl mx-auto space-y-8">
+                <Card className="border-none shadow-lg">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-2xl flex items-center gap-2.5">
+                            <UserCircle className="w-7 h-7 text-primary" />
+                            Personal Information
+                        </CardTitle>
+                        <CardDescription className="text-base">
+                            Update your basic details used across the platform.
                         </CardDescription>
                     </CardHeader>
                     <form onSubmit={handleSubmit}>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="firstName">Nome</Label>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2.5">
+                                    <Label htmlFor="firstName" className="text-sm font-semibold">First Name</Label>
                                     <Input
                                         id="firstName"
                                         value={formData.firstName}
                                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                         required
+                                        className="h-11"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="lastName">Cognome</Label>
+                                <div className="space-y-2.5">
+                                    <Label htmlFor="lastName" className="text-sm font-semibold">Last Name</Label>
                                     <Input
                                         id="lastName"
                                         value={formData.lastName}
                                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                         required
+                                        className="h-11"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
+                            <div className="space-y-2.5">
+                                <Label htmlFor="email" className="text-sm font-semibold">Email Address</Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     required
+                                    className="h-11"
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="birthDate">Data di Nascita</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2.5">
+                                    <Label htmlFor="birthDate" className="text-sm font-semibold">Birth Date</Label>
                                     <Input
                                         id="birthDate"
                                         type="date"
                                         value={formData.birthDate ? new Date(formData.birthDate).toISOString().split('T')[0] : ''}
                                         onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                                         required
+                                        className="h-11"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="gender">Genere</Label>
+                                <div className="space-y-2.5">
+                                    <Label htmlFor="gender" className="text-sm font-semibold">Gender</Label>
                                     <Select
                                         value={formData.gender}
-                                        onValueChange={(val: any) => setFormData({ ...formData, gender: val })}
+                                        onValueChange={(val: UserData["gender"]) => setFormData({ ...formData, gender: val })}
                                     >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleziona genere" />
+                                        <SelectTrigger className="h-11">
+                                            <SelectValue placeholder="Select gender" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="man">Uomo</SelectItem>
-                                            <SelectItem value="woman">Donna</SelectItem>
-                                            <SelectItem value="non_binary">Non binario</SelectItem>
+                                            <SelectItem value="man">Man</SelectItem>
+                                            <SelectItem value="woman">Woman</SelectItem>
+                                            <SelectItem value="non_binary">Non-binary</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
 
                             {error && (
-                                <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
+                                <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
                                     {error}
                                 </div>
                             )}
 
                             {success && (
-                                <div className="p-3 rounded-md bg-green-500/10 text-green-600 text-sm font-medium">
+                                <div className="p-4 rounded-xl bg-green-500/10 text-green-600 text-sm font-medium border border-green-500/20">
                                     {success}
                                 </div>
                             )}
                         </CardContent>
-                        <CardFooter className="flex justify-end">
-                            <Button type="submit" disabled={saving}>
+                        <Separator />
+                        <CardFooter className="flex justify-end p-6 bg-muted/5">
+                            <Button type="submit" disabled={saving} size="lg" className="px-8">
                                 {saving ? (
                                     <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Salvataggio...
+                                        <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                                        Saving Changes...
                                     </>
                                 ) : (
                                     <>
-                                        <Save className="w-4 h-4 mr-2" />
-                                        Salva Modifiche
+                                        <Save className="w-5 h-5 mr-3" />
+                                        Save Changes
                                     </>
                                 )}
                             </Button>
@@ -214,6 +221,6 @@ export default function AccountPage() {
                     </form>
                 </Card>
             </div>
-        </div>
+        </PageShell>
     );
 }

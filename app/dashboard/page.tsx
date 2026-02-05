@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
+import { Plus } from "lucide-react";
+import { PageShell } from "@/components/page-shell";
 import { graphql } from "@/lib/graphql/client";
 
 interface Space {
@@ -15,7 +17,8 @@ interface Space {
   description?: string;
   clientId: string;
   isActive: boolean;
-  isPublic: boolean;
+  visibility: string;
+  joinPolicy: string;
   membersCount: number;
   createdAt: string;
 }
@@ -36,7 +39,8 @@ export default function DashboardPage() {
             description
             clientId
             isActive
-            isPublic
+            visibility
+            joinPolicy
             membersCount
             createdAt
           }
@@ -55,15 +59,16 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Your Spaces</h1>
-          <p className="text-muted-foreground mt-1">Manage your communities and clubs</p>
-        </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>+ Create Space</Button>
-      </div>
-
+    <PageShell
+      title="Dashboard"
+      subtitle="Manage your communities and clubs"
+      actions={
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Space
+        </Button>
+      }
+    >
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -79,45 +84,47 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : spaces.length === 0 ? (
-        <Card className="text-center">
+        <Card className="text-center py-12">
           <CardHeader>
             <div className="text-6xl mb-4">🪐</div>
-            <CardTitle>No spaces yet</CardTitle>
-            <CardDescription>Create your first space to start building your community</CardDescription>
+            <CardTitle className="text-2xl">No spaces yet</CardTitle>
+            <CardDescription className="text-lg">Create your first space to start building your community</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setCreateDialogOpen(true)}>Create Your First Space</Button>
+            <Button onClick={() => setCreateDialogOpen(true)} size="lg">Create Your First Space</Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {spaces.map((space) => (
             <Link key={space.id} href={`/spaces/${space.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer h-full group">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-2xl">
-                      {/* Would use space logo here */}
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-3xl font-bold group-hover:scale-110 transition-transform">
                       {space.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex gap-2">
-                      <Badge variant="outline">
-                        {space.isPublic ? "Public" : "Private"}
+                      <Badge variant={space.visibility === "public" ? "outline" : "secondary"}>
+                        {space.visibility === "public" ? "Public" : "Private"}
                       </Badge>
                       <Badge variant={space.isActive ? "default" : "secondary"}>
                         {space.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </div>
                   </div>
-                  <CardTitle className="mt-4">{space.name}</CardTitle>
+                  <CardTitle className="mt-5 text-2xl group-hover:text-primary transition-colors">{space.name}</CardTitle>
                   {space.description && (
-                    <CardDescription className="line-clamp-2">{space.description}</CardDescription>
+                    <CardDescription className="line-clamp-2 mt-2 text-base">{space.description}</CardDescription>
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-between items-center text-sm text-muted-foreground">
-                    <span className="font-mono">{space.slug}</span>
-                    <span>{space.membersCount} members</span>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground pt-4 border-t border-border/50">
+                    <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">{space.slug}</span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      {space.membersCount} members
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -131,6 +138,6 @@ export default function DashboardPage() {
         onOpenChange={setCreateDialogOpen}
         onCreated={fetchSpaces}
       />
-    </div>
+    </PageShell>
   );
 }

@@ -1,23 +1,30 @@
 import { db } from "@/lib/db/drizzle";
 import { eq, and } from "drizzle-orm";
-import { members } from "./schema";
-import { spaces } from "@/lib/models/spaces/schema";
+import { members, type Member } from "./schema";
+import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { users } from "@/lib/models/users/schema";
 import { GraphQLError } from "graphql";
 
+interface ResolverContext {
+    auth?: {
+        user: {
+            id: string;
+        };
+    };
+}
+
 export const memberResolvers = {
     Member: {
-        user: async (parent: any) => {
-            // Drizzle might define this relation, but manual fetch is safe
+        user: async (parent: Member) => {
             return db.query.users.findFirst({
                 where: eq(users.id, parent.userId),
             });
         },
-        joinedAt: (parent: any) => parent.joinedAt.toISOString(),
+        joinedAt: (parent: Member) => parent.joinedAt.toISOString(),
     },
 
     Space: {
-        members: async (parent: any, { limit = 20, offset = 0 }) => {
+        members: async (parent: Space, { limit = 20, offset = 0 }: { limit?: number; offset?: number }) => {
             return db.query.members.findMany({
                 where: eq(members.spaceId, parent.id),
                 limit,
@@ -26,7 +33,7 @@ export const memberResolvers = {
             });
         },
 
-        myMembership: async (parent: any, _: any, context: { auth: { user: { id: string } } }) => {
+        myMembership: async (parent: Space, _: unknown, context: ResolverContext) => {
             if (!context.auth?.user) return null;
             return db.query.members.findFirst({
                 where: and(
@@ -38,21 +45,19 @@ export const memberResolvers = {
     },
 
     Mutation: {
-        joinSpace: async (_: any, { spaceId }: { spaceId: string }, context: { auth: { user: { id: string } } }) => {
+        joinSpace: async (_: unknown, { spaceId }: { spaceId: string }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            // Check if space exists and if it requires approval
             const space = await db.query.spaces.findFirst({ where: eq(spaces.id, spaceId) });
             if (!space) throw new GraphQLError("Space not found");
 
-            // Check if already member
             const existing = await db.query.members.findFirst({
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, context.auth.user.id)),
             });
 
             if (existing) throw new GraphQLError("Already a member");
 
-            const status = space.requiresApproval ? "pending" : "active";
+            const status = space.joinPolicy === "apply" ? "pending" : "active";
 
             const [newMember] = await db.insert(members).values({
                 spaceId,
@@ -64,7 +69,7 @@ export const memberResolvers = {
             return newMember;
         },
 
-        leaveSpace: async (_: any, { spaceId }: { spaceId: string }, context: { auth: { user: { id: string } } }) => {
+        leaveSpace: async (_: unknown, { spaceId }: { spaceId: string }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
             const result = await db.delete(members)
@@ -77,10 +82,13 @@ export const memberResolvers = {
             return result.length > 0;
         },
 
-        updateMemberRole: async (_: any, { spaceId, userId, role }: { spaceId: string, userId: string, role: "admin" | "member" }, context: { auth: { user: { id: string } } }) => {
+        updateMemberRole: async (
+            _: unknown,
+            { spaceId, userId, role }: { spaceId: string, userId: string, role: "admin" | "member" },
+            context: ResolverContext
+        ) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            // Verify requester is owner or admin
             const requester = await db.query.members.findFirst({
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, context.auth.user.id)),
             });
@@ -97,10 +105,13 @@ export const memberResolvers = {
             return updated;
         },
 
-        removeMember: async (_: any, { spaceId, userId }: { spaceId: string, userId: string }, context: { auth: { user: { id: string } } }) => {
+        removeMember: async (
+            _: unknown,
+            { spaceId, userId }: { spaceId: string, userId: string },
+            context: ResolverContext
+        ) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
-            // Verify requester is owner or admin
             const requester = await db.query.members.findFirst({
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, context.auth.user.id)),
             });

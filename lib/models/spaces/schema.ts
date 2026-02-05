@@ -4,11 +4,10 @@ import {
   text,
   timestamp,
   boolean,
-  integer,
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { users } from "@/lib/models/users/schema";
+import { members } from "@/lib/models/members/schema";
 
 /**
  * Spaces Schema (ex Apps)
@@ -34,19 +33,13 @@ export const spaces = pgTable(
     secretKeyHash: text("secret_key_hash").notNull(),
     redirectUris: text("redirect_uris").array(),
 
-    // Settings
-    isPublic: boolean("is_public").default(true).notNull(),
-    requiresApproval: boolean("requires_approval").default(false).notNull(),
-
-    // Stats
-    membersCount: integer("members_count").default(0),
+    // Visibility & Access
+    visibility: text("visibility", { enum: ["public", "private", "hidden"] }).default("public").notNull(),
+    joinPolicy: text("join_policy", { enum: ["open", "apply", "invite_only"] }).default("open").notNull(),
 
     // Token settings
     accessTokenTtl: text("access_token_ttl").default("3600"),
     refreshTokenTtl: text("refresh_token_ttl").default("2592000"),
-
-    // Owner
-    ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 
     // Status
     isActive: boolean("is_active").default(true).notNull(),
@@ -57,19 +50,13 @@ export const spaces = pgTable(
   },
   (table) => [
     index("spaces_client_id_idx").on(table.clientId),
-    index("spaces_owner_idx").on(table.ownerId),
     index("spaces_slug_idx").on(table.slug),
   ]
 );
 
 // Relations
-export const spacesRelations = relations(spaces, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [spaces.ownerId],
-    references: [users.id],
-  }),
-  // Members reference will be added in members schema
-  // Posts reference will be added in posts schema
+export const spacesRelations = relations(spaces, ({ many }) => ({
+  members: many(members),
 }));
 
 // Types
