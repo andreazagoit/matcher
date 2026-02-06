@@ -2,20 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { graphql } from "@/lib/graphql/client"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-    HeartIcon,
-    MessageCircleIcon,
-    MoreVerticalIcon,
-    TrashIcon,
     Loader2Icon
 } from "lucide-react"
 import { useSession } from "next-auth/react"

@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { members, type Member } from "./schema";
 import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { users } from "@/lib/models/users/schema";
+import { membershipTiers } from "@/lib/models/tiers/schema";
 import { GraphQLError } from "graphql";
 
 interface ResolverContext {
@@ -21,6 +22,12 @@ export const memberResolvers = {
             });
         },
         joinedAt: (parent: Member) => parent.joinedAt.toISOString(),
+        tier: async (parent: Member) => {
+            if (!parent.tierId) return null;
+            return db.query.membershipTiers.findFirst({
+                where: eq(membershipTiers.id, parent.tierId),
+            });
+        },
     },
 
     Space: {
@@ -45,7 +52,7 @@ export const memberResolvers = {
     },
 
     Mutation: {
-        joinSpace: async (_: unknown, { spaceId }: { spaceId: string }, context: ResolverContext) => {
+        joinSpace: async (_: unknown, { spaceId, tierId }: { spaceId: string, tierId?: string }, context: ResolverContext) => {
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
             const space = await db.query.spaces.findFirst({ where: eq(spaces.id, spaceId) });
@@ -57,11 +64,30 @@ export const memberResolvers = {
 
             if (existing) throw new GraphQLError("Already a member");
 
-            const status = space.joinPolicy === "apply" ? "pending" : "active";
+            let status: "active" | "pending" | "waiting_payment" | "suspended" = "active"; // Default for public/free
+
+            // 1. Check Space Logic
+            if (space.joinPolicy === "apply") {
+                status = "pending";
+            }
+
+            // 2. Check Tier Logic
+            if (tierId) {
+                const tier = await db.query.membershipTiers.findFirst({
+                    where: eq(membershipTiers.id, tierId as string) // Ensure proper type assertion or check
+                });
+
+                if (tier && tier.price > 0) {
+                    status = "waiting_payment";
+                }
+            }
+
+            // TODO: If space.type is tiered but no tierId provided, should we enforce default tier?
 
             const [newMember] = await db.insert(members).values({
                 spaceId,
                 userId: context.auth.user.id,
+                tierId: tierId || null,
                 role: "member",
                 status,
             }).returning();

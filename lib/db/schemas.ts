@@ -12,6 +12,7 @@ export * from "../models/profiles/schema";
 
 // 4. Spaces & Community (ex Apps)
 export * from "../models/spaces/schema";
+export * from "../models/tiers/schema";
 export * from "../models/members/schema";
 export * from "../models/posts/schema";
 

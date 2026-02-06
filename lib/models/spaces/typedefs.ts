@@ -11,6 +11,7 @@ export const spaceTypeDefs = `#graphql
     clientId: String
     isActive: Boolean
     membersCount: Int
+    type: String
   }
 
   input CreateSpaceInput {

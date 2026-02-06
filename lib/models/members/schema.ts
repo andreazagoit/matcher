@@ -2,12 +2,15 @@ import {
     pgTable,
     uuid,
     timestamp,
+    text,
     pgEnum,
     index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 import { spaces } from "@/lib/models/spaces/schema";
+
+import { membershipTiers } from "@/lib/models/tiers/schema";
 
 /**
  * Members Schema
@@ -17,7 +20,8 @@ import { spaces } from "@/lib/models/spaces/schema";
  */
 
 export const memberRoleEnum = pgEnum("member_role", ["owner", "admin", "member"]);
-export const memberStatusEnum = pgEnum("member_status", ["pending", "active", "suspended"]);
+// Added 'waiting_payment'
+export const memberStatusEnum = pgEnum("member_status", ["pending", "waiting_payment", "active", "suspended"]);
 
 export const members = pgTable(
     "members",
@@ -32,16 +36,22 @@ export const members = pgTable(
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
 
+        // Link to specific Tier
+        tierId: uuid("tier_id").references(() => membershipTiers.id),
+
         role: memberRoleEnum("role").default("member").notNull(),
         status: memberStatusEnum("status").default("active").notNull(),
+
+        // Subscription Tracking
+        subscriptionId: text("subscription_id"), // Stripe Sub ID
+        currentPeriodEnd: timestamp("current_period_end"), // Expiration
 
         joinedAt: timestamp("joined_at").defaultNow().notNull(),
     },
     (table) => [
         index("members_space_idx").on(table.spaceId),
         index("members_user_idx").on(table.userId),
-        // Ensure user is only member once per space (unique composite constraint would be better but index works too if checked)
-        // Drizzle currently supports unique constraints via extra config or index
+        index("members_tier_idx").on(table.tierId),
     ]
 );
 
@@ -53,6 +63,10 @@ export const membersRelations = relations(members, ({ one }) => ({
     user: one(users, {
         fields: [members.userId],
         references: [users.id],
+    }),
+    tier: one(membershipTiers, {
+        fields: [members.tierId],
+        references: [membershipTiers.id],
     }),
 }));
 

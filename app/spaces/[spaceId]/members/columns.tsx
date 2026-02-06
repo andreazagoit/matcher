@@ -31,6 +31,9 @@ export interface Member {
         lastName: string
         email: string
     }
+    tier?: {
+        name: string
+    }
 }
 
 export const columns: ColumnDef<Member>[] = [
@@ -134,6 +137,21 @@ export const columns: ColumnDef<Member>[] = [
                 </div>
             )
         },
+    },
+    {
+        id: "tier",
+        accessorFn: (row) => row.tier?.name,
+        header: "Tier",
+        cell: ({ row }) => {
+            const tierName = row.original.tier?.name
+            return tierName ? (
+                <Badge variant="secondary" className="font-normal border-primary/20 bg-primary/5 text-primary">
+                    {tierName}
+                </Badge>
+            ) : (
+                <span className="text-muted-foreground text-xs pl-2">-</span>
+            )
+        }
     },
     {
         accessorKey: "joinedAt",

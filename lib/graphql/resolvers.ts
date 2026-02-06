@@ -3,6 +3,7 @@ import { userResolvers } from "../models/users/resolver";
 import { spaceResolvers } from "../models/spaces/resolver";
 import { memberResolvers } from "../models/members/resolver";
 import { postResolvers } from "../models/posts/resolver";
+import { tierResolvers } from "../models/tiers/resolver";
 
 // JSON Scalar per dati complessi (traits, etc)
 const JSONScalar = new GraphQLScalarType({
@@ -35,11 +36,17 @@ export const resolvers = {
     ...spaceResolvers.Mutation,
     ...memberResolvers.Mutation,
     ...postResolvers.Mutation,
+    ...tierResolvers.Mutation,
   },
 
   // Field resolvers
   User: userResolvers.User,
-  Space: { ...spaceResolvers.Space, ...memberResolvers.Space, ...postResolvers.Space },    // Space is extended by multiple modules
-  Member: memberResolvers.Member,
+  Space: {
+    ...spaceResolvers.Space,
+    ...memberResolvers.Space,
+    ...postResolvers.Space,
+    ...tierResolvers.Space
+  },
+  Member: { ...memberResolvers.Member, ...tierResolvers.Member },
   Post: postResolvers.Post,
 };

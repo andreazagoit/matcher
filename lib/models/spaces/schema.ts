@@ -35,6 +35,7 @@ export const spaces = pgTable(
 
     // Visibility & Access
     visibility: text("visibility", { enum: ["public", "private", "hidden"] }).default("public").notNull(),
+    type: text("type", { enum: ["free", "tiered"] }).default("free").notNull(),
     joinPolicy: text("join_policy", { enum: ["open", "apply", "invite_only"] }).default("open").notNull(),
 
     // Token settings

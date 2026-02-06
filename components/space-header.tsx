@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { UsersIcon, EyeIcon, HashIcon } from "lucide-react";
+import { Users, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SpaceHeaderProps {
@@ -62,13 +62,13 @@ export function SpaceHeader({ space, className }: SpaceHeaderProps) {
                     </Badge>
 
                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-muted/50 rounded-md font-mono text-xs text-foreground/80">
-                        <HashIcon className="h-3 w-3 opacity-70" />
+                        <Hash className="h-3 w-3 opacity-70" />
                         {space.slug}
                     </div>
 
                     <div className="flex items-center gap-1.5">
                         <span className="text-border mx-1">•</span>
-                        <UsersIcon className="h-4 w-4 opacity-70" />
+                        <Users className="h-4 w-4 opacity-70" />
                         <span>{space.membersCount || 0} members</span>
                     </div>
                 </div>

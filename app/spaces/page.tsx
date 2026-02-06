@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
-import { Badge } from "@/components/ui/badge";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
 import { graphql } from "@/lib/graphql/client";
+import { SpaceCard } from "@/components/spaces/space-card";
 
 interface Space {
   id: string;
@@ -21,6 +20,7 @@ interface Space {
   joinPolicy: string;
   membersCount: number;
   createdAt: string;
+  image?: string;
 }
 
 export default function DiscoverSpacesPage() {
@@ -43,6 +43,7 @@ export default function DiscoverSpacesPage() {
             joinPolicy
             membersCount
             createdAt
+            image
           }
         }
       `);
@@ -75,7 +76,7 @@ export default function DiscoverSpacesPage() {
         }
       >
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3].map((i) => (
               <Card key={i} className="shadow-none border animate-pulse">
                 <CardHeader className="p-4 flex flex-row items-center gap-4">
@@ -103,54 +104,9 @@ export default function DiscoverSpacesPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {spaces.map((space) => (
-              <Link key={space.id} href={`/spaces/${space.id}`} className="block h-full group">
-                <Card className="h-full flex flex-col shadow-none border transition-all hover:shadow-md hover:border-foreground/10 overflow-hidden">
-                  <CardHeader className="flex flex-row items-center gap-4 p-4">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                      <span className="text-lg font-bold">{space.name.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <h3 className="font-semibold tracking-tight text-base truncate group-hover:text-primary transition-colors">
-                        {space.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground font-mono truncate">
-                        {space.slug}
-                      </p>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="p-4 pt-0 flex-1">
-                    {space.description ? (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {space.description}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">
-                        No description provided
-                      </p>
-                    )}
-                  </CardContent>
-
-                  <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
-                    <div className="flex gap-2">
-                      <Badge variant={space.visibility === "public" ? "outline" : "secondary"} className="text-[10px] h-5 px-1.5 font-normal rounded-md">
-                        {space.visibility === "public" ? "Public" : "Private"}
-                      </Badge>
-                      {space.isActive && (
-                        <Badge variant="default" className="text-[10px] h-5 px-1.5 font-normal rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20 shadow-none border-0">
-                          Active
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Users className="size-3.5" />
-                      <span>{space.membersCount}</span>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </Link>
+              <SpaceCard key={space.id} space={space} />
             ))}
           </div>
         )}

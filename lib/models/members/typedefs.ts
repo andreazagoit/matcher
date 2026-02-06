@@ -5,6 +5,8 @@ export const memberTypeDefs = `#graphql
     role: String!
     status: String!
     joinedAt: String!
+    subscriptionId: String
+    currentPeriodEnd: String
   }
 
   extend type Space {
@@ -13,7 +15,7 @@ export const memberTypeDefs = `#graphql
   }
 
   extend type Mutation {
-    joinSpace(spaceId: ID!): Member!
+    joinSpace(spaceId: ID!, tierId: ID): Member!
     leaveSpace(spaceId: ID!): Boolean!
     
     # Admin actions

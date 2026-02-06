@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -23,10 +24,9 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useState } from "react"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { DataTablePagination } from "./data-table-pagination"
+import { DataTableViewOptions } from "./data-table-view-options"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -47,14 +47,14 @@ export function DataTable<TData, TValue>({
     rowSelection: controlledRowSelection,
     onRowSelectionChange: controlledOnRowSelectionChange,
 }: DataTableProps<TData, TValue>) {
-    const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({})
+    const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({})
 
     const rowSelection = controlledRowSelection ?? internalRowSelection
     const setRowSelection = controlledOnRowSelectionChange ?? setInternalRowSelection
 
-    const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+    const [sorting, setSorting] = React.useState<SortingState>([])
+    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+    const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
 
     const table = useReactTable({
         data,
@@ -77,18 +77,21 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="space-y-4">
-            {searchKey && (
-                <div className="flex items-center gap-2">
-                    <Input
-                        placeholder={searchPlaceholder}
-                        value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ""}
-                        onChange={(event) =>
-                            table.getColumn(searchKey)?.setFilterValue(event.target.value)
-                        }
-                        className="max-w-sm"
-                    />
-                </div>
-            )}
+            <div className="flex items-center justify-between">
+                {searchKey && (
+                    <div className="flex flex-1 items-center space-x-2">
+                        <Input
+                            placeholder={searchPlaceholder}
+                            value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ""}
+                            onChange={(event) =>
+                                table.getColumn(searchKey)?.setFilterValue(event.target.value)
+                            }
+                            className="h-8 w-[150px] lg:w-[250px]"
+                        />
+                    </div>
+                )}
+                <DataTableViewOptions table={table} />
+            </div>
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
@@ -141,53 +144,7 @@ export function DataTable<TData, TValue>({
                     </TableBody>
                 </Table>
             </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-2">
-                <div className="text-sm text-muted-foreground">
-                    {table.getFilteredRowModel().rows.length} member(s) total
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="text-sm text-muted-foreground">
-                        Page {table.getState().pagination.pageIndex + 1} of{" "}
-                        {table.getPageCount()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => table.setPageIndex(0)}
-                            disabled={!table.getCanPreviousPage()}
-                        >
-                            <ChevronsLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                            disabled={!table.getCanNextPage()}
-                        >
-                            <ChevronsRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <DataTablePagination table={table} />
         </div>
     )
 }

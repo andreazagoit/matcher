@@ -2,20 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { graphql } from "@/lib/graphql/client";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { PageShell } from "@/components/page-shell";
 import {
     Loader2,
-    Heart,
-    MessageCircle,
-    Share2,
-    MoreVertical,
     RefreshCw,
-    Compass
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageShell } from "@/components/page-shell";
 import { PostCard, type Post } from "@/components/feed/post-card";
 
 

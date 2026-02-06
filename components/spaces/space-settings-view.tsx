@@ -35,6 +35,7 @@ import {
     InputGroupButton,
     InputGroupInput,
 } from "@/components/ui/input-group";
+import { MembershipTiersManager } from "./settings/membership-tiers-manager";
 
 interface SpaceSettingsViewProps {
     space: {
@@ -125,7 +126,7 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 w-full max-w-4xl">
             {/* General Settings */}
             <Card>
                 <CardHeader>
@@ -229,6 +230,13 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
                         </Button>
                     </CardFooter>
                 </form>
+            </Card>
+
+            {/* Membership Settings - Moved here */}
+            <Card>
+                <CardContent className="pt-6">
+                    <MembershipTiersManager spaceId={space.id} />
+                </CardContent>
             </Card>
 
             {/* Developer Settings (Merged) */}

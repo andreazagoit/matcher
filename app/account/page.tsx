@@ -116,7 +116,7 @@ export default function AccountPage() {
                 </Link>
             }
         >
-            <div className="max-w-2xl mx-auto space-y-8">
+            <div className="w-full mx-auto space-y-8">
                 <Card className="border-none shadow-lg">
                     <CardHeader className="pb-4">
                         <CardTitle className="text-2xl flex items-center gap-2.5">

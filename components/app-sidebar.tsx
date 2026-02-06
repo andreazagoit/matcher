@@ -78,12 +78,7 @@ const data = {
     ],
 }
 
-interface UserInfo {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-}
+
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
