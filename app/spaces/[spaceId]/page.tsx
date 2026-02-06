@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,8 @@ import { PageShell } from "@/components/page-shell";
 import { graphql } from "@/lib/graphql/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MembersDataTable } from "./members/data-table";
+import { SpaceHeader } from "@/components/space-header";
+import { SpaceSettingsView } from "@/components/spaces/space-settings-view";
 import type { Member } from "./members/columns";
 import { CreatePost } from "./feed/create-post";
 import { PostList } from "./feed/post-list";
@@ -33,6 +36,7 @@ interface Space {
   name: string;
   slug: string;
   description?: string;
+  image?: string;
   clientId: string;
   // stored locally in session storage only on creation, 
   // but we might want a way to rotate/view it if we keep that logic
@@ -60,8 +64,13 @@ export default function SpaceDetailPage() {
   // Check if current user is an admin of this space
   const currentUserIsAdmin = useMemo(() => {
     const userId = session?.user?.id;
+    console.log("DEBUG Admin Check:", { userId, sessionUser: session?.user });
+    console.log("DEBUG Space Members:", space?.members);
+
     if (!userId || !space?.members) return false;
     const currentMember = space.members.find(m => m.user.id === userId);
+    console.log("DEBUG Current Member Found:", currentMember);
+
     return currentMember?.role === "admin";
   }, [session?.user?.id, space?.members]);
 
@@ -74,6 +83,7 @@ export default function SpaceDetailPage() {
             name
             slug
             description
+            image
             clientId
             isActive
             visibility
@@ -145,46 +155,18 @@ export default function SpaceDetailPage() {
 
   return (
     <PageShell
-      title={space.name}
-      subtitle={
-        <div className="flex items-center gap-3 mt-1">
-          <Badge variant={space.visibility === "public" ? "outline" : "secondary"}>
-            {space.visibility === "public" ? "Public" : "Private"}
-          </Badge>
-          <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">{space.slug}</span>
-          <span className="text-muted-foreground">•</span>
-          <span className="text-muted-foreground font-medium">{space.membersCount} members</span>
-          {space.description && (
-            <>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground italic font-normal">{space.description}</span>
-            </>
-          )}
-        </div>
-      }
-      actions={
-        <div className="flex gap-2">
-          <Link href={`/spaces/${spaceId}/settings`}>
-            <Button variant="outline" className="gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              Settings
-            </Button>
-          </Link>
-          <Button variant="destructive" size="icon" onClick={handleDelete}>
-            <TrashIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      }
+      header={<SpaceHeader space={space} />}
+      actions={null}
     >
       <Tabs defaultValue="feed" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
-          <TabsTrigger value="feed">Feed</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="developers">Developers</TabsTrigger>
+        <TabsList className="w-fit">
+          <TabsTrigger value="feed" className="px-6">Feed</TabsTrigger>
+          <TabsTrigger value="members" className="px-6">Members</TabsTrigger>
+          {currentUserIsAdmin && <TabsTrigger value="settings" className="px-6">Settings</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="feed" className="mt-6">
-          <div className="mx-auto max-w-2xl">
+          <div className="">
             <CreatePost
               spaceId={spaceId}
               onPostCreated={() => setFeedRefreshTrigger(prev => prev + 1)}
@@ -219,40 +201,11 @@ export default function SpaceDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="developers" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Developer Credentials</CardTitle>
-              <CardDescription>Use these to integrate your custom apps with this Space</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Client ID */}
-              <div className="space-y-2">
-                <Label>Client ID</Label>
-                <InputGroup>
-                  <InputGroupInput
-                    value={space.clientId}
-                    readOnly
-                    className="font-mono bg-muted"
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      size="icon-xs"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(space.clientId)}
-                    >
-                      <CopyIcon className="h-4 w-4" />
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
-              </div>
-
-              <div className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 p-4 rounded-lg text-sm">
-                Secret keys are only shown once upon creation or rotation. If you lost your secret key, you can generate a new one in Settings.
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {currentUserIsAdmin && (
+          <TabsContent value="settings" className="mt-6">
+            <SpaceSettingsView space={space} onUpdate={fetchSpace} />
+          </TabsContent>
+        )}
       </Tabs>
     </PageShell>
   );

@@ -4,7 +4,7 @@ export const spaceTypeDefs = `#graphql
     name: String!
     slug: String!
     description: String
-    logoUrl: String
+    image: String
     visibility: String!
     joinPolicy: String!
     createdAt: String!
@@ -26,7 +26,7 @@ export const spaceTypeDefs = `#graphql
     description: String
     visibility: String
     joinPolicy: String
-    logoUrl: String
+    image: String
   }
 
   extend type Query {

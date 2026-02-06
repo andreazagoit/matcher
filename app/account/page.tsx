@@ -104,8 +104,12 @@ export default function AccountPage() {
 
     return (
         <PageShell
-            title="Account Settings"
-            subtitle="Manage your personal information and profile preferences"
+            header={
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-extrabold tracking-tight text-foreground bg-clip-text">Account Settings</h1>
+                    <p className="text-lg text-muted-foreground font-medium">Manage your personal information and profile preferences</p>
+                </div>
+            }
             actions={
                 <Link href="/spaces">
                     <Button variant="outline">Back to Spaces</Button>

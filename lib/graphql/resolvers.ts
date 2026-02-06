@@ -28,11 +28,13 @@ export const resolvers = {
   Query: {
     ...userResolvers.Query,
     ...spaceResolvers.Query,
+    ...postResolvers.Query,
   },
   Mutation: {
     ...userResolvers.Mutation,
     ...spaceResolvers.Mutation,
     ...memberResolvers.Mutation,
+    ...postResolvers.Mutation,
   },
 
   // Field resolvers

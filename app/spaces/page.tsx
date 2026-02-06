@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
@@ -61,8 +61,12 @@ export default function DiscoverSpacesPage() {
   return (
     <>
       <PageShell
-        title="Discover Spaces"
-        subtitle="Explore and join communities and clubs"
+        header={
+          <div className="space-y-1">
+            <h1 className="text-4xl font-extrabold tracking-tight">Discover Spaces</h1>
+            <p className="text-lg text-muted-foreground font-medium">Explore and join communities and clubs</p>
+          </div>
+        }
         actions={
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -71,63 +75,80 @@ export default function DiscoverSpacesPage() {
         }
       >
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-6 bg-muted rounded w-2/3 mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
+              <Card key={i} className="shadow-none border animate-pulse">
+                <CardHeader className="p-4 flex flex-row items-center gap-4">
+                  <div className="size-10 bg-muted rounded-lg" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-1/4" />
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-4 bg-muted rounded w-full"></div>
+                <CardContent className="p-4 pt-0">
+                  <div className="h-4 bg-muted rounded w-full" />
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : spaces.length === 0 ? (
-          <Card className="text-center py-12">
+          <Card className="text-center py-12 shadow-none border-dashed">
             <CardHeader>
               <div className="text-6xl mb-4">🪐</div>
-              <CardTitle className="text-2xl">No spaces yet</CardTitle>
-              <CardDescription className="text-lg">Create your first space to start building your community</CardDescription>
+              <CardTitle className="text-xl">No spaces yet</CardTitle>
+              <CardDescription>Create your first space to start building your community</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={() => setCreateDialogOpen(true)} size="lg">Create Your First Space</Button>
+              <Button onClick={() => setCreateDialogOpen(true)}>Create Space</Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {spaces.map((space) => (
-              <Link key={space.id} href={`/spaces/${space.id}`}>
-                <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer h-full group">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-3xl font-bold group-hover:scale-110 transition-transform">
-                        {space.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant={space.visibility === "public" ? "outline" : "secondary"}>
-                          {space.visibility === "public" ? "Public" : "Private"}
-                        </Badge>
-                        <Badge variant={space.isActive ? "default" : "secondary"}>
-                          {space.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
+              <Link key={space.id} href={`/spaces/${space.id}`} className="block h-full group">
+                <Card className="h-full flex flex-col shadow-none border transition-all hover:shadow-md hover:border-foreground/10 overflow-hidden">
+                  <CardHeader className="flex flex-row items-center gap-4 p-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                      <span className="text-lg font-bold">{space.name.charAt(0).toUpperCase()}</span>
                     </div>
-                    <CardTitle className="mt-5 text-2xl group-hover:text-primary transition-colors">{space.name}</CardTitle>
-                    {space.description && (
-                      <CardDescription className="line-clamp-2 mt-2 text-base">{space.description}</CardDescription>
-                    )}
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <h3 className="font-semibold tracking-tight text-base truncate group-hover:text-primary transition-colors">
+                        {space.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {space.slug}
+                      </p>
+                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground pt-4 border-t border-border/50">
-                      <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs">{space.slug}</span>
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                        {space.membersCount} members
-                      </span>
-                    </div>
+
+                  <CardContent className="p-4 pt-0 flex-1">
+                    {space.description ? (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {space.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        No description provided
+                      </p>
+                    )}
                   </CardContent>
+
+                  <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
+                    <div className="flex gap-2">
+                      <Badge variant={space.visibility === "public" ? "outline" : "secondary"} className="text-[10px] h-5 px-1.5 font-normal rounded-md">
+                        {space.visibility === "public" ? "Public" : "Private"}
+                      </Badge>
+                      {space.isActive && (
+                        <Badge variant="default" className="text-[10px] h-5 px-1.5 font-normal rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20 shadow-none border-0">
+                          Active
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Users className="size-3.5" />
+                      <span>{space.membersCount}</span>
+                    </div>
+                  </CardFooter>
                 </Card>
               </Link>
             ))}

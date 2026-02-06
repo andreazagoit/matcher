@@ -16,23 +16,9 @@ import {
     Compass
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PostCard, type Post } from "@/components/feed/post-card";
 
-interface Author {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-}
 
-interface Post {
-    id: string;
-    content: string;
-    mediaUrls: string[];
-    likesCount: number;
-    commentsCount: number;
-    createdAt: string;
-    author: Author;
-}
 
 export default function FeedPage() {
     const [posts, setPosts] = useState<Post[]>([]);
@@ -80,8 +66,12 @@ export default function FeedPage() {
 
     return (
         <PageShell
-            title="Feed"
-            subtitle="Stay updated with the latest posts from all spaces"
+            header={
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-extrabold tracking-tight text-foreground bg-clip-text">Feed</h1>
+                    <p className="text-lg text-muted-foreground font-medium">Stay updated with the latest posts from all spaces</p>
+                </div>
+            }
             actions={
                 <Button variant="outline" size="sm" onClick={fetchFeed} className="gap-2">
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -89,7 +79,7 @@ export default function FeedPage() {
                 </Button>
             }
         >
-            <div className="max-w-2xl mx-auto space-y-8">
+            <div className="space-y-8">
                 {(!posts || posts.length === 0) ? (
                     <div className="text-center py-24 bg-muted/10 rounded-2xl border-2 border-dashed border-muted-foreground/20">
                         <div className="text-5xl mb-4">📭</div>
@@ -99,74 +89,9 @@ export default function FeedPage() {
                         </p>
                     </div>
                 ) : (
-                    <div className="space-y-8">
+                    <div className="space-y-6">
                         {posts.map((post) => (
-                            <Card key={post.id} className="overflow-hidden border-none shadow-md hover:shadow-xl transition-all">
-                                <CardHeader className="flex flex-row items-center gap-4 space-y-0 p-5 bg-card/50 backdrop-blur-sm">
-                                    <Avatar className="h-12 w-12 ring-2 ring-primary/10">
-                                        <AvatarFallback className="bg-primary/5 text-primary">
-                                            {post.author.firstName[0]}{post.author.lastName[0]}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-bold text-base truncate">
-                                                    {post.author.firstName} {post.author.lastName}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <Compass className="h-3 w-3" />
-                                                    {new Date(post.createdAt).toLocaleDateString(undefined, {
-                                                        month: 'short',
-                                                        day: 'numeric',
-                                                        year: 'numeric'
-                                                    })}
-                                                </p>
-                                            </div>
-                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
-                                                <MoreVertical className="h-5 w-5" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-
-                                <CardContent className="px-5 pb-5 pt-2">
-                                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/90">
-                                        {post.content}
-                                    </p>
-                                    {post.mediaUrls && post.mediaUrls.length > 0 && (
-                                        <div className="mt-5 grid gap-3">
-                                            {post.mediaUrls.map((url, i) => (
-                                                <div key={i} className="relative group overflow-hidden rounded-xl border border-border/50">
-                                                    <img
-                                                        src={url}
-                                                        alt="Post media"
-                                                        className="object-cover w-full h-[350px] group-hover:scale-[1.02] transition-transform duration-500"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-
-                                <Separator className="opacity-50" />
-
-                                <CardFooter className="flex justify-between p-3 bg-muted/5">
-                                    <div className="flex gap-2">
-                                        <Button variant="ghost" size="sm" className="h-10 px-4 gap-2.5 rounded-full hover:bg-primary/5 hover:text-primary transition-colors">
-                                            <Heart className="h-5 w-5" />
-                                            <span className="text-sm font-medium">{post.likesCount || 0}</span>
-                                        </Button>
-                                        <Button variant="ghost" size="sm" className="h-10 px-4 gap-2.5 rounded-full hover:bg-primary/5 hover:text-primary transition-colors">
-                                            <MessageCircle className="h-5 w-5" />
-                                            <span className="text-sm font-medium">{post.commentsCount || 0}</span>
-                                        </Button>
-                                    </div>
-                                    <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-full hover:bg-primary/5 hover:text-primary">
-                                        <Share2 className="h-5 w-5" />
-                                    </Button>
-                                </CardFooter>
-                            </Card>
+                            <PostCard key={post.id} post={post} />
                         ))}
                     </div>
                 )}

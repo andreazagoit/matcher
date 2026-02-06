@@ -57,6 +57,7 @@ export async function createSpace(params: {
   creatorId: string; // The user who creates the space becomes an admin
   visibility?: "public" | "private" | "hidden";
   joinPolicy?: "open" | "apply" | "invite_only";
+  image?: string;
 }): Promise<CreateSpaceResult> {
   const clientId = generateClientId();
   const secretKey = generateSecretKey();
@@ -70,6 +71,7 @@ export async function createSpace(params: {
         name: params.name,
         slug,
         description: params.description,
+        image: params.image,
         clientId,
         secretKey,
         secretKeyHash,
@@ -127,7 +129,7 @@ export async function getAllSpaces(): Promise<Space[]> {
  */
 export async function updateSpace(
   id: string,
-  data: Partial<Pick<Space, "name" | "slug" | "description" | "redirectUris" | "isActive" | "visibility" | "logoUrl" | "joinPolicy">>
+  data: Partial<Pick<Space, "name" | "slug" | "description" | "redirectUris" | "isActive" | "visibility" | "image" | "joinPolicy">>
 ): Promise<Space | null> {
   const [updated] = await db
     .update(spaces)

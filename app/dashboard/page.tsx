@@ -60,8 +60,12 @@ export default function DashboardPage() {
 
   return (
     <PageShell
-      title="Dashboard"
-      subtitle="Manage your communities and clubs"
+      header={
+        <div className="space-y-1">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground bg-clip-text">Dashboard</h1>
+          <p className="text-lg text-muted-foreground font-medium">Manage your communities and clubs</p>
+        </div>
+      }
       actions={
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />

@@ -8,11 +8,13 @@
 import { cookies } from "next/headers";
 import { hasCompleteProfile } from "@/lib/models/profiles/operations";
 import { getUserById } from "@/lib/models/users/operations";
+import { auth } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const session = await auth();
     const cookieStore = await cookies();
-    const userId = cookieStore.get("user_id")?.value;
+    const userId = session?.user?.id || cookieStore.get("user_id")?.value;
 
     if (!userId) {
       return Response.json(

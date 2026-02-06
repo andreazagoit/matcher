@@ -51,6 +51,7 @@ export const postResolvers = {
             { spaceId, content, mediaUrls }: { spaceId: string, content: string, mediaUrls?: string[] },
             context: ResolverContext
         ) => {
+            console.log("DEBUG: Entered createPost resolver");
             if (!context.auth?.user) throw new GraphQLError("Unauthorized");
 
             // Verify membership
@@ -62,12 +63,16 @@ export const postResolvers = {
                 throw new GraphQLError("Must be an active member to post");
             }
 
+            console.log("DEBUG createPost", { spaceId, userId: context.auth.user.id });
+
             const [newPost] = await db.insert(posts).values({
                 spaceId,
                 authorId: context.auth.user.id,
                 content,
                 mediaUrls: mediaUrls || [],
             }).returning();
+
+            console.log("DEBUG createPost result", newPost);
 
             return newPost;
         },

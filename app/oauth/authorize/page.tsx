@@ -69,9 +69,11 @@ function AuthorizeContent() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch("/api/auth/profile-status");
+        console.log("Checking auth status...");
+        const res = await fetch("/api/auth/profile-status", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
+          console.log("Auth status:", data);
           if (data.authenticated) {
             setUser(data.user);
             // Only require questionnaire if scopes need it AND user hasn't completed it

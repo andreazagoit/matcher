@@ -1,6 +1,15 @@
 "use client"
 
 import {
+    GalleryVerticalEnd,
+    LayoutDashboard,
+    LayoutGrid,
+    LifeBuoy,
+    Rss,
+    Send,
+} from "lucide-react"
+
+import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
@@ -11,12 +20,63 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarRail,
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Compass, Plus, Rss, LayoutGrid } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useSession } from "next-auth/react"
+import { NavUser } from "@/components/nav-user"
+import { NavSecondary } from "@/components/nav-secondary"
+
+// Navigation Data
+const data = {
+    user: {
+        name: "Guest User",
+        email: "guest@example.com",
+        avatar: "",
+    },
+    navMain: [
+        {
+            title: "Platform",
+            url: "#",
+            items: [
+                {
+                    title: "Feed",
+                    url: "/feed",
+                    icon: Rss,
+                },
+                {
+                    title: "Spaces",
+                    url: "/spaces",
+                    icon: LayoutGrid,
+                },
+            ],
+        },
+        {
+            title: "Management",
+            url: "#",
+            items: [
+                {
+                    title: "Dashboard",
+                    url: "/dashboard",
+                    icon: LayoutDashboard,
+                },
+            ],
+        },
+    ],
+    navSecondary: [
+        {
+            title: "Support",
+            url: "#",
+            icon: LifeBuoy,
+        },
+        {
+            title: "Feedback",
+            url: "#",
+            icon: Send,
+        },
+    ],
+}
 
 interface UserInfo {
     id: string;
@@ -25,118 +85,65 @@ interface UserInfo {
     email: string;
 }
 
-export function AppSidebar() {
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
-    const [user, setUser] = useState<UserInfo | null>(null)
+    const { data: session } = useSession()
 
-    useEffect(() => {
-        async function checkAuth() {
-            try {
-                const res = await fetch("/api/auth/profile-status")
-                if (res.ok) {
-                    const data = await res.json()
-                    if (data.authenticated) {
-                        setUser(data.user)
-                    }
-                }
-            } catch {
-                // Not authenticated
-            }
-        }
-        checkAuth()
-    }, [])
+    // Adapt fetched user to NavUser expected format
+    const navUser = session?.user ? {
+        name: session.user.name || "User",
+        email: session.user.email || "",
+        avatar: session.user.image || "",
+    } : data.user
 
     return (
-        <Sidebar>
-            <SidebarHeader className="h-16 border-b flex items-center justify-center px-4 shrink-0">
-                <Link href="/spaces" className="flex items-center gap-2 font-semibold w-full">
-                    <span>Matcher</span>
-                </Link>
+        <Sidebar variant="sidebar" {...props}>
+            <SidebarHeader>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton size="lg" asChild>
+                            <Link href="/">
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                                    <GalleryVerticalEnd className="size-4" />
+                                </div>
+                                <div className="flex flex-col gap-0.5 leading-none">
+                                    <span className="font-semibold">Matcher</span>
+                                    <span className="">v1.0.0</span>
+                                </div>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Application</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname === "/feed"}>
-                                    <Link href="/feed">
-                                        <Rss />
-                                        <span>Feed</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname === "/spaces"}>
-                                    <Link href="/spaces">
-                                        <LayoutGrid />
-                                        <span>Spaces</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                {data.navMain.map((item) => (
+                    <SidebarGroup key={item.title}>
+                        <SidebarGroupLabel>
+                            {item.title}
+                        </SidebarGroupLabel>
+                        <SidebarGroupContent>
+                            <SidebarMenu>
+                                {item.items.map((subItem) => (
+                                    <SidebarMenuItem key={subItem.title}>
+                                        <SidebarMenuButton asChild isActive={pathname === subItem.url}>
+                                            <Link href={subItem.url}>
+                                                {subItem.icon && <subItem.icon />}
+                                                <span>{subItem.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                ))}
 
-                <SidebarGroup>
-                    <SidebarGroupLabel>Management</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
-                                    <Link href="/dashboard">
-                                        <LayoutDashboard />
-                                        <span>Dashboard</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Actions</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {/* Placeholder for dynamic space list or actions */}
-                            <SidebarMenuItem>
-                                <SidebarMenuButton disabled>
-                                    <Plus />
-                                    <span>Create Space</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
+                <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>
-            <SidebarFooter className="border-t p-4">
-                {user ? (
-                    <Link
-                        href="/account"
-                        className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-accent transition-colors group"
-                    >
-                        <Avatar className="h-9 w-9 border-2 border-transparent group-hover:border-primary/20 transition-all">
-                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                                {user.firstName?.[0]}{user.lastName?.[0]}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-semibold truncate text-foreground">
-                                {user.firstName} {user.lastName}
-                            </span>
-                            <span className="text-xs text-muted-foreground truncate">
-                                View Profile
-                            </span>
-                        </div>
-                    </Link>
-                ) : (
-                    <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                        <Compass className="h-3 w-3" />
-                        <span>Matcher v1.0</span>
-                    </div>
-                )}
+            <SidebarFooter className="pt-0">
+                <NavUser user={navUser} />
             </SidebarFooter>
+            <SidebarRail />
         </Sidebar>
     )
 }

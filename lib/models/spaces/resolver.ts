@@ -1,5 +1,5 @@
 import { db } from "@/lib/db/drizzle";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { createSpace, updateSpace, deleteSpace } from "./operations";
@@ -19,6 +19,7 @@ interface CreateSpaceInput {
     description?: string;
     visibility?: "public" | "private" | "hidden";
     joinPolicy?: "open" | "apply" | "invite_only";
+    image?: string;
 }
 
 type UpdateSpaceInput = Partial<CreateSpaceInput>;
@@ -109,8 +110,9 @@ export const spaceResolvers = {
         createdAt: (parent: Space) => parent.createdAt?.toISOString(),
         membersCount: async (parent: Space) => {
             const result = await db
-                .select({ count: db.$count(members, eq(members.spaceId, parent.id)) })
-                .from(members);
+                .select({ count: count() })
+                .from(members)
+                .where(eq(members.spaceId, parent.id));
             return result[0]?.count ?? 0;
         },
     },

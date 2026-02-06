@@ -25,7 +25,7 @@ export const spaces = pgTable(
     name: text("name").notNull(),
     slug: text("slug").unique().notNull(), // URL friendly identifier
     description: text("description"),
-    logoUrl: text("logo_url"),
+    image: text("image"),
 
     // OAuth credentials (inherited from Apps)
     clientId: text("client_id").unique().notNull(),

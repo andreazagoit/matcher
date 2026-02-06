@@ -126,11 +126,34 @@ async function seed() {
       creatorId: adminUser.id,
       visibility: "hidden",
       joinPolicy: "invite_only",
+      image: "https://placehold.co/400x400/333/fff?text=System",
     });
     console.log(`  🔑 Created System Space:`);
     console.log(`     Client ID: ${systemSpace.clientId}`);
     console.log(`     Secret Key: ${systemSpace.secretKey}`);
+    console.log(`     Secret Key: ${systemSpace.secretKey}`);
     console.log(`     ⚠️  Add these to .env as OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET`);
+
+    // Create some public demo spaces
+    await createSpace({
+      name: "Tech Innovators",
+      slug: "tech-innovators",
+      description: "A community for technology enthusiasts and innovators.",
+      creatorId: adminUser.id,
+      visibility: "public",
+      image: "https://placehold.co/400x400/2563eb/fff?text=Tech",
+    });
+    console.log(`  🚀 Created Space: Tech Innovators`);
+
+    await createSpace({
+      name: "Nature Lovers",
+      slug: "nature-lovers",
+      description: "Hiking, photography, and outdoor adventures.",
+      creatorId: adminUser.id,
+      visibility: "public",
+      image: "https://placehold.co/400x400/16a34a/fff?text=Nature",
+    });
+    console.log(`  🌲 Created Space: Nature Lovers`);
 
     // Process other users (skip admin)
     for (let i = 1; i < SEED_USERS.length; i++) {

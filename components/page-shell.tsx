@@ -1,43 +1,43 @@
-"use client";
-
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface PageShellProps {
-    title: string;
-    subtitle?: ReactNode;
+    header: ReactNode;
     actions?: ReactNode;
-    breadcrumbs?: ReactNode;
-    children: ReactNode;
+    children?: ReactNode;
+    footer?: ReactNode;
 }
 
-export function PageShell({ title, subtitle, actions, breadcrumbs, children }: PageShellProps) {
+export function PageShell({
+    header,
+    actions,
+    children,
+    footer
+}: PageShellProps) {
     return (
         <div className="flex flex-col space-y-8 animate-in fade-in duration-500">
-            {breadcrumbs && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground -mb-4">
-                    {breadcrumbs}
-                </div>
-            )}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1.5">
-                    <h1 className="text-4xl font-extrabold tracking-tight text-foreground bg-clip-text">
-                        {title}
-                    </h1>
-                    {subtitle && (
-                        <p className="text-lg text-muted-foreground font-medium">
-                            {subtitle}
-                        </p>
-                    )}
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                    {header}
                 </div>
                 {actions && (
-                    <div className="flex items-center gap-3">
+                    <div className="shrink-0">
                         {actions}
                     </div>
                 )}
             </div>
-            <div className="flex-1">
-                {children}
-            </div>
+
+            {children && (
+                <div className="flex-1">
+                    {children}
+                </div>
+            )}
+
+            {footer && (
+                <div className="mt-auto pt-8">
+                    {footer}
+                </div>
+            )}
         </div>
     );
 }
