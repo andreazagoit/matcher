@@ -15,6 +15,20 @@
       "when": 1770338874443,
       "tag": "0001_parched_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770756141648,
+      "tag": "0002_big_squirrel_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770756259292,
+      "tag": "0003_military_hitman",
+      "breakpoints": true
     }
   ]
 }

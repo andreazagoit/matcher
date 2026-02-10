@@ -12,7 +12,7 @@ import {
 import { hasScope } from "@/lib/auth/middleware";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
 import type { User } from "./schema";
-import type { GraphQLContext } from "@/app/api/graphql/route";
+import type { GraphQLContext } from "@/app/api/client/v1/graphql/route";
 
 interface MatchOptions {
   limit?: number;

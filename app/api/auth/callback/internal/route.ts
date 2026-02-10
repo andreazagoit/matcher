@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     try {
         // Exchange code for token
-        const tokenResponse = await fetch(`${request.nextUrl.origin}/oauth/token`, {
+        const tokenResponse = await fetch(`${request.nextUrl.origin}/api/oauth/token`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         const tokens = await tokenResponse.json();
 
         // Get user info
-        const userinfoResponse = await fetch(`${request.nextUrl.origin}/oauth/userinfo`, {
+        const userinfoResponse = await fetch(`${request.nextUrl.origin}/api/oauth/userinfo`, {
             headers: {
                 Authorization: `Bearer ${tokens.access_token}`,
             },

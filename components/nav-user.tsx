@@ -1,13 +1,7 @@
 "use client"
 
 import {
-    BadgeCheck,
-    Bell,
-    ChevronsUpDown,
-    CreditCard,
     LogIn,
-    LogOut,
-    Sparkles,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -17,21 +11,12 @@ import {
     AvatarImage,
 } from "@/components/ui/avatar"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
-import { signIn, signOut } from "next-auth/react"
+import { signIn } from "next-auth/react"
 
 export function NavUser({
     user,
@@ -42,7 +27,7 @@ export function NavUser({
         avatar: string
     }
 }) {
-    const { isMobile } = useSidebar()
+    const { } = useSidebar()
     const isGuest = user.email === "guest@example.com"
 
     if (isGuest) {

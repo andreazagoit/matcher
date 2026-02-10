@@ -5,6 +5,8 @@ import { memberResolvers } from "../models/members/resolver";
 import { postResolvers } from "../models/posts/resolver";
 import { tierResolvers } from "../models/tiers/resolver";
 
+import { matchResolvers } from "../models/matches/resolver";
+
 // JSON Scalar per dati complessi (traits, etc)
 const JSONScalar = new GraphQLScalarType({
   name: "JSON",
@@ -30,13 +32,7 @@ export const resolvers = {
     ...userResolvers.Query,
     ...spaceResolvers.Query,
     ...postResolvers.Query,
-  },
-  Mutation: {
-    ...userResolvers.Mutation,
-    ...spaceResolvers.Mutation,
-    ...memberResolvers.Mutation,
-    ...postResolvers.Mutation,
-    ...tierResolvers.Mutation,
+    ...matchResolvers.Query,
   },
 
   // Field resolvers

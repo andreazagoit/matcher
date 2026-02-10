@@ -19,3 +19,7 @@ export * from "../models/posts/schema";
 // 5. OAuth 2.0 (dipende da users e spaces)
 export * from "../models/authorization-codes/schema";
 export * from "../models/tokens/schema";
+
+// 6. Connections & Matches
+export * from "../models/connections/schema";
+export * from "../models/matches/schema";

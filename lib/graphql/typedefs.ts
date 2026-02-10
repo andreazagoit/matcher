@@ -16,4 +16,6 @@ const baseTypeDefs = `#graphql
   type Mutation
 `;
 
-export const typeDefs = [baseTypeDefs, userTypeDefs, spaceTypeDefs, memberTypeDefs, postTypeDefs, tierTypeDefs];
+import { matchTypeDefs } from "../models/matches/typedefs";
+
+export const typeDefs = [baseTypeDefs, userTypeDefs, spaceTypeDefs, memberTypeDefs, postTypeDefs, tierTypeDefs, matchTypeDefs];

@@ -1,13 +1,19 @@
 /**
- * OAuth 2.0 Token Introspection Endpoint
- * POST /oauth/introspect
- * RFC 7662
+ * OAuth 2.0 Token Revocation Endpoint
+ * POST /api/oauth/revoke
+ * RFC 7009
  */
 
 import { NextRequest } from "next/server";
 import { OAuthError, OAuthErrors } from "@/lib/oauth/errors";
 import { validateClientCredentials } from "@/lib/models/spaces/operations";
-import { verifyAccessToken, findAccessTokenByJti } from "@/lib/oauth/tokens";
+import {
+  verifyAccessToken,
+  hashToken,
+  revokeAccessToken,
+  findRefreshTokenByHash,
+  revokeRefreshToken,
+} from "@/lib/oauth/tokens";
 
 function parseBasicAuth(header: string | null): { clientId: string; clientSecret: string } | null {
   if (!header?.startsWith("Basic ")) return null;
@@ -28,17 +34,18 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const token = formData.get("token") as string;
+    const tokenTypeHint = formData.get("token_type_hint") as string | undefined;
 
     if (!token) {
       throw OAuthErrors.invalidRequest("token is required");
     }
 
-    // Authenticate client (required for introspection)
+    // Authenticate client
     const basicAuth = parseBasicAuth(request.headers.get("authorization"));
     const clientId = basicAuth?.clientId || (formData.get("client_id") as string);
     const clientSecret = basicAuth?.clientSecret || (formData.get("client_secret") as string);
 
-    if (!clientId || !clientSecret) {
+    if (!clientId) {
       throw OAuthErrors.invalidClient("Client authentication required");
     }
 
@@ -47,40 +54,34 @@ export async function POST(request: NextRequest) {
       throw OAuthErrors.invalidClient("Invalid client credentials");
     }
 
-    // Verify token
-    const decoded = verifyAccessToken(token);
+    // Try to revoke based on hint or try both
+    if (tokenTypeHint === "refresh_token" || !tokenTypeHint) {
+      const refreshTokenHash = hashToken(token);
+      const refreshToken = await findRefreshTokenByHash(refreshTokenHash);
 
-    if (!decoded) {
-      // Token invalid or expired
-      return Response.json({ active: false });
+      if (refreshToken && refreshToken.clientId === clientId) {
+        await revokeRefreshToken(refreshToken.jti);
+        return new Response(null, { status: 200 });
+      }
     }
 
-    // Check if revoked
-    const storedToken = await findAccessTokenByJti(decoded.jti);
-    if (!storedToken) {
-      return Response.json({ active: false });
+    if (tokenTypeHint === "access_token" || !tokenTypeHint) {
+      // Try as access token (JWT)
+      const decoded = verifyAccessToken(token);
+      if (decoded && decoded.client_id === clientId) {
+        await revokeAccessToken(decoded.jti);
+        return new Response(null, { status: 200 });
+      }
     }
 
-    // Return introspection response
-    return Response.json({
-      active: true,
-      scope: decoded.scope,
-      client_id: decoded.client_id,
-      username: decoded.user_id, // Optional
-      token_type: "Bearer",
-      exp: decoded.exp,
-      iat: decoded.iat,
-      sub: decoded.sub,
-      aud: decoded.aud,
-      iss: decoded.iss,
-      jti: decoded.jti,
-    });
+    // RFC 7009: Return 200 even if token not found (don't leak info)
+    return new Response(null, { status: 200 });
   } catch (error) {
     if (error instanceof OAuthError) {
       return error.toResponse();
     }
 
-    console.error("OAuth introspect error:", error);
+    console.error("OAuth revoke error:", error);
     return OAuthErrors.serverError("Internal server error").toResponse();
   }
 }

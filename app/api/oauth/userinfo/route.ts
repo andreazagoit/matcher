@@ -1,6 +1,6 @@
 /**
  * OAuth 2.0 / OpenID Connect UserInfo Endpoint
- * GET/POST /oauth/userinfo
+ * GET/POST /api/oauth/userinfo
  * RFC 7662 / OpenID Connect Core 1.0 §5.3
  */
 

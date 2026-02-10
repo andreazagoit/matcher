@@ -1,6 +1,6 @@
 /**
  * OAuth 2.0 Token Endpoint
- * POST /oauth/token
+ * POST /api/oauth/token
  * RFC 6749 §3.2
  */
 
@@ -12,7 +12,7 @@ import { handleRefreshToken } from "@/lib/oauth/grants/refresh-token";
 
 function parseBasicAuth(header: string | null): { clientId: string; clientSecret: string } | null {
   if (!header?.startsWith("Basic ")) return null;
-  
+
   try {
     const decoded = Buffer.from(header.slice(6), "base64").toString();
     const [clientId, clientSecret] = decoded.split(":");
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         if (!clientId || !clientSecret) {
           throw OAuthErrors.invalidRequest("client_id and client_secret required");
         }
-        
+
         response = await handleClientCredentials({
           clientId,
           clientSecret,

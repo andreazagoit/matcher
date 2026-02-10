@@ -9,10 +9,10 @@ export const OAUTH_CONFIG = {
 
   // Endpoints
   authorizationEndpoint: "/oauth/authorize",
-  tokenEndpoint: "/oauth/token",
-  revocationEndpoint: "/oauth/revoke",
-  introspectionEndpoint: "/oauth/introspect",
-  userinfoEndpoint: "/oauth/userinfo",
+  tokenEndpoint: "/api/oauth/token",
+  revocationEndpoint: "/api/oauth/revoke",
+  introspectionEndpoint: "/api/oauth/introspect",
+  userinfoEndpoint: "/api/oauth/userinfo",
 
   // Supported features
   responseTypesSupported: ["code"],

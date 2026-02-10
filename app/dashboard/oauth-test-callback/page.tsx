@@ -22,7 +22,7 @@ function OAuthCallbackContent() {
 
   const exchangeCodeForTokens = async (code: string, codeVerifier: string, clientId: string) => {
     try {
-      const response = await fetch("/oauth/token", {
+      const response = await fetch("/api/oauth/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

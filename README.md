@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Matcher - Enterprise Social Intelligence Platform
 
-## Getting Started
+## Executive Summary
 
-First, run the development server:
+**Matcher** is an enterprise-grade social connectivity platform engineered to facilitate deep, meaningful human connections through advanced psychometric analysis and vector-based machine learning. Unlike traditional platforms that rely on superficial metrics, Matcher deploys a multidimensional compatibility engine to align users based on core personality traits, value systems, and shared interests.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Core Value Proposition
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 🧠 Deep Psychometric Profiling
+Leveraging standard psychological models, Matcher analyzes users across four key dimensions:
+-   **Psychological Architecture**: Personality traits and cognitive patterns.
+-   **Value Systems**: Core beliefs and life priorities.
+-   **Interest Graph**: Hobbies, passions, and intellectual pursuits.
+-   **Behavioral Dynamics**: Lifestyle and social interaction modes.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🤖 AI-Powered Vector Matching
+The platform utilizes high-dimensional vector embeddings (OpenAI) and HNSW (Hierarchical Navigable Small World) indexing to perform semantic similarity searches. This enables:
+-   **Non-Linear Compatibility**: Identification of matches that go beyond simple rule-based filtering.
+-   **Contextual Relevance**: Understanding the nuances behind user responses.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🌐 Spaces & Community Ecosystem
+A robust community management system designed to foster engagement:
+-   **Thematic Spaces**: Curated communities for shared interests.
+-   **Event Orchestration**: Integrated tools for organizing and managing physical and virtual gatherings.
 
-## Learn More
+## Platform Capabilities
 
-To learn more about Next.js, take a look at the following resources:
+### 👤 Identity & Intelligence
+*   **Adaptive Onboarding**: Dynamic questionnaire engine that constructs a sophisticated psychological profile.
+*   **Holistic Identity**: Aggregates behavioral data, values, and interests into a unified, queryable identity.
+*   **Privacy-First Design**: Users control the visibility of their psychometric data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 🔍 Discovery & Matching Engine
+*   **Semantic Search**: Discovery based on abstract concepts (e.g., "someone who enjoys deep philosophical discussions") rather than just keywords.
+*   **Weighted Compatibility Algorithms**: Customizable matching logic that allows prioritization of specific dimensions (e.g., prioritizing shared values over shared hobbies).
+*   **Real-time Recommendations**: Dynamic suggestions updated as user profiles evolve.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 🪐 Community Management (Spaces)
+*   **Space Creation & Customization**: Tools to launch branded communities with specific themes and join policies.
+*   **Member Directory**: Advanced filtering and sorting of space members by compatibility score.
+*   **Event System**: (Roadmap) Capabilities to host, manage, and discover events within specific spaces.
 
-## Deploy on Vercel
+## Technical Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Built on a scalable, type-safe, serverless-ready stack:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+-   **Frontend**: Next.js 15 (App Router), React, Shadcn UI, Tailwind CSS.
+-   **Backend Logic**: Server Actions, API Routes for atomic operations.
+-   **Database**: PostgreSQL with `pgvector` extension for hybrid relational/vector storage.
+-   **ORM**: Drizzle ORM for type-safe and performant database interactions.
+-   **Authentication**: NextAuth.js (Auth.js) v5 for secure identity management.
+-   **AI Infrastructure**: OpenAI integration for potential embedding generation and predictive analysis.
+
+## 🚀 Getting Started
+
+### Prerequisites
+-   Node.js 20+
+-   PostgreSQL 15+ (with `vector` extension)
+-   OpenAI API Key
+
+### Installation
+
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/your-org/matcher.git
+    cd matcher
+    ```
+
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
+
+3.  **Environment Configuration**
+    Configure environment variables by copying the `.env.example` template:
+    ```env
+    DATABASE_URL="postgresql://user:password@host:port/db"
+    OPENAI_API_KEY="sk-..."
+    AUTH_SECRET="your-secure-secret"
+    ```
+
+4.  **Database Interface**
+    Initialize schema and vector indices:
+    ```bash
+    npm run db:push
+    ```
+
+5.  **Launch Development Server**
+    ```bash
+    npm run dev
+    ```
+
+## 🤝 Contributing
+We welcome contributions from the community. Please review `CONTRIBUTING.md` for our development standards and code of conduct.
+
+## 📄 License
+Proprietary Software. All rights reserved.

@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageShell } from "@/components/page-shell";
-import { Loader2, Save, UserCircle } from "lucide-react";
+import { Loader2, Save, UserCircle, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface UserData {
     id: string;
@@ -111,9 +113,27 @@ export default function AccountPage() {
                 </div>
             }
             actions={
-                <Link href="/spaces">
-                    <Button variant="outline">Back to Spaces</Button>
-                </Link>
+                <div className="flex gap-2">
+                    <Link href="/spaces">
+                        <Button variant="outline">Back to Spaces</Button>
+                    </Link>
+                    <Button
+                        variant="destructive"
+                        onClick={async () => {
+                            // Clear IdP session (custom user_id cookie)
+                            try {
+                                await fetch("/api/auth/logout", { method: "POST" });
+                            } catch (e) {
+                                console.error("IdP logout error:", e);
+                            }
+                            // Clear NextAuth session and redirect
+                            await signOut({ callbackUrl: "/" });
+                        }}
+                    >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                    </Button>
+                </div>
             }
         >
             <div className="w-full mx-auto space-y-8">

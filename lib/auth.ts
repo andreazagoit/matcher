@@ -23,8 +23,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     response_type: "code",
                 },
             },
-            token: `${baseUrl}/oauth/token`,
-            userinfo: `${baseUrl}/oauth/userinfo`,
+            token: `${baseUrl}/api/oauth/token`,
+            userinfo: `${baseUrl}/api/oauth/userinfo`,
 
             // System OAuth app credentials (from seed)
             clientId: process.env.OAUTH_CLIENT_ID!,
