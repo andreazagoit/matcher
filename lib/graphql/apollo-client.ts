@@ -1,18 +1,16 @@
-import { ApolloClient, InMemoryCache, HttpLink } from "@apollo/client";
+import { HttpLink } from "@apollo/client";
+import {
+  registerApolloClient,
+  ApolloClient,
+  InMemoryCache,
+} from "@apollo/client-integration-nextjs";
 
-const httpLink = new HttpLink({
-  uri: "/api/client/v1/graphql",
-  credentials: "include",
+// RSC Apollo Client — uses absolute URL (required for server-side fetch)
+export const { getClient, query, PreloadQuery } = registerApolloClient(() => {
+  return new ApolloClient({
+    cache: new InMemoryCache(),
+    link: new HttpLink({
+      uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/client/v1/graphql`,
+    }),
+  });
 });
-
-export const apolloClient = new ApolloClient({
-  link: httpLink,
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      fetchPolicy: "cache-and-network",
-    },
-  },
-});
-
-

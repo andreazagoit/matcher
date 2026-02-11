@@ -1,34 +1,46 @@
 import { auth } from "@/lib/oauth/auth";
-import { getUserById } from "@/lib/models/users/operations";
+import { query } from "@/lib/graphql/apollo-client";
 import { AccountForm } from "./account-form";
 import { AccountHeaderActions } from "./account-header-actions";
 import { PageShell } from "@/components/page-shell";
 import { redirect } from "next/navigation";
+import gql from "graphql-tag";
+
+const GET_ME = gql`
+  query GetMe {
+    me {
+      id
+      firstName
+      lastName
+      email
+      birthDate
+      gender
+    }
+  }
+`;
+
+interface UserData {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    birthDate: string;
+    gender: "man" | "woman" | "non_binary" | null;
+}
 
 export default async function AccountPage() {
     const session = await auth();
 
     if (!session?.user?.id) {
-        // Should be handled by layout, but for safety
         redirect("/");
     }
 
-    const user = await getUserById(session.user.id);
+    const { data } = await query({ query: GET_ME });
+    const user = (data as { me: UserData }).me;
 
     if (!user) {
-        // Handle edge case where session exists but user DB record doesn't
         return <div>User not found</div>;
     }
-
-    // Map DB user to UserData interface expected by form
-    const userData = {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        birthDate: user.birthDate ? new Date(user.birthDate).toISOString().split('T')[0] : "", // Convert Date to string
-        gender: (user.gender === "man" || user.gender === "woman" || user.gender === "non_binary") ? user.gender : null,
-    };
 
     return (
         <PageShell
@@ -41,10 +53,8 @@ export default async function AccountPage() {
             actions={<AccountHeaderActions />}
         >
             <div className="w-full mx-auto space-y-8">
-                <AccountForm initialUser={userData} />
+                <AccountForm initialUser={user} />
             </div>
         </PageShell>
     );
 }
-
-

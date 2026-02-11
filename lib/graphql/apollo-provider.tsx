@@ -1,10 +1,29 @@
 "use client";
 
-import { ApolloProvider } from "@apollo/client/react";
-import { apolloClient } from "./apollo-client";
+import { HttpLink } from "@apollo/client";
+import {
+  ApolloNextAppProvider,
+  ApolloClient,
+  InMemoryCache,
+} from "@apollo/client-integration-nextjs";
 
-export function ApolloWrapper({ children }: { children: React.ReactNode }) {
-  return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>;
+// Client Components Apollo Client — uses absolute URL (required for SSR)
+function makeClient() {
+  const httpLink = new HttpLink({
+    uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/client/v1/graphql`,
+    credentials: "include",
+  });
+
+  return new ApolloClient({
+    cache: new InMemoryCache(),
+    link: httpLink,
+  });
 }
 
-
+export function ApolloWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <ApolloNextAppProvider makeClient={makeClient}>
+      {children}
+    </ApolloNextAppProvider>
+  );
+}
