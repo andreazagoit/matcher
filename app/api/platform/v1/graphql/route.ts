@@ -7,8 +7,7 @@ import { getAuthContext, type AuthContext } from "@/lib/auth/utils";
 
 export interface GraphQLContext {
     req: NextRequest;
-    user?: AuthContext["user"];
-    auth?: AuthContext;
+    auth: AuthContext;
 }
 
 const server = new ApolloServer<GraphQLContext>({
@@ -18,11 +17,10 @@ const server = new ApolloServer<GraphQLContext>({
 
 const handler = startServerAndCreateNextHandler<NextRequest, GraphQLContext>(server, {
     context: async (req) => {
-        const authContext = await getAuthContext(req);
+        const authContext = await getAuthContext();
         return {
             req,
             auth: authContext,
-            user: authContext.user
         };
     },
 });

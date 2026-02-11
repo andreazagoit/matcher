@@ -36,10 +36,6 @@ export const userTypeDefs = `#graphql
     userId: ID!
     
     # Traits aggregati per asse
-    psychologicalTraits: JSON
-    valuesTraits: JSON
-    interestsTraits: JSON
-    behavioralTraits: JSON
     
     # Descrizioni testuali generate
     psychologicalDescription: String

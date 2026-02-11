@@ -1,26 +1,20 @@
-interface PlatformUser {
-    id: string;
-    firstName: string;
-    lastName: string;
-    image?: string | null;
-    [key: string]: any;
-}
+import { type AuthContext } from "@/lib/auth/utils";
 
 interface PlatformContext {
-    user?: PlatformUser | null;
+    auth: AuthContext;
 }
 
 export const platformResolvers = {
     Query: {
         health: () => "Platform API v1 is operational",
         me: (_parent: unknown, _args: unknown, context: PlatformContext) => {
-            if (!context.user) {
+            if (!context.auth.user) {
                 return null;
             }
             return {
-                id: context.user.id,
-                name: `${context.user.firstName} ${context.user.lastName}`,
-                image: context.user.image
+                id: context.auth.user.id,
+                name: `${context.auth.user.firstName} ${context.auth.user.lastName}`,
+                image: context.auth.user.image
             };
         }
     },

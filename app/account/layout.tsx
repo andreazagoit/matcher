@@ -1,6 +1,6 @@
 import { auth, signIn } from "@/lib/oauth/auth";
 
-export default async function DashboardLayout({
+export default async function AccountLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -8,9 +8,8 @@ export default async function DashboardLayout({
     const session = await auth();
 
     if (!session) {
-        await signIn("matcher", { redirectTo: "/dashboard" });
+        await signIn("matcher", { redirectTo: "/account" });
     }
-
 
     return <>{children}</>;
 }

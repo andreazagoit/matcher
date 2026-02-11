@@ -2,12 +2,36 @@ import NextAuth from "next-auth";
 
 const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
+
 /**
- * Auth.js Configuration
- * 
- * Configures the authentication system using a custom OAuth provider.
- * The authorization endpoint is handled by our internal /oauth/authorize route.
+ * Maps the userinfo response from our provider to the Auth.js user object.
  */
+interface MatcherProfile {
+    sub: string;
+    name: string;
+    email: string;
+    given_name: string;
+    family_name: string;
+    birthdate: string;
+    gender: string | null;
+    created_at: string;
+    updated_at: string;
+    picture?: string | null;
+}
+
+interface MatcherUser {
+    id: string;
+    name: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+    gender: string | null;
+    createdAt: string;
+    updatedAt: string;
+    image?: string | null;
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
         {
@@ -30,10 +54,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientId: process.env.OAUTH_CLIENT_ID!,
             clientSecret: process.env.OAUTH_CLIENT_SECRET!,
 
-            /**
-             * Maps the userinfo response from our provider to the Auth.js user object.
-             */
-            profile(profile) {
+            profile(profile: MatcherProfile) {
                 return {
                     id: profile.sub,
                     name: profile.name,
@@ -44,7 +65,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     gender: profile.gender,
                     createdAt: profile.created_at,
                     updatedAt: profile.updated_at,
-                } as any;
+                    image: profile.picture,
+                };
             },
         },
     ],
@@ -57,14 +79,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: {
         async jwt({ token, user, account }) {
             if (user) {
+                const u = user as unknown as MatcherUser;
                 token.id = user.id;
-                token.firstName = (user as any).firstName;
-                token.lastName = (user as any).lastName;
+                token.firstName = u.firstName;
+                token.lastName = u.lastName;
                 token.email = user.email;
-                token.birthDate = (user as any).birthDate;
-                token.gender = (user as any).gender;
-                token.createdAt = (user as any).createdAt;
-                token.updatedAt = (user as any).updatedAt;
+                token.birthDate = u.birthDate;
+                token.gender = u.gender;
+                token.createdAt = u.createdAt;
+                token.updatedAt = u.updatedAt;
+                token.image = u.image;
             }
             if (account) {
                 token.accessToken = account.access_token;
@@ -74,15 +98,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async session({ session, token }) {
             if (token && session.user) {
                 session.user.id = token.id as string;
-                (session.user as any).firstName = token.firstName;
-                (session.user as any).lastName = token.lastName;
-                (session.user as any).birthDate = token.birthDate;
-                (session.user as any).gender = token.gender;
-                (session.user as any).createdAt = token.createdAt;
-                (session.user as any).updatedAt = token.updatedAt;
+                const user = session.user as unknown as MatcherUser;
+                user.firstName = token.firstName as string;
+                user.lastName = token.lastName as string;
+                user.birthDate = token.birthDate as string;
+                user.gender = token.gender as string | null;
+                user.createdAt = token.createdAt as string;
+                user.updatedAt = token.updatedAt as string;
+                user.image = token.image as string | null;
             }
             return session;
         },
+    },
+
+    pages: {
+        signIn: "/api/auth/signin/matcher",
     },
 
     trustHost: true,

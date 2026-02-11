@@ -1,29 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
 import { PageShell } from "@/components/page-shell";
 import { Card } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { redirect, useSearchParams, useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import { Suspense } from "react";
 
 function ChatPageContent() {
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const searchParams = useSearchParams();
     const router = useRouter();
 
     const conversationId = searchParams.get("id");
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversationId);
 
-    useEffect(() => {
-        if (conversationId) {
-            setSelectedConversationId(conversationId);
-        }
-    }, [conversationId]);
+    // URL param and state are already synced by initialization and handleSelect
+    // No need for redundant useEffect that triggers cascading renders
 
     const handleSelect = (id: string) => {
         setSelectedConversationId(id);
@@ -31,7 +28,11 @@ function ChatPageContent() {
     };
 
     if (status === "loading") return null;
-    if (!session) redirect("/api/auth/signin");
+    if (status === "unauthenticated") {
+        signIn("matcher", { callbackUrl: "/chat" });
+        return null;
+    }
+
 
     return (
         <PageShell

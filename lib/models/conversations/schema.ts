@@ -1,4 +1,4 @@
-import { pgTable, uuid, timestamp, primaryKey, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, timestamp } from "drizzle-orm/pg-core";
 import { users } from "@/lib/models/users/schema";
 import { relations } from "drizzle-orm";
 
@@ -20,7 +20,7 @@ export const conversations = pgTable(
         createdAt: timestamp("created_at").defaultNow().notNull(),
         updatedAt: timestamp("updated_at").defaultNow().notNull(),
     },
-    (table) => [
+    () => [
         // Ensure unique pair of participants. 
         // We might enforce p1 < p2 in application logic to avoid duplicates (A,B) and (B,A)
         // or just use a unique index if we always sort ids.

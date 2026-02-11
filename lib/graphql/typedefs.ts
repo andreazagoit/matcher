@@ -8,10 +8,7 @@ import { userTypeDefs } from "../models/users/typedefs";
 
 // Base types - empty definitions that are extended by model-specific typedefs
 const baseTypeDefs = `#graphql
-  """
-  JSON scalar for complex data structures (traits, metadata, etc.)
-  """
-  scalar JSON
+
 
   type Query
   type Mutation

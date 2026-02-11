@@ -86,6 +86,7 @@ async function handleUserInfo(request: NextRequest) {
             }
             response.created_at = user.createdAt;
             response.updated_at = user.updatedAt;
+            response.picture = user.image;
         }
 
         // Email scope

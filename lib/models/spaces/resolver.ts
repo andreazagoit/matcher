@@ -39,7 +39,7 @@ export const spaceResolvers = {
         },
 
         mySpaces: async (_: unknown, __: unknown, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) return [];
 
             const userMemberships = await db.query.members.findMany({
                 where: eq(members.userId, context.user.id),

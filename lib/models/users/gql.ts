@@ -21,10 +21,7 @@ export const PROFILE_FRAGMENT = gql`
   fragment ProfileFields on Profile {
     id
     userId
-    psychologicalTraits
-    valuesTraits
-    interestsTraits
-    behavioralTraits
+
     psychologicalDescription
     valuesDescription
     interestsDescription

@@ -5,15 +5,17 @@ import { users } from "../users/schema";
 import { eq, or, and, desc, ne, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 
+import { type AuthContext } from "@/lib/auth/utils";
+
 interface ResolverContext {
-    user?: { id: string } | null;
+    auth: AuthContext;
 }
 
 export const conversationResolvers = {
     Query: {
-        conversations: async (_: any, __: any, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
-            const userId = context.user.id;
+        conversations: async (_parent: unknown, _args: unknown, context: ResolverContext) => {
+            if (!context.auth.user) throw new GraphQLError("Unauthorized");
+            const userId = context.auth.user.id;
 
             const userConversations = await db.query.conversations.findMany({
                 where: or(
@@ -26,9 +28,9 @@ export const conversationResolvers = {
             return userConversations;
         },
 
-        conversation: async (_: any, { id }: { id: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
-            const userId = context.user.id;
+        conversation: async (_parent: unknown, { id }: { id: string }, context: ResolverContext) => {
+            if (!context.auth.user) throw new GraphQLError("Unauthorized");
+            const userId = context.auth.user.id;
 
             const conversation = await db.query.conversations.findFirst({
                 where: eq(conversations.id, id),
@@ -43,9 +45,9 @@ export const conversationResolvers = {
             return conversation;
         },
 
-        messages: async (_: any, { conversationId }: { conversationId: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
-            const userId = context.user.id;
+        messages: async (_parent: unknown, { conversationId }: { conversationId: string }, context: ResolverContext) => {
+            if (!context.auth.user) throw new GraphQLError("Unauthorized");
+            const userId = context.auth.user.id;
 
             const conversation = await db.query.conversations.findFirst({
                 where: eq(conversations.id, conversationId),
@@ -67,9 +69,9 @@ export const conversationResolvers = {
     },
 
     Mutation: {
-        startConversation: async (_: any, { targetUserId }: { targetUserId: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
-            const userId = context.user.id;
+        startConversation: async (_parent: unknown, { targetUserId }: { targetUserId: string }, context: ResolverContext) => {
+            if (!context.auth.user) throw new GraphQLError("Unauthorized");
+            const userId = context.auth.user.id;
 
             if (userId === targetUserId) throw new GraphQLError("Cannot chat with yourself");
 
@@ -90,9 +92,9 @@ export const conversationResolvers = {
             return newConv;
         },
 
-        sendMessage: async (_: any, { conversationId, content }: { conversationId: string, content: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
-            const userId = context.user.id;
+        sendMessage: async (_parent: unknown, { conversationId, content }: { conversationId: string, content: string }, context: ResolverContext) => {
+            if (!context.auth.user) throw new GraphQLError("Unauthorized");
+            const userId = context.auth.user.id;
 
             const conversation = await db.query.conversations.findFirst({
                 where: eq(conversations.id, conversationId),
@@ -117,9 +119,9 @@ export const conversationResolvers = {
             return newMessage;
         },
 
-        markAsRead: async (_: any, { conversationId }: { conversationId: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
-            const userId = context.user.id;
+        markAsRead: async (_parent: unknown, { conversationId }: { conversationId: string }, context: ResolverContext) => {
+            if (!context.auth.user) throw new GraphQLError("Unauthorized");
+            const userId = context.auth.user.id;
 
             await db.update(messages)
                 .set({ readAt: new Date() })
@@ -134,25 +136,25 @@ export const conversationResolvers = {
     },
 
     Conversation: {
-        participant1: async (parent: any) => {
+        participant1: async (parent: { participant1Id: string }) => {
             return db.query.users.findFirst({ where: eq(users.id, parent.participant1Id) });
         },
-        participant2: async (parent: any) => {
+        participant2: async (parent: { participant2Id: string }) => {
             return db.query.users.findFirst({ where: eq(users.id, parent.participant2Id) });
         },
-        otherParticipant: async (parent: any, _: any, context: ResolverContext) => {
-            const myId = context.user?.id;
+        otherParticipant: async (parent: { participant1Id: string, participant2Id: string }, _args: unknown, context: ResolverContext) => {
+            const myId = context.auth.user?.id;
             const otherId = parent.participant1Id === myId ? parent.participant2Id : parent.participant1Id;
             return db.query.users.findFirst({ where: eq(users.id, otherId) });
         },
-        lastMessage: async (parent: any) => {
+        lastMessage: async (parent: { id: string }) => {
             return db.query.messages.findFirst({
                 where: eq(messages.conversationId, parent.id),
                 orderBy: [desc(messages.createdAt)]
             });
         },
-        unreadCount: async (parent: any, _: any, context: ResolverContext) => {
-            const myId = context.user?.id;
+        unreadCount: async (parent: { id: string }, _args: unknown, context: ResolverContext) => {
+            const myId = context.auth.user?.id;
             if (!myId) return 0;
 
             const count = await db.$count(messages, and(
@@ -165,7 +167,7 @@ export const conversationResolvers = {
     },
 
     Message: {
-        sender: async (parent: any) => {
+        sender: async (parent: { senderId: string }) => {
             return db.query.users.findFirst({ where: eq(users.id, parent.senderId) });
         }
     }

@@ -34,24 +34,24 @@ export const userResolvers = {
       { id }: { id: string },
       context: GraphQLContext
     ) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
       return await getUserById(id);
     },
 
     users: async (_: unknown, __: unknown, context: GraphQLContext) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
       return await getAllUsers();
     },
 
     me: async (_: unknown, __: unknown, context: GraphQLContext) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         return null;
       }
-      return context.user;
+      return context.auth.user;
     },
 
     findMatches: async (
@@ -59,11 +59,11 @@ export const userResolvers = {
       { userId, options }: { userId?: string; options?: MatchOptions },
       context: GraphQLContext
     ) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
 
-      const targetUserId = userId || context.user.id;
+      const targetUserId = userId || context.auth.user.id;
 
       if (!targetUserId) {
         throw new Error("User ID required.");
@@ -86,7 +86,7 @@ export const userResolvers = {
       { input }: { input: CreateUserInput },
       context: GraphQLContext
     ) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
       return await createUser(input);
@@ -97,12 +97,12 @@ export const userResolvers = {
       { id, input }: { id: string; input: UpdateUserInput },
       context: GraphQLContext
     ) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
 
       // Users can only update their own profile
-      if (context.user.id !== id) {
+      if (context.auth.user.id !== id) {
         throw new AuthError("You can only update your own profile", "FORBIDDEN");
       }
 
@@ -114,12 +114,12 @@ export const userResolvers = {
       { id }: { id: string },
       context: GraphQLContext
     ) => {
-      if (!context.user) {
+      if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
 
       // Only allow self-deletion for now
-      if (context.user.id !== id) {
+      if (context.auth.user.id !== id) {
         throw new AuthError("Forbidden", "FORBIDDEN");
       }
 

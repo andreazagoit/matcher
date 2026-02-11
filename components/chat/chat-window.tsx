@@ -46,6 +46,26 @@ const SEND_MESSAGE = gql`
   }
 `;
 
+
+interface Participant {
+    id: string;
+    firstName: string;
+    lastName: string;
+    image?: string;
+}
+
+interface Message {
+    id: string;
+    content: string;
+    createdAt: string;
+    sender: Participant;
+}
+
+interface Conversation {
+    id: string;
+    otherParticipant: Participant;
+}
+
 interface ChatWindowProps {
     conversationId: string;
 }
@@ -55,7 +75,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [content, setContent] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const { data, loading, error } = useQuery<any>(GET_MESSAGES, {
+    const { data, loading, error } = useQuery<{ messages: Message[], conversation: Conversation }>(GET_MESSAGES, {
         variables: { conversationId },
         pollInterval: 3000,
     });
@@ -111,7 +131,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
             <ScrollArea className="flex-1 p-4">
                 <div className="flex flex-col gap-4">
-                    {messages.map((msg: any) => {
+                    {messages.map((msg) => {
                         const isMe = msg.sender.id === session?.user?.id;
                         return (
                             <div

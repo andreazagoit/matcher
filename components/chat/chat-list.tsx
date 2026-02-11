@@ -5,7 +5,6 @@ import gql from "graphql-tag";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
 import { Loader2 } from "lucide-react";
 
 const GET_CONVERSATIONS = gql`
@@ -28,13 +27,31 @@ const GET_CONVERSATIONS = gql`
   }
 `;
 
+interface Participant {
+    id: string;
+    firstName: string;
+    lastName: string;
+    image?: string;
+}
+
+interface Conversation {
+    id: string;
+    otherParticipant: Participant;
+    lastMessage?: {
+        content: string;
+        createdAt: string;
+    };
+    updatedAt: string;
+    unreadCount: number;
+}
+
 interface ChatListProps {
     selectedId?: string;
     onSelect: (id: string) => void;
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-    const { data, loading, error } = useQuery<any>(GET_CONVERSATIONS, {
+    const { data, loading, error } = useQuery<{ conversations: Conversation[] }>(GET_CONVERSATIONS, {
         pollInterval: 5000,
     });
 
@@ -50,7 +67,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     return (
         <ScrollArea className="h-full">
             <div className="flex flex-col gap-2 p-4 pt-0">
-                {conversations.map((conv: any) => (
+                {conversations.map((conv) => (
                     <button
                         key={conv.id}
                         onClick={() => onSelect(conv.id)}

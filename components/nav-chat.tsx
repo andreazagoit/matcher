@@ -27,9 +27,18 @@ const GET_RECENT_CONVERSATIONS = gql`
   }
 `
 
+interface NavConversation {
+    id: string;
+    otherParticipant: {
+        firstName: string;
+        lastName: string;
+    };
+    unreadCount: number;
+}
+
 export function NavChat() {
     const pathname = usePathname()
-    const { data } = useQuery<any>(GET_RECENT_CONVERSATIONS, {
+    const { data } = useQuery<{ conversations: NavConversation[] }>(GET_RECENT_CONVERSATIONS, {
         pollInterval: 10000,
     })
 
@@ -39,7 +48,7 @@ export function NavChat() {
         <SidebarGroup className="group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel>Messages</SidebarGroupLabel>
             <SidebarMenu>
-                {conversations.map((item: any) => (
+                {conversations.map((item) => (
                     <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton asChild isActive={pathname === `/chat` && pathname.includes(item.id)}>
                             {/* TODO: Link to specific chat if we had a route /chat/[id], for now just /chat handles selection state internally or via query param? 
