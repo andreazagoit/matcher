@@ -13,11 +13,16 @@ interface ResolverContext {
 export const memberResolvers = {
     Member: {
         user: async (parent: Member) => {
-            return db.query.users.findFirst({
+            const user = await db.query.users.findFirst({
                 where: eq(users.id, parent.userId),
             });
+            if (!user) {
+                throw new GraphQLError(`User ${parent.userId} not found for member ${parent.id}`, {
+                    extensions: { code: "INTERNAL_SERVER_ERROR" }
+                });
+            }
+            return user;
         },
-        joinedAt: (parent: Member) => parent.joinedAt.toISOString(),
         tier: async (parent: Member) => {
             if (!parent.tierId) return null;
             return db.query.membershipTiers.findFirst({
@@ -84,7 +89,44 @@ export const memberResolvers = {
                 status,
             }).returning();
 
+            if (!newMember) {
+                throw new GraphQLError("Failed to create member record", {
+                    extensions: { code: "INTERNAL_SERVER_ERROR" }
+                });
+            }
+
             return newMember;
+        },
+
+        approveMember: async (
+            _: unknown,
+            { spaceId, userId }: { spaceId: string, userId: string },
+            context: ResolverContext
+        ) => {
+            if (!context.user) throw new GraphQLError("Unauthorized");
+
+            const requester = await db.query.members.findFirst({
+                where: and(eq(members.spaceId, spaceId), eq(members.userId, context.user.id)),
+            });
+
+            if (!requester || requester.role !== "admin") {
+                throw new GraphQLError("Forbidden - Admin access required", {
+                    extensions: { code: "FORBIDDEN" }
+                });
+            }
+
+            const [updated] = await db.update(members)
+                .set({ status: "active" })
+                .where(and(eq(members.spaceId, spaceId), eq(members.userId, userId)))
+                .returning();
+
+            if (!updated) {
+                throw new GraphQLError("Member request not found", {
+                    extensions: { code: "NOT_FOUND" }
+                });
+            }
+
+            return updated;
         },
 
         leaveSpace: async (_: unknown, { spaceId }: { spaceId: string }, context: ResolverContext) => {

@@ -27,7 +27,6 @@ export const postResolvers = {
                 where: eq(users.id, parent.authorId),
             });
         },
-        createdAt: (parent: Post) => parent.createdAt.toISOString(),
     },
 
     Space: {

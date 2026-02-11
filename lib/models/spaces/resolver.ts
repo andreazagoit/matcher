@@ -101,7 +101,6 @@ export const spaceResolvers = {
     },
 
     Space: {
-        createdAt: (parent: Space) => parent.createdAt?.toISOString(),
         membersCount: async (parent: Space) => {
             const result = await db
                 .select({ count: count() })
