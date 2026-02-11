@@ -1,4 +1,5 @@
-import { auth, signIn } from "@/lib/oauth/auth";
+import { auth } from "@/lib/oauth/auth";
+import { redirect } from "next/navigation";
 
 export default async function AccountLayout({
     children,
@@ -8,7 +9,7 @@ export default async function AccountLayout({
     const session = await auth();
 
     if (!session) {
-        await signIn("matcher", { redirectTo: "/account" });
+        redirect("/api/auth/signin?callbackUrl=/account");
     }
 
     return <>{children}</>;

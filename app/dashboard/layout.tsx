@@ -1,4 +1,5 @@
-import { auth, signIn } from "@/lib/oauth/auth";
+import { auth } from "@/lib/oauth/auth";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
     children,
@@ -8,9 +9,8 @@ export default async function DashboardLayout({
     const session = await auth();
 
     if (!session) {
-        await signIn("matcher", { redirectTo: "/dashboard" });
+        redirect("/api/auth/signin?callbackUrl=/dashboard");
     }
-
 
     return <>{children}</>;
 }

@@ -111,9 +111,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
     },
 
-    pages: {
-        signIn: "/api/auth/signin/matcher",
-    },
+    pages: {},
 
     trustHost: true,
 });
