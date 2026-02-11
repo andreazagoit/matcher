@@ -1,4 +1,4 @@
-import { getDailyMatches } from "@/lib/services/matching";
+import { getDailyMatches } from "./operations";
 import { GraphQLError } from "graphql";
 
 interface ResolverContext {

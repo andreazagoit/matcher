@@ -5,6 +5,7 @@ import {
     LayoutDashboard,
     LayoutGrid,
     LifeBuoy,
+    MessageSquare,
     Rss,
     Send,
 } from "lucide-react"
@@ -26,7 +27,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { NavUser } from "@/components/nav-user"
-import { NavChat } from "@/components/nav-chat"
 import { NavSecondary } from "@/components/nav-secondary"
 
 // Navigation Data
@@ -38,22 +38,6 @@ const data = {
     },
     navMain: [
         {
-            title: "Platform",
-            url: "#",
-            items: [
-                {
-                    title: "Feed",
-                    url: "/feed",
-                    icon: Rss,
-                },
-                {
-                    title: "Spaces",
-                    url: "/spaces",
-                    icon: LayoutGrid,
-                },
-            ],
-        },
-        {
             title: "Management",
             url: "#",
             items: [
@@ -63,6 +47,23 @@ const data = {
                     icon: LayoutDashboard,
                 },
             ],
+        },
+    ],
+    platform: [
+        {
+            title: "Feed",
+            url: "/feed",
+            icon: Rss,
+        },
+        {
+            title: "Spaces",
+            url: "/spaces",
+            icon: LayoutGrid,
+        },
+        {
+            title: "Messages",
+            url: "/chat",
+            icon: MessageSquare,
         },
     ],
     navSecondary: [
@@ -112,6 +113,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
+                {/* Platform Group */}
+                <SidebarGroup>
+                    <SidebarGroupLabel>Platform</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {data.platform.map((item) => (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton asChild isActive={pathname === item.url}>
+                                        <Link href={item.url}>
+                                            <item.icon />
+                                            <span>{item.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                {/* Main Groups (Management etc.) */}
                 {data.navMain.map((item) => (
                     <SidebarGroup key={item.title}>
                         <SidebarGroupLabel>
@@ -133,8 +154,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarGroupContent>
                     </SidebarGroup>
                 ))}
-
-                <NavChat />
 
                 <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>
