@@ -1,14 +1,15 @@
-import { userTypeDefs } from "../models/users/typedefs";
-import { spaceTypeDefs } from "../models/spaces/typedefs";
+import { conversationTypeDefs } from "../models/conversations/typedefs";
+import { matchTypeDefs } from "../models/matches/typedefs";
 import { memberTypeDefs } from "../models/members/typedefs";
 import { postTypeDefs } from "../models/posts/typedefs";
-
+import { spaceTypeDefs } from "../models/spaces/typedefs";
 import { tierTypeDefs } from "../models/tiers/typedefs";
+import { userTypeDefs } from "../models/users/typedefs";
 
-// Base types - definizioni vuote che vengono estese dai modelli
+// Base types - empty definitions that are extended by model-specific typedefs
 const baseTypeDefs = `#graphql
   """
-  JSON scalar per dati complessi (traits, etc)
+  JSON scalar for complex data structures (traits, metadata, etc.)
   """
   scalar JSON
 
@@ -16,6 +17,13 @@ const baseTypeDefs = `#graphql
   type Mutation
 `;
 
-import { matchTypeDefs } from "../models/matches/typedefs";
-
-export const typeDefs = [baseTypeDefs, userTypeDefs, spaceTypeDefs, memberTypeDefs, postTypeDefs, tierTypeDefs, matchTypeDefs];
+export const typeDefs = [
+  baseTypeDefs,
+  conversationTypeDefs,
+  matchTypeDefs,
+  memberTypeDefs,
+  postTypeDefs,
+  spaceTypeDefs,
+  tierTypeDefs,
+  userTypeDefs,
+];

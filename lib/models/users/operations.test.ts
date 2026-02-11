@@ -6,7 +6,7 @@ describe("findMatches", () => {
   let testUserId: string;
 
   beforeAll(async () => {
-    // Ottieni il primo utente per i test
+    // Retrieve the first available user for testing
     const users = await getAllUsers();
     if (users.length === 0) {
       throw new Error("No users found. Run db:seed first.");
@@ -14,7 +14,7 @@ describe("findMatches", () => {
     testUserId = users[0].id;
   });
 
-  it("dovrebbe trovare match per un utente esistente", async () => {
+  it("should find matches for an existing user", async () => {
     const matches = await findMatches(testUserId, { limit: 5 });
 
     expect(matches).toBeDefined();
@@ -22,7 +22,7 @@ describe("findMatches", () => {
     expect(matches.length).toBeLessThanOrEqual(5);
   });
 
-  it("dovrebbe restituire match con similarity score", async () => {
+  it("should return matches with a similarity score", async () => {
     const matches = await findMatches(testUserId, { limit: 3 });
 
     if (matches.length > 0) {
@@ -40,14 +40,14 @@ describe("findMatches", () => {
     }
   });
 
-  it("dovrebbe escludere l'utente corrente dai risultati", async () => {
+  it("should exclude the current user from the results", async () => {
     const matches = await findMatches(testUserId, { limit: 10 });
 
     const userIds = matches.map((m) => m.user.id);
     expect(userIds).not.toContain(testUserId);
   });
 
-  it("dovrebbe ordinare i match per similarity decrescente", async () => {
+  it("should sort matches by descending similarity", async () => {
     const matches = await findMatches(testUserId, { limit: 10 });
 
     if (matches.length > 1) {
@@ -59,7 +59,7 @@ describe("findMatches", () => {
     }
   });
 
-  it("dovrebbe rispettare il parametro limit", async () => {
+  it("should respect the limit parameter", async () => {
     const matches3 = await findMatches(testUserId, { limit: 3 });
     const matches5 = await findMatches(testUserId, { limit: 5 });
 
@@ -67,13 +67,13 @@ describe("findMatches", () => {
     expect(matches5.length).toBeLessThanOrEqual(5);
   });
 
-  it("dovrebbe lanciare errore per utente non esistente", async () => {
+  it("should throw an error for a non-existent user", async () => {
     const fakeUserId = "00000000-0000-0000-0000-000000000000";
 
     await expect(findMatches(fakeUserId)).rejects.toThrow("Profile not found");
   });
 
-  it("dovrebbe accettare pesi personalizzati", async () => {
+  it("should accept custom matching weights", async () => {
     const matchesDefault = await findMatches(testUserId, { limit: 5 });
     const matchesWeights = await findMatches(testUserId, {
       limit: 5,

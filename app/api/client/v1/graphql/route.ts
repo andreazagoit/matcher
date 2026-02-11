@@ -3,11 +3,12 @@ import { startServerAndCreateNextHandler } from "@as-integrations/next";
 import { NextRequest, NextResponse } from "next/server";
 import { typeDefs } from "@/lib/graphql/typedefs";
 import { resolvers } from "@/lib/graphql/resolvers";
-import { getAuthContext, type AuthContext } from "@/lib/auth/middleware";
+import { getAuthContext, type AuthContext } from "@/lib/auth/utils";
 
 export interface GraphQLContext {
   req: NextRequest;
-  auth: AuthContext;
+  user?: AuthContext["user"];
+  auth?: AuthContext;
 }
 
 const server = new ApolloServer<GraphQLContext>({
@@ -17,8 +18,12 @@ const server = new ApolloServer<GraphQLContext>({
 
 const handler = startServerAndCreateNextHandler<NextRequest, GraphQLContext>(server, {
   context: async (req) => {
-    const auth = await getAuthContext(req);
-    return { req, auth };
+    const authContext = await getAuthContext(req);
+    return {
+      req,
+      auth: authContext,
+      user: authContext.user
+    };
   },
 });
 

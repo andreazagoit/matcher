@@ -1,11 +1,11 @@
 /**
- * Assembler - Converte risposte → ProfileData
+ * Assembler - Transforms raw assessment answers into structured ProfileData.
  * 
- * Input: { questionId: valore }
- * - Chiuse: indice 1-5 → prende l'opzione corrispondente (self-contained)
- * - Aperte: stringa → applica il template della domanda
+ * Processing Logic:
+ * - Closed questions: Maps the 1-5 scalar value to the corresponding pre-defined embedding sentence.
+ * - Open questions: Injects the user's response into the question's sentence template.
  * 
- * Output: 4 descrizioni testuali (una per asse)
+ * Output: Four textual descriptions (one for each matching axis).
  */
 
 import type { AssessmentAnswersJson } from "./schema";
@@ -13,7 +13,7 @@ import { QUESTIONS, type Section, type OpenQuestion } from "./questions";
 import type { ProfileData } from "@/lib/models/profiles/operations";
 
 // ============================================
-// ASSEMBLAGGIO
+// ASSEMBLY LOGIC
 // ============================================
 
 function assembleSection(section: Section, answers: AssessmentAnswersJson): string {
@@ -26,12 +26,12 @@ function assembleSection(section: Section, answers: AssessmentAnswersJson): stri
 
     if (question.type === "closed") {
       if (typeof answer === "number") {
-        // Valore 1-5 → indice 0-4
+        // Map scale 1-5 to array index 0-4
         const index = Math.max(0, Math.min(4, answer - 1));
         const sentence = question.options[index];
         if (sentence) sentences.push(sentence);
       } else if (typeof answer === "string") {
-        // Stringa diretta dell'opzione selezionata
+        // Use direct string if it matches a valid option
         if (question.options.includes(answer)) {
           sentences.push(answer);
         }
@@ -41,7 +41,7 @@ function assembleSection(section: Section, answers: AssessmentAnswersJson): stri
     if (question.type === "open" && typeof answer === "string") {
       const text = answer.trim();
       if (text) {
-        // Applica il template della domanda
+        // Inject answer into the predefined sentence template
         const openQ = question as OpenQuestion;
         const sentence = openQ.template.replace("{answer}", text);
         sentences.push(sentence);
@@ -57,14 +57,14 @@ function assembleSection(section: Section, answers: AssessmentAnswersJson): stri
 // ============================================
 
 /**
- * Assembla le risposte in ProfileData
+ * Aggregates all validated answers into a ProfileData object.
  * 
- * @param answers - { questionId: valore } (1-5 per chiuse, stringa per aperte)
+ * @param answers - Map of { questionId: value } (1-5 for closed, string for open).
  * 
  * @example
  * const answers = {
- *   "psy-1": 5,        // → prende options[4]
- *   "psy-open": "curiosa e riflessiva",  // → "Mi descrivo come una persona curiosa e riflessiva"
+ *   "psy-1": 5,
+ *   "psy-open": "curious and reflective",
  *   ...
  * };
  * 

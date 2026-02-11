@@ -9,7 +9,7 @@ import { generateAllUserEmbeddings } from "../../embeddings";
 import { createSpace } from "../../models/spaces/operations";
 
 /**
- * Seed - Crea 25 utenti con test completati e profili
+ * Seeding Script - Creates 25 users with completed assessments and profiles.
  */
 
 const SEED_USERS = [
@@ -43,7 +43,7 @@ const SEED_USERS = [
   { firstName: "Gabriele", lastName: "Martinelli", email: "gabriele.martinelli@example.com", birthDate: "1992-12-28", gender: "man" as const },
 ];
 
-// Risposte aperte di esempio
+// Example open-ended answers
 const OPEN_ANSWERS: Record<string, string[]> = {
   "psy-open": [
     "Sono una persona curiosa e riflessiva, mi piace ascoltare gli altri",
@@ -76,10 +76,10 @@ const OPEN_ANSWERS: Record<string, string[]> = {
 };
 
 /**
- * Genera risposte casuali per il test
- * Formato: { questionId: valore }
- * - Chiuse: 1-5
- * - Aperte: stringa
+ * Generates random answers for the assessment.
+ * Format: { questionId: value }
+ * - Closed: range 1-5
+ * - Open: string response
  */
 function generateRandomAnswers(): AssessmentAnswersJson {
   const answers: AssessmentAnswersJson = {};
@@ -87,10 +87,10 @@ function generateRandomAnswers(): AssessmentAnswersJson {
   for (const section of SECTIONS) {
     for (const question of QUESTIONS[section]) {
       if (question.type === "closed") {
-        // Valore casuale 1-5
+        // Random value between 1 and 5
         answers[question.id] = Math.floor(Math.random() * 5) + 1;
       } else {
-        // Risposta aperta casuale
+        // Select a random open-ended response from the example set
         const openOptions = OPEN_ANSWERS[question.id] || [""];
         answers[question.id] = openOptions[Math.floor(Math.random() * openOptions.length)];
       }
@@ -120,8 +120,6 @@ async function seed() {
       description: "Official Matcher System Space for internal use",
       redirectUris: [
         "http://localhost:3000/api/auth/callback/matcher", // Auth.js callback
-        "http://localhost:3000/oauth/callback",
-        "http://localhost:3000/dashboard/oauth-test-callback",
       ],
       creatorId: adminUser.id,
       visibility: "hidden",
@@ -130,7 +128,6 @@ async function seed() {
     });
     console.log(`  🔑 Created System Space:`);
     console.log(`     Client ID: ${systemSpace.clientId}`);
-    console.log(`     Secret Key: ${systemSpace.secretKey}`);
     console.log(`     Secret Key: ${systemSpace.secretKey}`);
     console.log(`     ⚠️  Add these to .env as OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET`);
 
@@ -159,13 +156,13 @@ async function seed() {
     for (let i = 1; i < SEED_USERS.length; i++) {
       const userData = SEED_USERS[i];
 
-      // 1. Crea user
+      // 1. Create User
       const [user] = await db.insert(users).values(userData).returning();
 
-      // 2. Genera risposte test
+      // 2. Generate test answers
       const answers = generateRandomAnswers();
 
-      // 3. Salva assessment
+      // 3. Persist Assessment
       await db.insert(assessments).values({
         userId: user.id,
         assessmentName: ASSESSMENT_NAME,
@@ -173,10 +170,10 @@ async function seed() {
         status: "completed",
       });
 
-      // 4. Assembla ProfileData (ora restituisce semplici stringhe)
+      // 4. Assemble ProfileData (generates axis descriptions)
       const profileData = assembleProfile(answers);
 
-      // 5. Genera embeddings
+      // 5. Generate Vector Embeddings via OpenAI
       const embeddings = await generateAllUserEmbeddings({
         psychological: profileData.psychologicalDesc,
         values: profileData.valuesDesc,
@@ -184,7 +181,7 @@ async function seed() {
         behavioral: profileData.behavioralDesc,
       });
 
-      // 6. Crea profilo
+      // 6. Persist Profile
       await db.insert(profiles).values({
         userId: user.id,
         psychologicalDesc: profileData.psychologicalDesc,

@@ -1,9 +1,5 @@
 /**
- * Domande dell'Assessment
- * 
- * Ogni domanda ha:
- * - CLOSED: affermazione + 5 opzioni per embedding + labels custom per scala 1-5
- * - OPEN: template che converte la risposta in frase completa
+ * Definition of all assessment questions.
  */
 
 export type Section = "psychological" | "values" | "interests" | "behavioral";
@@ -11,16 +7,16 @@ export type Section = "psychological" | "values" | "interests" | "behavioral";
 export type ClosedQuestion = {
   id: string;
   type: "closed";
-  text: string; // Affermazione da valutare
-  options: [string, string, string, string, string]; // Frasi per embedding (1-5)
-  scaleLabels: [string, string]; // [label min, label max] es: ["Mai", "Sempre"]
+  text: string; // Statement to be evaluated
+  options: [string, string, string, string, string]; // Sentences for embedding (1-5)
+  scaleLabels: [string, string]; // [min label, max label] e.g.: ["Never", "Always"]
 };
 
 export type OpenQuestion = {
   id: string;
   type: "open";
   text: string;
-  template: string; // {answer} viene sostituito con la risposta
+  template: string; // {answer} is replaced with the response
   placeholder?: string;
 };
 
@@ -29,7 +25,7 @@ export type Question = ClosedQuestion | OpenQuestion;
 export const QUESTIONS: Record<Section, Question[]> = {
 
   // ==========================================
-  // PSYCHOLOGICAL (personalità e tratti)
+  // PSYCHOLOGICAL (personality and traits)
   // ==========================================
   psychological: [
     {
@@ -152,14 +148,14 @@ export const QUESTIONS: Record<Section, Question[]> = {
     {
       id: "psy-open",
       type: "open",
-      text: "Come ti descriveresti in poche parole?",
-      template: "Mi descrivo come una persona {answer}",
-      placeholder: "curiosa, riflessiva, socievole, creativa...",
+      text: "How would you describe yourself in a few words?",
+      template: "I describe myself as a {answer} person",
+      placeholder: "curious, reflective, sociable, creative...",
     },
   ],
 
   // ==========================================
-  // VALUES (valori e priorità di vita)
+  // VALUES (life values and priorities)
   // ==========================================
   values: [
     {
@@ -282,14 +278,14 @@ export const QUESTIONS: Record<Section, Question[]> = {
     {
       id: "val-open",
       type: "open",
-      text: "Qual è il principio che guida le tue scelte importanti?",
-      template: "Il principio che guida le mie scelte è {answer}",
-      placeholder: "l'autenticità, il rispetto, la libertà, la famiglia...",
+      text: "What is the principle that guides your important choices?",
+      template: "The principle that guides my choices is {answer}",
+      placeholder: "authenticity, respect, freedom, family...",
     },
   ],
 
   // ==========================================
-  // INTERESTS (hobby e stile di vita)
+  // INTERESTS (hobbies and lifestyle)
   // ==========================================
   interests: [
     {
@@ -412,14 +408,14 @@ export const QUESTIONS: Record<Section, Question[]> = {
     {
       id: "int-open",
       type: "open",
-      text: "Quali sono le tue passioni e cosa ti rende felice?",
-      template: "Le mie passioni sono {answer}",
-      placeholder: "viaggiare, cucinare, la fotografia, lo sport...",
+      text: "What are your passions and what makes you happy?",
+      template: "My passions are {answer}",
+      placeholder: "traveling, cooking, photography, sports...",
     },
   ],
 
   // ==========================================
-  // BEHAVIORAL (stile relazionale)
+  // BEHAVIORAL (relational style)
   // ==========================================
   behavioral: [
     {
@@ -542,9 +538,9 @@ export const QUESTIONS: Record<Section, Question[]> = {
     {
       id: "beh-open",
       type: "open",
-      text: "Come ti comporti quando conosci qualcuno che ti interessa?",
-      template: "Quando conosco qualcuno che mi interessa, {answer}",
-      placeholder: "mi avvicino lentamente, sono timido all'inizio, prendo l'iniziativa...",
+      text: "How do you behave when you meet someone you're interested in?",
+      template: "When I meet someone I'm interested in, {answer}",
+      placeholder: "I approach slowly, I'm shy at first, I take initiative...",
     },
   ],
 };
@@ -553,7 +549,7 @@ export const QUESTIONS: Record<Section, Question[]> = {
 // TEST INFO
 // ============================================
 
-/** Nome/versione dell'assessment corrente */
+/** Current assessment name/version */
 export const ASSESSMENT_NAME = "personality-v3";
 
 export const SECTIONS: Section[] = ["psychological", "values", "interests", "behavioral"];

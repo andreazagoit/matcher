@@ -9,8 +9,8 @@ import { eq, and, isNull, gt } from "drizzle-orm";
 import { accessTokens, refreshTokens } from "@/lib/models/tokens/schema";
 import { OAUTH_CONFIG } from "./config";
 
-// Simple JWT implementation (no external deps)
-// In production, consider using jose or jsonwebtoken
+// Minimal JWT implementation to avoid external dependencies in core logic.
+// Consider using libraries like 'jose' or 'jsonwebtoken' for advanced production needs.
 
 interface JWTHeader {
   alg: "HS256";
@@ -39,7 +39,7 @@ interface RefreshTokenPayload {
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 
 /**
- * Base64URL encode
+ * Base64URL string encoding.
  */
 function base64url(data: string | Buffer): string {
   const buf = typeof data === "string" ? Buffer.from(data) : data;
@@ -47,14 +47,14 @@ function base64url(data: string | Buffer): string {
 }
 
 /**
- * Base64URL decode
+ * Base64URL string decoding.
  */
 function base64urlDecode(data: string): string {
   return Buffer.from(data, "base64url").toString();
 }
 
 /**
- * Create HMAC SHA256 signature
+ * Create an HMAC SHA256 digital signature.
  */
 function sign(data: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(data).digest("base64url");
@@ -75,7 +75,7 @@ export function generateJti(): string {
 }
 
 /**
- * Generate access token JWT
+ * Generate a JWT access token for a client or user.
  */
 export function generateAccessToken(params: {
   clientId: string;
@@ -112,7 +112,7 @@ export function generateAccessToken(params: {
 }
 
 /**
- * Generate refresh token (opaque)
+ * Generate an opaque refresh token with embedded session data.
  */
 export function generateRefreshToken(params: {
   clientId: string;
@@ -123,7 +123,7 @@ export function generateRefreshToken(params: {
   const ttl = params.ttl || OAUTH_CONFIG.refreshTokenTtl;
   const jti = generateJti();
 
-  // Opaque token with embedded data
+  // Opaque token structure containing relevant identifiers
   const payload: RefreshTokenPayload = {
     jti,
     client_id: params.clientId,
@@ -138,7 +138,7 @@ export function generateRefreshToken(params: {
 }
 
 /**
- * Verify and decode access token
+ * Verify integrity and decode the payload of an access token.
  */
 export function verifyAccessToken(token: string): AccessTokenPayload | null {
   try {
@@ -169,7 +169,7 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
 }
 
 /**
- * Store access token in database
+ * Persist an access token record in the database.
  */
 export async function storeAccessToken(params: {
   tokenHash: string;
@@ -195,7 +195,7 @@ export async function storeAccessToken(params: {
 }
 
 /**
- * Store refresh token in database
+ * Persist a refresh token record in the database.
  */
 export async function storeRefreshToken(params: {
   tokenHash: string;
@@ -223,7 +223,7 @@ export async function storeRefreshToken(params: {
 }
 
 /**
- * Find valid access token by jti
+ * Retrieve a valid, non-revoked access token by its JTI (JWT ID).
  */
 export async function findAccessTokenByJti(jti: string) {
   const result = await db.query.accessTokens.findFirst({
@@ -237,7 +237,7 @@ export async function findAccessTokenByJti(jti: string) {
 }
 
 /**
- * Find valid refresh token by hash
+ * Retrieve a valid, non-revoked refresh token by its hash.
  */
 export async function findRefreshTokenByHash(hash: string) {
   const result = await db.query.refreshTokens.findFirst({
@@ -251,7 +251,7 @@ export async function findRefreshTokenByHash(hash: string) {
 }
 
 /**
- * Revoke access token
+ * Revoke an access token by setting its revocation timestamp.
  */
 export async function revokeAccessToken(jti: string) {
   await db
@@ -261,7 +261,7 @@ export async function revokeAccessToken(jti: string) {
 }
 
 /**
- * Revoke refresh token and associated access token
+ * Revoke a refresh token and its parent access token.
  */
 export async function revokeRefreshToken(jti: string) {
   const refreshToken = await db.query.refreshTokens.findFirst({

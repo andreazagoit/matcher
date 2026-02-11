@@ -20,6 +20,7 @@ export const userTypeDefs = `#graphql
     email: String!
     birthDate: String!
     gender: Gender
+    image: String
     createdAt: String!
     updatedAt: String!
     

@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-/** Assi di embedding supportati */
+/** Supported embedding axes */
 export type EmbeddingAxis = "psychological" | "values" | "interests" | "behavioral";
 
 const openai = new OpenAI({
@@ -8,10 +8,10 @@ const openai = new OpenAI({
 });
 
 /**
- * Genera embedding per un testo descrittivo
+ * Generates an embedding vector for a given descriptive text.
  * 
- * @param text - Testo semantico (es. "Persona introversa, empatica...")
- * @returns Vettore embedding (1536 dimensioni)
+ * @param text - Semantic text (e.g., "Introverted persona, empathetic...")
+ * @returns Embedding vector (1536 dimensions)
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   if (!process.env.OPENAI_API_KEY) {
@@ -31,7 +31,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 /**
- * Genera embedding batch per più testi (più efficiente)
+ * Generates embeddings in batch for multiple texts (performance optimized).
  */
 export async function generateEmbeddingsBatch(
   texts: string[]
@@ -54,10 +54,10 @@ export async function generateEmbeddingsBatch(
 }
 
 // ============================================
-// EMBEDDINGS PER ASSI (dall'assessment)
+// AXIS-SPECIFIC EMBEDDINGS (from assessment)
 // ============================================
 
-/** Risultato embeddings per tutti gli assi */
+/** Embedding results for all descriptive axes */
 export interface UserEmbeddings {
   psychological: number[] | null;
   values: number[] | null;
@@ -66,17 +66,17 @@ export interface UserEmbeddings {
 }
 
 /**
- * Genera embeddings per tutti gli assi dalle descrizioni testuali
+ * Generates embeddings for all axes from their respective textual descriptions.
  * 
- * @param descriptions - Descrizioni testuali per ogni asse (output di transform.ts)
- * @returns Embeddings per ogni asse (null se descrizione mancante)
+ * @param descriptions - Textual descriptions for each axis.
+ * @returns Embeddings for each axis (null if metadata is missing).
  * 
  * @example
  * const descriptions = {
- *   psychological: "Persona introversa, empatica, riflessiva...",
- *   values: "Priorità: famiglia, crescita personale...",
- *   interests: "Passioni: trekking, lettura, cinema...",
- *   behavioral: "Risponde lentamente, preferisce conversazioni profonde..."
+ *   psychological: "Introverted, empathetic, reflective...",
+ *   values: "Priorities: family, personal growth...",
+ *   interests: "Passions: trekking, reading, cinema...",
+ *   behavioral: "Responds slowly, prefers deep conversations..."
  * };
  * 
  * const embeddings = await generateAllUserEmbeddings(descriptions);
@@ -100,7 +100,7 @@ export async function generateAllUserEmbeddings(
     };
   }
 
-  // Genera embeddings in batch (più efficiente)
+  // Perform batch embedding generation for efficiency
   const textsToEmbed = validAxes.map((axis) => descriptions[axis]);
   const embeddings = await generateEmbeddingsBatch(textsToEmbed);
 

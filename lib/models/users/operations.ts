@@ -10,15 +10,15 @@ import {
 import { eq } from "drizzle-orm";
 
 /**
- * Crea un nuovo utente
+ * Create a new user record.
  */
 export async function createUser(
   input: CreateUserInput
 ): Promise<User> {
-  // Valida input con Zod
+  // Validate input with Zod
   const validatedInput = createUserSchema.parse(input);
 
-  // Crea utente
+  // Create user
   const [newUser] = await db
     .insert(users)
     .values({
@@ -33,13 +33,13 @@ export async function createUser(
 }
 
 /**
- * Aggiorna un utente esistente
+ * Update an existing user record with partial data.
  */
 export async function updateUser(
   id: string,
   input: UpdateUserInput
 ): Promise<User> {
-  // Valida input con Zod
+  // Validate input with Zod
   const validatedInput = updateUserSchema.parse(input);
 
   const existingUser = await db.query.users.findFirst({
@@ -69,7 +69,7 @@ export async function updateUser(
 }
 
 /**
- * Trova utente per ID
+ * Retrieve a user by their unique ID.
  */
 export async function getUserById(id: string): Promise<User | null> {
   const result = await db.query.users.findFirst({
@@ -79,7 +79,7 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 /**
- * Trova utente per email
+ * Retrieve a user by their email address.
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const result = await db.query.users.findFirst({
@@ -89,14 +89,14 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
- * Ottieni tutti gli utenti
+ * Retrieve all user records from the database.
  */
 export async function getAllUsers(): Promise<User[]> {
   return await db.query.users.findMany();
 }
 
 /**
- * Elimina un utente
+ * Permanently delete a user record by ID.
  */
 export async function deleteUser(id: string): Promise<boolean> {
   const [deleted] = await db
@@ -107,8 +107,6 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
- * @deprecated Usa il sistema profiles per il matching
- * Le funzioni findMatches e UserMatch sono state rimosse
- * Il matching ora avviene tramite profiles con embeddings separati
+ * @deprecated Use profiles system for matching.
  */
 

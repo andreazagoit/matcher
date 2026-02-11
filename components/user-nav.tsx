@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -29,7 +29,7 @@ export function UserNav() {
     useEffect(() => {
         async function checkAuth() {
             try {
-                const res = await fetch("/api/auth/profile-status");
+                const res = await fetch("/oauth/api/profile-status");
                 if (res.ok) {
                     const data = await res.json();
                     if (data.authenticated) {
@@ -50,8 +50,7 @@ export function UserNav() {
     };
 
     const handleLogout = async () => {
-        await fetch("/api/auth/logout", { method: "POST" });
-        window.location.href = "/";
+        await signOut({ callbackUrl: "/" });
     };
 
     if (loading) {

@@ -3,17 +3,12 @@ import { membershipTiers } from "@/lib/models/tiers/schema";
 import { eq, and } from "drizzle-orm";
 
 interface ResolverContext {
-    auth?: {
-        user: {
-            id: string;
-        };
-    };
+    user?: { id: string } | null;
 }
 
 export const tierResolvers = {
     Space: {
         tiers: async (parent: { id: string }) => {
-            // Fetch active tiers for the space
             return db
                 .select()
                 .from(membershipTiers)
@@ -45,9 +40,7 @@ export const tierResolvers = {
                 interval: "month" | "year" | "one_time";
             }
         }, context: ResolverContext) => {
-            if (!context.auth?.user) throw new Error("Unauthorized");
-
-            // Verify Admin - TODO: Context check
+            if (!context.user) throw new Error("Unauthorized");
 
             const [newTier] = await db.insert(membershipTiers).values({
                 spaceId: spaceId,

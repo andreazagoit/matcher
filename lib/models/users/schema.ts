@@ -10,17 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * ARCHITETTURA NORMALIZZATA:
- * - users: dati base (questa tabella)
- * - assessments: sessioni di assessment
- * - assessment_answers: risposte agli assessment (JSON in assessments)
- * - profiles: profilo calcolato + embeddings (per matching)
- * 
- * Vantaggi:
- * - Tabella users snella
- * - Storico assessment completo
- * - Versioning questionari
- * - Confronto risposte raw tra utenti
+ * Normalized database architecture for the users module.
  */
 
 export const genderEnum = pgEnum("gender", ["man", "woman", "non_binary"]);
@@ -31,7 +21,7 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
 
     // ==========================================
-    // DATI ANAGRAFICI
+    // DEMOGRAPHIC DATA
     // ==========================================
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
@@ -40,7 +30,7 @@ export const users = pgTable(
     gender: genderEnum("gender"),
 
     // ==========================================
-    // BETTER-AUTH FIELDS
+    // AUTHENTICATION FIELDS (NextAuth/Better-Auth)
     // ==========================================
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
@@ -57,14 +47,14 @@ export const users = pgTable(
 );
 
 // ==========================================
-// RELATIONS (definite qui, riferimenti lazy)
+// RELATIONS
 // ==========================================
 
-// Le relazioni con assessments e profiles sono definite
-// nei rispettivi file schema per evitare circular imports
+// Note: Relations with assessments and profiles are defined in their 
+// respective schema files to prevent circular dependency issues.
 
 // ==========================================
-// TIPI INFERITI
+// INFERRED TYPES
 // ==========================================
 
 export type User = typeof users.$inferSelect;

@@ -6,11 +6,7 @@ import { createSpace, updateSpace, deleteSpace } from "./operations";
 import { GraphQLError } from "graphql";
 
 interface ResolverContext {
-    auth?: {
-        user: {
-            id: string;
-        };
-    };
+    user?: { id: string } | null;
 }
 
 interface CreateSpaceInput {
@@ -43,10 +39,10 @@ export const spaceResolvers = {
         },
 
         mySpaces: async (_: unknown, __: unknown, context: ResolverContext) => {
-            if (!context.auth?.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) throw new GraphQLError("Unauthorized");
 
             const userMemberships = await db.query.members.findMany({
-                where: eq(members.userId, context.auth.user.id),
+                where: eq(members.userId, context.user.id),
                 with: {
                     space: true
                 }
@@ -61,24 +57,23 @@ export const spaceResolvers = {
 
     Mutation: {
         createSpace: async (_: unknown, { input }: { input: CreateSpaceInput }, context: ResolverContext) => {
-            if (!context.auth?.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) throw new GraphQLError("Unauthorized");
 
             const result = await createSpace({
                 ...input,
-                creatorId: context.auth.user.id,
+                creatorId: context.user.id,
             });
 
             return result.space;
         },
 
         updateSpace: async (_: unknown, { id, input }: { id: string; input: UpdateSpaceInput }, context: ResolverContext) => {
-            if (!context.auth?.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) throw new GraphQLError("Unauthorized");
 
-            // Check if user is admin of the space
             const memberRecord = await db.query.members.findFirst({
                 where: and(
                     eq(members.spaceId, id),
-                    eq(members.userId, context.auth.user.id),
+                    eq(members.userId, context.user.id),
                     eq(members.role, "admin")
                 )
             });
@@ -89,13 +84,12 @@ export const spaceResolvers = {
         },
 
         deleteSpace: async (_: unknown, { id }: { id: string }, context: ResolverContext) => {
-            if (!context.auth?.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) throw new GraphQLError("Unauthorized");
 
-            // Only admins can delete spaces
             const memberRecord = await db.query.members.findFirst({
                 where: and(
                     eq(members.spaceId, id),
-                    eq(members.userId, context.auth.user.id),
+                    eq(members.userId, context.user.id),
                     eq(members.role, "admin")
                 )
             });

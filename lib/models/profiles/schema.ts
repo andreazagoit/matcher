@@ -11,15 +11,13 @@ import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 
 /**
- * User Profiles - Profilo Utente (SEMPLIFICATO)
+ * User Profiles schema.
  * 
- * PRINCIPI:
- * 1. Un profilo per utente (1:1)
- * 2. 4 descrizioni testuali (per display e rigenerazione)
- * 3. 4 embeddings per ANN matching
+ * Each user has exactly one profile which contains textual descriptions
+ * and corresponding vector embeddings for multi-axis matching.
  */
 
-// Dimensione embedding (OpenAI text-embedding-3-small = 1536)
+// Embedding dimensions (OpenAI text-embedding-3-small)
 const EMBEDDING_DIMENSIONS = 1536;
 
 export const profiles = pgTable(
@@ -27,48 +25,48 @@ export const profiles = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    /** Relazione 1:1 con users (UNIQUE) */
+    /** 1:1 relation with users (UNIQUE) */
     userId: uuid("user_id")
       .notNull()
       .unique()
       .references(() => users.id, { onDelete: "cascade" }),
 
     // ==========================================
-    // 4 DESCRIZIONI (testo per display e embedding)
+    // TEXTUAL DESCRIPTIONS
     // ==========================================
 
-    /** Descrizione asse PSYCHOLOGICAL */
+    /** PSYCHOLOGICAL axis description */
     psychologicalDesc: text("psychological_desc"),
 
-    /** Descrizione asse VALUES */
+    /** VALUES axis description */
     valuesDesc: text("values_desc"),
 
-    /** Descrizione asse INTERESTS */
+    /** INTERESTS axis description */
     interestsDesc: text("interests_desc"),
 
-    /** Descrizione asse BEHAVIORAL */
+    /** BEHAVIORAL axis description */
     behavioralDesc: text("behavioral_desc"),
 
     // ==========================================
-    // 4 EMBEDDINGS (per ANN Search)
+    // VECTOR EMBEDDINGS (ANN Search)
     // ==========================================
 
-    /** PSYCHOLOGICAL - DOMINANTE per ANN (peso 0.45) */
+    /** PSYCHOLOGICAL - DOMINANT for ANN (weight 0.45) */
     psychologicalEmbedding: vector("psychological_embedding", {
       dimensions: EMBEDDING_DIMENSIONS
     }),
 
-    /** VALUES (peso 0.25) */
+    /** VALUES (weight 0.25) */
     valuesEmbedding: vector("values_embedding", {
       dimensions: EMBEDDING_DIMENSIONS
     }),
 
-    /** INTERESTS (peso 0.20) */
+    /** INTERESTS (weight 0.20) */
     interestsEmbedding: vector("interests_embedding", {
       dimensions: EMBEDDING_DIMENSIONS
     }),
 
-    /** BEHAVIORAL (peso 0.10) */
+    /** BEHAVIORAL (weight 0.10) */
     behavioralEmbedding: vector("behavioral_embedding", {
       dimensions: EMBEDDING_DIMENSIONS
     }),
@@ -77,15 +75,13 @@ export const profiles = pgTable(
     // METADATA
     // ==========================================
 
-    /** Versione dell'assessment che ha generato questo profilo */
+    /** Assessment version that generated this profile */
     assessmentVersion: real("assessment_version").default(1),
 
-    /** Timestamps */
-    createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    // Indici HNSW per ANN Search
+    // HNSW indices for ANN Search
     index("profiles_psychological_idx").using(
       "hnsw",
       table.psychologicalEmbedding.op("vector_cosine_ops")
@@ -103,7 +99,7 @@ export const profiles = pgTable(
       table.behavioralEmbedding.op("vector_cosine_ops")
     ),
 
-    // Indice su userId
+    // Index on userId
     index("profiles_user_idx").on(table.userId),
   ]
 );
@@ -127,10 +123,10 @@ export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
 
 // ============================================
-// COSTANTI MATCHING
+// MATCHING CONSTANTS
 // ============================================
 
-/** Pesi default per il ranking finale */
+/** Default weights used for weighted average result ranking. */
 export const DEFAULT_MATCHING_WEIGHTS = {
   psychological: 0.45,
   values: 0.25,

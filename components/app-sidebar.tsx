@@ -26,6 +26,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { NavUser } from "@/components/nav-user"
+import { NavChat } from "@/components/nav-chat"
 import { NavSecondary } from "@/components/nav-secondary"
 
 // Navigation Data
@@ -132,6 +133,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarGroupContent>
                     </SidebarGroup>
                 ))}
+
+                <NavChat />
 
                 <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>

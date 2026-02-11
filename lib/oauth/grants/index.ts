@@ -2,7 +2,7 @@
  * OAuth Grants - Unified Types and Exports
  */
 
-// Tipo unificato per le risposte token
+// Unified type for token responses
 export interface TokenResponse {
     access_token: string;
     token_type: "Bearer";
@@ -11,7 +11,7 @@ export interface TokenResponse {
     scope: string;
 }
 
-// Export funzioni specifiche per evitare conflitti
+// Export specific functions to avoid name conflicts
 export {
     validateAuthorizeRequest,
     createAuthCode,

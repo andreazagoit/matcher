@@ -21,15 +21,15 @@ export interface ProfileData {
 }
 
 /**
- * Crea o aggiorna il profilo utente
- * Genera automaticamente gli embeddings dalle descrizioni
+ * Create or update a user profile.
+ * Automatically generates vector embeddings from the provided descriptions.
  */
 export async function upsertProfile(
   userId: string,
   data: ProfileData,
   assessmentVersion: number = 1
 ): Promise<Profile> {
-  // Genera embeddings da descrizioni testuali
+  // Generate vector embeddings from textual descriptions via OpenAI
   const embeddings = await generateAllUserEmbeddings({
     psychological: data.psychologicalDesc,
     values: data.valuesDesc,
@@ -39,7 +39,7 @@ export async function upsertProfile(
 
   const now = new Date();
 
-  // Upsert profilo (INSERT or UPDATE on conflict)
+  // Execute Profile Upsert (INSERT or UPDATE on unique constraint conflict)
   const [profile] = await db
     .insert(profiles)
     .values({
@@ -76,7 +76,7 @@ export async function upsertProfile(
 }
 
 /**
- * Ottieni profilo per userId
+ * Retrieve a user profile by their User ID.
  */
 export async function getProfileByUserId(
   userId: string
@@ -88,7 +88,7 @@ export async function getProfileByUserId(
 }
 
 /**
- * Verifica se un utente ha un profilo completo
+ * Verify if a user has a fully generated and complete profile.
  */
 export async function hasCompleteProfile(userId: string): Promise<boolean> {
   const profile = await getProfileByUserId(userId);
@@ -114,21 +114,21 @@ export interface ProfileMatch {
 export interface FindMatchesOptions {
   limit?: number;
   weights?: Record<keyof typeof DEFAULT_MATCHING_WEIGHTS, number>;
-  /** Filtro per genere (array di valori: "man", "woman", "non_binary") */
+  /** Gender filter ("man", "woman", "non_binary") */
   gender?: ("man" | "woman" | "non_binary")[];
-  /** Età minima (inclusiva) */
+  /** Minimum age filter (inclusive) */
   minAge?: number;
-  /** Età massima (inclusiva) */
+  /** Maximum age filter (inclusive) */
   maxAge?: number;
 }
 
 /**
- * Trova match usando ANN Search + Ranking Pesato
+ * Find compatible matches using a combination of ANN search and weighted ranking.
  * 
- * Pipeline:
- * 1. ANN su psychological (dominante) → 200 candidati
- * 2. Calcolo similarità per tutti gli assi
- * 3. Ranking finale pesato
+ * Matching Logic:
+ * 1. ANN Search on 'psychological' axis (dominant) to narrow down to top candidates.
+ * 2. Calculate fine-grained similarity across all axes.
+ * 3. Final weighted ranking based on configured matching weights.
  */
 export async function findMatches(
   userId: string,
@@ -142,7 +142,7 @@ export async function findMatches(
     maxAge,
   } = options;
 
-  /** Numero fisso di candidati da ANN (stage 1) */
+  /** Initial candidate pool size from ANN (Stage 1) */
   const CANDIDATES = 200;
 
   const currentProfile = await getProfileByUserId(userId);
@@ -155,16 +155,16 @@ export async function findMatches(
   const interestsEmbedding = currentProfile.interestsEmbedding as number[] | null;
   const behavioralEmbedding = currentProfile.behavioralEmbedding as number[] | null;
 
-  // Costruisci condizioni filtro
+  // Build dynamic SQL where conditions
   const filterConditions = [ne(profiles.userId, userId)];
 
-  // Filtro genere (solo se specificato)
+  // Apply gender filtering if specified
   if (gender && gender.length > 0) {
     // Filtra solo utenti con gender non null e che corrisponde ai valori richiesti
     filterConditions.push(inArray(users.gender, gender));
   }
 
-  // Filtro età (calcola età da birthDate)
+  // Age calculated from birthDate (using SQL interval logic)
   if (minAge !== undefined) {
     filterConditions.push(
       sql`EXTRACT(YEAR FROM AGE(${users.birthDate})) >= ${minAge}`
@@ -177,7 +177,7 @@ export async function findMatches(
     );
   }
 
-  // STAGE 1: ANN Search (usa HNSW) con filtri
+  // STAGE 1: Efficient ANN Search using HNSW indices
   const whereClause = filterConditions.length > 1
     ? and(...filterConditions)!
     : filterConditions[0];
@@ -197,7 +197,7 @@ export async function findMatches(
     .orderBy(sql`${cosineDistance(profiles.psychologicalEmbedding, psychEmbedding)}`)
     .limit(CANDIDATES);
 
-  // STAGE 2: Ranking pesato
+  // STAGE 2: Multi-axis weighted ranking
   const matches: ProfileMatch[] = candidateProfiles.map((candidate) => {
     const cp = candidate.profile;
     const psychSim = candidate.psychSimilarity;

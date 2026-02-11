@@ -1,16 +1,26 @@
-import { AuthContext } from "@/lib/auth/middleware";
+interface PlatformUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    image?: string | null;
+    [key: string]: any;
+}
+
+interface PlatformContext {
+    user?: PlatformUser | null;
+}
 
 export const platformResolvers = {
     Query: {
         health: () => "Platform API v1 is operational",
-        me: (parent: unknown, args: unknown, context: { auth: AuthContext }) => {
-            if (!context.auth.isAuthenticated || !context.auth.user) {
+        me: (_parent: unknown, _args: unknown, context: PlatformContext) => {
+            if (!context.user) {
                 return null;
             }
             return {
-                id: context.auth.user.id,
-                name: `${context.auth.user.firstName} ${context.auth.user.lastName}`,
-                image: context.auth.user.image
+                id: context.user.id,
+                name: `${context.user.firstName} ${context.user.lastName}`,
+                image: context.user.image
             };
         }
     },

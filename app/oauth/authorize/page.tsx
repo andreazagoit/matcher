@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SCOPES, scopesRequireProfile } from "@/lib/oauth/config";
-import { Questionnaire } from "@/components/questionnaire";
+import { Questionnaire } from "@/app/oauth/components/questionnaire";
 import { CheckCircle2Icon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
 
 interface ClientInfo {
@@ -70,7 +70,7 @@ function AuthorizeContent() {
     async function checkAuth() {
       try {
         console.log("Checking auth status...");
-        const res = await fetch("/api/auth/profile-status", { cache: "no-store" });
+        const res = await fetch("/oauth/api/profile-status", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           console.log("Auth status:", data);
@@ -108,7 +108,7 @@ function AuthorizeContent() {
         }
 
         // Fetch client info
-        const res = await fetch(`/api/oauth/client-info?client_id=${clientId}`);
+        const res = await fetch(`/oauth/api/client-info?client_id=${clientId}`);
         if (!res.ok) {
           setError("Invalid client_id");
           setLoading(false);
@@ -133,7 +133,7 @@ function AuthorizeContent() {
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/oauth/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -148,7 +148,7 @@ function AuthorizeContent() {
       setUser(data.user);
 
       // Check if user has profile
-      const statusRes = await fetch("/api/auth/profile-status");
+      const statusRes = await fetch("/oauth/api/profile-status");
       const status = await statusRes.json();
       // Questionnaire only if scopes require it AND user hasn't completed it
       if (requiresProfile && !status.hasProfile) {
@@ -175,7 +175,7 @@ function AuthorizeContent() {
     }
 
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch("/oauth/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -209,7 +209,7 @@ function AuthorizeContent() {
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/complete-assessment", {
+      const res = await fetch("/oauth/api/complete-assessment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers }),
@@ -233,7 +233,7 @@ function AuthorizeContent() {
     setError(null);
 
     try {
-      const res = await fetch("/api/oauth/authorize", {
+      const res = await fetch("/oauth/api/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -28,17 +28,16 @@ export async function getDailyMatches(userId: string) {
 }
 
 async function generateDailyMatches(userId: string) {
-  // Get user profile for embeddings
+  // Fetch existing user profile and its pre-computed embeddings
   const userProfile = await db.query.profiles.findFirst({
     where: eq(profiles.userId, userId),
   });
 
   if (!userProfile || !userProfile.psychologicalEmbedding) {
-    return []; // Profile incomplete
+    return []; // Profile or embeddings are incomplete
   }
 
-  // Get IDs of users we assume are "connected" or "rejected"
-  // (We don't want to show them again)
+  // Exclude users with existing connections or rejections to avoid repetition
   const existingConnections = await db.query.connections.findMany({
     where: or(
       eq(connections.requesterId, userId),
@@ -47,17 +46,17 @@ async function generateDailyMatches(userId: string) {
   });
 
   const excludedIds = new Set<string>();
-  excludedIds.add(userId); // Exclude self
+  excludedIds.add(userId); // Exclude self from matches
 
   existingConnections.forEach(c => {
     excludedIds.add(c.requesterId === userId ? c.targetId : c.requesterId);
   });
 
-  // Find candidates using Psychological Embedding (dominant factor)
-  // Logic: 
-  // 1. Vector Search for top 50
-  // 2. Filter out excludedIds
-  // 3. Pick 3 random
+  // Find compatible candidates using the Psychological Embedding (dominant match factor)
+  // Strategy: 
+  // 1. Vector Search for top candidates by similarity
+  // 2. Filter out already connected/excluded users
+  // 3. Selection of top matches for final processing
 
   const similarity = sql<number>`1 - (${cosineDistance(
     profiles.psychologicalEmbedding,
@@ -80,7 +79,7 @@ async function generateDailyMatches(userId: string) {
     .orderBy(desc(similarity))
     .limit(50); // Top 50 compatible
 
-  // Randomly pick 3
+  // Shuffle candidates and select a subset (e.g., top 3) for the daily set
   const shuffled = candidates.sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, 3);
 
@@ -94,8 +93,6 @@ async function generateDailyMatches(userId: string) {
     );
   }
 
-  // Fetch full objects to return consistent format
-  // (In a real app, rely on the frontend re-fetching or return the composite object)
-  // For now return the selected partials, frontend should treat them as users
+  // Return the selected matches in a format consistent with User objects
   return selected;
 }

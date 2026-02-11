@@ -7,11 +7,7 @@ import { type Space } from "@/lib/models/spaces/schema";
 import { GraphQLError } from "graphql";
 
 interface ResolverContext {
-    auth?: {
-        user: {
-            id: string;
-        };
-    };
+    user?: { id: string } | null;
 }
 
 export const postResolvers = {
@@ -51,42 +47,35 @@ export const postResolvers = {
             { spaceId, content, mediaUrls }: { spaceId: string, content: string, mediaUrls?: string[] },
             context: ResolverContext
         ) => {
-            console.log("DEBUG: Entered createPost resolver");
-            if (!context.auth?.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) throw new GraphQLError("Unauthorized");
 
-            // Verify membership
             const membership = await db.query.members.findFirst({
-                where: and(eq(members.spaceId, spaceId), eq(members.userId, context.auth.user.id)),
+                where: and(eq(members.spaceId, spaceId), eq(members.userId, context.user.id)),
             });
 
             if (!membership || membership.status !== "active") {
                 throw new GraphQLError("Must be an active member to post");
             }
 
-            console.log("DEBUG createPost", { spaceId, userId: context.auth.user.id });
-
             const [newPost] = await db.insert(posts).values({
                 spaceId,
-                authorId: context.auth.user.id,
+                authorId: context.user.id,
                 content,
                 mediaUrls: mediaUrls || [],
             }).returning();
-
-            console.log("DEBUG createPost result", newPost);
 
             return newPost;
         },
 
         deletePost: async (_: unknown, { postId }: { postId: string }, context: ResolverContext) => {
-            if (!context.auth?.user) throw new GraphQLError("Unauthorized");
+            if (!context.user) throw new GraphQLError("Unauthorized");
 
             const post = await db.query.posts.findFirst({ where: eq(posts.id, postId) });
             if (!post) throw new GraphQLError("Post not found");
 
-            if (post.authorId !== context.auth.user.id) {
-                // Check if admin
+            if (post.authorId !== context.user.id) {
                 const membership = await db.query.members.findFirst({
-                    where: and(eq(members.spaceId, post.spaceId), eq(members.userId, context.auth.user.id)),
+                    where: and(eq(members.spaceId, post.spaceId), eq(members.userId, context.user.id)),
                 });
 
                 if (!membership || membership.role !== "admin") {

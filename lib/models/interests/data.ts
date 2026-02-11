@@ -1,4 +1,4 @@
-// Interessi selezionabili (tag standard per GraphQL enum)
+// Selectable interest options (standard tags for GraphQL enums)
 export const INTERESTS_OPTIONS = [
   "SPORTS",
   "MUSIC",

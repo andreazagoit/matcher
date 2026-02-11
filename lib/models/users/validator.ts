@@ -1,14 +1,10 @@
 import { z } from "zod";
 
 /**
- * Validators per Users
- * 
- * NUOVA ARCHITETTURA:
- * - Users: solo dati anagrafici base
- * - Values/Interests: ora fanno parte del sistema test (tests/types.ts)
+ * Zod validation schemas for user-related data.
  */
 
-// Schema per creare un utente (solo dati base)
+// Schema for creating a user (base data only)
 export const createUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -17,7 +13,7 @@ export const createUserSchema = z.object({
   gender: z.enum(["man", "woman", "non_binary"]).optional(),
 });
 
-// Schema per aggiornare un utente (tutti i campi opzionali)
+// Schema for updating a user (all fields optional)
 export const updateUserSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),

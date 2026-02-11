@@ -11,7 +11,34 @@ import { Loader2, Save, UserCircle, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useQuery, useMutation } from "@apollo/client/react";
+import gql from "graphql-tag";
+
+const GET_ME = gql`
+  query GetMe {
+    me {
+      id
+      firstName
+      lastName
+      email
+      birthDate
+      gender
+    }
+  }
+`;
+
+const UPDATE_USER = gql`
+  mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
+    updateUser(id: $id, input: $input) {
+      id
+      firstName
+      lastName
+      email
+      birthDate
+      gender
+    }
+  }
+`;
 
 interface UserData {
     id: string;
@@ -23,64 +50,61 @@ interface UserData {
 }
 
 export default function AccountPage() {
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const { data, loading: queryLoading, error: queryError, refetch } = useQuery<{ me: UserData }>(GET_ME);
+    const [updateUser, { loading: mutationLoading }] = useMutation<{ updateUser: UserData }, { id: string; input: any }>(UPDATE_USER);
+
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [formData, setFormData] = useState<UserData | null>(null);
 
     useEffect(() => {
-        fetchUserData();
-    }, []);
-
-    const fetchUserData = async () => {
-        try {
-            const res = await fetch("/api/auth/account");
-            if (!res.ok) {
-                if (res.status === 401) {
-                    window.location.href = "/api/auth/signin"; // Redirect if not logged in
-                    return;
-                }
-                throw new Error("Failed to load account data");
-            }
-            const data = await res.json();
-            setFormData(data.user);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "An error occurred");
-        } finally {
-            setLoading(false);
+        if (!queryLoading && !data?.me && !queryError) {
+            window.location.href = "/api/auth/signin";
+            return;
         }
-    };
+
+        if (data?.me) {
+            setFormData({
+                id: data.me.id,
+                firstName: data.me.firstName,
+                lastName: data.me.lastName,
+                email: data.me.email,
+                birthDate: data.me.birthDate,
+                gender: data.me.gender
+            });
+        }
+    }, [data, queryLoading, queryError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData) return;
 
-        setSaving(true);
         setError(null);
         setSuccess(null);
 
         try {
-            const res = await fetch("/api/auth/account", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+            const { id, ...input } = formData;
+            await updateUser({
+                variables: {
+                    id,
+                    input: {
+                        firstName: input.firstName,
+                        lastName: input.lastName,
+                        email: input.email,
+                        birthDate: input.birthDate,
+                        gender: input.gender,
+                    }
+                }
             });
 
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "Failed to update profile");
-            }
-
             setSuccess("Profile updated successfully");
+            refetch();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save changes");
-        } finally {
-            setSaving(false);
         }
     };
 
-    if (loading) {
+    if (queryLoading && !formData) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -88,16 +112,16 @@ export default function AccountPage() {
         );
     }
 
-    if (!formData) {
+    if (queryError || (!queryLoading && !formData)) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Card className="w-full max-w-md">
                     <CardHeader>
                         <CardTitle className="text-destructive">Error</CardTitle>
-                        <CardDescription>{error || "Could not load user data"}</CardDescription>
+                        <CardDescription>{queryError?.message || "Could not load user data"}</CardDescription>
                     </CardHeader>
                     <CardFooter>
-                        <Button onClick={() => window.location.reload()}>Retry</Button>
+                        <Button onClick={() => refetch()}>Retry</Button>
                     </CardFooter>
                 </Card>
             </div>
@@ -120,13 +144,6 @@ export default function AccountPage() {
                     <Button
                         variant="destructive"
                         onClick={async () => {
-                            // Clear IdP session (custom user_id cookie)
-                            try {
-                                await fetch("/api/auth/logout", { method: "POST" });
-                            } catch (e) {
-                                console.error("IdP logout error:", e);
-                            }
-                            // Clear NextAuth session and redirect
                             await signOut({ callbackUrl: "/" });
                         }}
                     >
@@ -154,8 +171,8 @@ export default function AccountPage() {
                                     <Label htmlFor="firstName" className="text-sm font-semibold">First Name</Label>
                                     <Input
                                         id="firstName"
-                                        value={formData.firstName}
-                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                        value={formData?.firstName || ""}
+                                        onChange={(e) => setFormData(prev => prev ? { ...prev, firstName: e.target.value } : null)}
                                         required
                                         className="h-11"
                                     />
@@ -164,8 +181,8 @@ export default function AccountPage() {
                                     <Label htmlFor="lastName" className="text-sm font-semibold">Last Name</Label>
                                     <Input
                                         id="lastName"
-                                        value={formData.lastName}
-                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                        value={formData?.lastName || ""}
+                                        onChange={(e) => setFormData(prev => prev ? { ...prev, lastName: e.target.value } : null)}
                                         required
                                         className="h-11"
                                     />
@@ -177,8 +194,8 @@ export default function AccountPage() {
                                 <Input
                                     id="email"
                                     type="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    value={formData?.email || ""}
+                                    onChange={(e) => setFormData(prev => prev ? { ...prev, email: e.target.value } : null)}
                                     required
                                     className="h-11"
                                 />
@@ -190,8 +207,8 @@ export default function AccountPage() {
                                     <Input
                                         id="birthDate"
                                         type="date"
-                                        value={formData.birthDate ? new Date(formData.birthDate).toISOString().split('T')[0] : ''}
-                                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                                        value={formData?.birthDate ? new Date(formData.birthDate).toISOString().split('T')[0] : ''}
+                                        onChange={(e) => setFormData(prev => prev ? { ...prev, birthDate: e.target.value } : null)}
                                         required
                                         className="h-11"
                                     />
@@ -199,8 +216,8 @@ export default function AccountPage() {
                                 <div className="space-y-2.5">
                                     <Label htmlFor="gender" className="text-sm font-semibold">Gender</Label>
                                     <Select
-                                        value={formData.gender}
-                                        onValueChange={(val: UserData["gender"]) => setFormData({ ...formData, gender: val })}
+                                        value={formData?.gender || ""}
+                                        onValueChange={(val: UserData["gender"]) => setFormData(prev => prev ? { ...prev, gender: val } : null)}
                                     >
                                         <SelectTrigger className="h-11">
                                             <SelectValue placeholder="Select gender" />
@@ -228,8 +245,8 @@ export default function AccountPage() {
                         </CardContent>
                         <Separator />
                         <CardFooter className="flex justify-end p-6 bg-muted/5">
-                            <Button type="submit" disabled={saving} size="lg" className="px-8">
-                                {saving ? (
+                            <Button type="submit" disabled={mutationLoading} size="lg" className="px-8">
+                                {mutationLoading ? (
                                     <>
                                         <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                                         Saving Changes...

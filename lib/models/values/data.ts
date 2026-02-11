@@ -1,4 +1,4 @@
-// Valori personali selezionabili (tag standard per GraphQL enum)
+// Selectable personal value options (standard tags for GraphQL enums)
 export const VALUES_OPTIONS = [
   "FAMILY",
   "CAREER",

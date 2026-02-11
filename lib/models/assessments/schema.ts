@@ -11,10 +11,7 @@ import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 
 /**
- * Schema per Assessments
- * 
- * Salva le risposte dell'utente all'assessment.
- * L'assessment è identificato da un nome (es: "personality-v1").
+ * Assessment sessions and user responses.
  */
 
 export const assessmentStatusEnum = pgEnum("assessment_status", [
@@ -31,14 +28,12 @@ export const assessments = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    /** Nome dell'assessment (es: "personality-v1") */
+    /** Assessment name (e.g., "personality-v1") */
     assessmentName: text("assessment_name").notNull(),
 
     /** 
-     * Risposte al test
-     * Record<questionId, valore>
-     * - Chiuse: numero 1-5
-     * - Aperte: stringa
+     * Raw answers stored as a JSON object.
+     * Record<questionId, string | number>
      */
     answers: jsonb("answers").$type<AssessmentAnswersJson>().notNull(),
 
@@ -57,9 +52,7 @@ export const assessments = pgTable(
 // ============================================
 
 /**
- * Formato risposte: { questionId: valore }
- * - Chiuse: valore 1-5 (intero)
- * - Aperte: stringa
+ * Dictionary of question IDs mapped to their respective answers.
  */
 export type AssessmentAnswersJson = Record<string, number | string>;
 
