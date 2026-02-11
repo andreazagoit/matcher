@@ -75,18 +75,15 @@ async function handleUserInfo(request: NextRequest) {
 
         // Profile scope - basic profile info
         if (scopes.includes("profile") || scopes.includes("read:profile")) {
-            response.name = `${user.firstName} ${user.lastName}`;
-            response.given_name = user.firstName;
-            response.family_name = user.lastName;
-            if (user.gender) {
-                response.gender = user.gender;
-            }
-            if (user.birthDate) {
-                response.birthdate = user.birthDate;
-            }
-            response.created_at = user.createdAt;
-            response.updated_at = user.updatedAt;
-            response.picture = user.image;
+            response.id = user.id;
+            response.firstName = user.firstName;
+            response.lastName = user.lastName;
+            response.email = user.email;
+            response.birthDate = user.birthDate;
+            response.gender = user.gender;
+            response.createdAt = user.createdAt;
+            response.updatedAt = user.updatedAt;
+            response.image = user.image;
         }
 
         // Email scope
