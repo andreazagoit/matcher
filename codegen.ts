@@ -3,7 +3,7 @@ import { CodegenConfig } from "@graphql-codegen/cli";
 const config: CodegenConfig = {
     overwrite: true,
     // Uses introspection against the running dev server
-    schema: "http://localhost:3000/api/client/v1/graphql",
+    schema: `${process.env.NEXT_PUBLIC_APP_URL}/api/client/v1/graphql`,
     // Only scan centralized gql.ts operation files
     documents: ["lib/models/**/gql.ts"],
     ignoreNoDocuments: true,

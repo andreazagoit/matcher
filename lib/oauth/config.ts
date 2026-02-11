@@ -5,7 +5,7 @@
 
 export const OAUTH_CONFIG = {
   // Server info
-  issuer: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  issuer: process.env.NEXT_PUBLIC_APP_URL!,
 
   // Endpoints
   authorizationEndpoint: "/oauth/authorize",

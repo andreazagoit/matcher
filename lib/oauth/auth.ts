@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
+import type { User as GqlUser } from "@/lib/graphql/__generated__/graphql";
 
-const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
 
 /**
@@ -19,17 +20,17 @@ interface MatcherProfile {
     picture?: string | null;
 }
 
-interface MatcherUser {
-    id: string;
+interface MatcherProfile {
+    sub: string;
     name: string;
     email: string;
-    firstName: string;
-    lastName: string;
-    birthDate: string;
+    given_name: string;
+    family_name: string;
+    birthdate: string;
     gender: string | null;
-    createdAt: string;
-    updatedAt: string;
-    image?: string | null;
+    created_at: string;
+    updated_at: string;
+    picture?: string | null;
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -79,7 +80,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: {
         async jwt({ token, user, account }) {
             if (user) {
-                const u = user as unknown as MatcherUser;
+                const u = user as unknown as GqlUser;
                 token.id = user.id;
                 token.firstName = u.firstName;
                 token.lastName = u.lastName;
@@ -98,14 +99,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async session({ session, token }) {
             if (token && session.user) {
                 session.user.id = token.id as string;
-                const user = session.user as unknown as MatcherUser;
+                const user = session.user as unknown as GqlUser;
                 user.firstName = token.firstName as string;
                 user.lastName = token.lastName as string;
                 user.birthDate = token.birthDate as string;
-                user.gender = token.gender as string | null;
+                user.gender = (token.gender as string | null) ?? null;
                 user.createdAt = token.createdAt as string;
                 user.updatedAt = token.updatedAt as string;
-                user.image = token.image as string | null;
+                user.image = (token.image as string | null) ?? null;
             }
             return session;
         },

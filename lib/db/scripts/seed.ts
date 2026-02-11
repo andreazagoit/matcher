@@ -119,7 +119,7 @@ async function seed() {
       slug: "matcher-system",
       description: "Official Matcher System Space for internal use",
       redirectUris: [
-        "http://localhost:3000/api/auth/callback/matcher", // Auth.js callback
+        `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/matcher`, // Auth.js callback
       ],
       creatorId: adminUser.id,
       visibility: "hidden",
