@@ -1,32 +1,11 @@
 import { auth } from "@/lib/oauth/auth";
 import { query } from "@/lib/graphql/apollo-client";
+import { GET_ME } from "@/lib/models/users/gql";
 import { AccountForm } from "./account-form";
 import { AccountHeaderActions } from "./account-header-actions";
 import { PageShell } from "@/components/page-shell";
 import { redirect } from "next/navigation";
-import gql from "graphql-tag";
-
-const GET_ME = gql`
-  query GetMe {
-    me {
-      id
-      firstName
-      lastName
-      email
-      birthDate
-      gender
-    }
-  }
-`;
-
-interface UserData {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    birthDate: string;
-    gender: "man" | "woman" | "non_binary" | null;
-}
+import type { GetMeQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default async function AccountPage() {
     const session = await auth();
@@ -35,8 +14,8 @@ export default async function AccountPage() {
         redirect("/");
     }
 
-    const { data } = await query({ query: GET_ME });
-    const user = (data as { me: UserData }).me;
+    const { data } = await query<GetMeQuery>({ query: GET_ME });
+    const user = data?.me;
 
     if (!user) {
         return <div>User not found</div>;

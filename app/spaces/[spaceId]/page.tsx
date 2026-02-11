@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,17 @@ import {
   ShieldIcon,
 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
-import { graphql } from "@/lib/graphql/client";
+import { useQuery, useMutation } from "@apollo/client/react";
+import { GET_SPACE, JOIN_SPACE, LEAVE_SPACE } from "@/lib/models/spaces/gql";
+import type {
+  GetSpaceQuery,
+  GetSpaceQueryVariables,
+  JoinSpaceMutation,
+  JoinSpaceMutationVariables,
+  LeaveSpaceMutation,
+  LeaveSpaceMutationVariables,
+  Member
+} from "@/lib/graphql/__generated__/graphql";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MembersDataTable } from "./members/data-table";
 import { SpaceHeader } from "@/components/space-header";
@@ -18,141 +27,37 @@ import { SpaceSettingsView } from "@/components/spaces/space-settings-view";
 import { TierSelectionModal } from "@/components/spaces/tier-selection-modal";
 import { CreatePost } from "./feed/create-post";
 import { PostList } from "./feed/post-list";
-import type { Member } from "./members/columns";
 import { PaymentRequiredView } from "@/components/spaces/payment-required-view";
-
-interface Tier {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
-  interval: string;
-  isActive: boolean;
-}
-
-interface Space {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  image?: string;
-  clientId: string;
-  isActive: boolean;
-  visibility: string;
-  joinPolicy: string;
-  membersCount: number;
-  createdAt: string;
-  members?: Member[];
-  tiers?: Tier[];
-  myMembership?: {
-    id: string;
-    role: string;
-    status: string;
-    tier?: Tier;
-  } | null;
-}
 
 export default function SpaceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const spaceId = params.spaceId as string;
 
-  const [space, setSpace] = useState<Space | null>(null);
-  const [loading, setLoading] = useState(true);
-  // removed duplicate
+  const { data, loading, error, refetch } = useQuery<GetSpaceQuery, GetSpaceQueryVariables>(GET_SPACE, {
+    variables: { id: spaceId },
+    skip: !spaceId,
+  });
+
+  const [joinSpace, { loading: joining }] = useMutation<JoinSpaceMutation, JoinSpaceMutationVariables>(JOIN_SPACE);
+  const [leaveSpace] = useMutation<LeaveSpaceMutation, LeaveSpaceMutationVariables>(LEAVE_SPACE);
+
   const [feedRefreshTrigger, setFeedRefreshTrigger] = useState(0);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-  const [joining, setJoining] = useState(false);
 
-  const fetchSpace = useCallback(async () => {
-    try {
-      const data = await graphql<{ space: Space }>(`
-        query GetSpace($id: ID!) {
-          space(id: $id) {
-            id
-            name
-            slug
-            description
-            image
-            clientId
-            isActive
-            visibility
-            joinPolicy
-            membersCount
-            createdAt
-            myMembership {
-                id
-                role
-                status
-                tier {
-                    id
-                    name
-                    price
-                    interval
-                }
-            }
-            tiers {
-                id
-                name
-                description
-                price
-                interval
-                isActive
-            }
-            members(limit: 20) {
-              id
-              role
-              status
-              joinedAt
-              tier {
-                  name
-              }
-              user {
-                id
-                firstName
-                lastName
-                email
-              }
-            }
-          }
-        }
-      `, { id: spaceId });
-
-      if (data.space) {
-        setSpace(data.space);
-      } else {
-        router.push("/spaces");
-      }
-    } catch (error) {
-      console.error("Failed to fetch space:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [spaceId, router]);
-
-  useEffect(() => {
-    fetchSpace();
-  }, [fetchSpace]);
+  const space = data?.space;
 
   const handleJoin = async (tierId?: string) => {
-    setJoining(true);
     try {
-      await graphql(`
-            mutation JoinSpace($spaceId: ID!, $tierId: ID) {
-                joinSpace(spaceId: $spaceId, tierId: $tierId) {
-                    id
-                    status
-                }
-            }
-          `, { spaceId, tierId });
+      await joinSpace({
+        variables: { spaceId, tierId }
+      });
 
       setIsJoinModalOpen(false);
-      await fetchSpace();
+      await refetch();
     } catch (error) {
       console.error("Failed to join space:", error);
       alert("Failed to join space.");
-    } finally {
-      setJoining(false);
     }
   };
 
@@ -167,7 +72,9 @@ export default function SpaceDetailPage() {
   const handleLeave = async () => {
     if (!confirm("Are you sure you want to leave this space?")) return;
     try {
-      await graphql(`mutation LeaveSpace($spaceId: ID!) { leaveSpace(spaceId: $spaceId) }`, { spaceId });
+      await leaveSpace({
+        variables: { spaceId }
+      });
       router.push("/spaces");
     } catch (err) {
       console.error(err);
@@ -186,6 +93,10 @@ export default function SpaceDetailPage() {
     );
   }
 
+  if (error) {
+    console.error("Failed to fetch space:", error);
+  }
+
   if (!space) return null;
 
   // Show Paywall if waiting for payment
@@ -202,7 +113,7 @@ export default function SpaceDetailPage() {
           tierName={tier?.name}
           price={tier?.price}
           interval={tier?.interval}
-          onPaymentComplete={() => fetchSpace()}
+          onPaymentComplete={() => refetch()}
         />
       </PageShell>
     )
@@ -268,7 +179,7 @@ export default function SpaceDetailPage() {
                   <MembersDataTable
                     members={(space.members || []) as Member[]}
                     spaceId={spaceId}
-                    onMemberUpdated={fetchSpace}
+                    onMemberUpdated={() => refetch()}
                     isAdmin={currentUserIsAdmin}
                   />
                 </CardContent>
@@ -277,7 +188,7 @@ export default function SpaceDetailPage() {
 
             {currentUserIsAdmin && (
               <TabsContent value="settings" className="mt-6">
-                <SpaceSettingsView space={space} onUpdate={fetchSpace} />
+                <SpaceSettingsView space={space} onUpdate={() => refetch()} />
               </TabsContent>
             )}
           </Tabs>

@@ -9,56 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Save } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useMutation } from "@apollo/client/react";
-import gql from "graphql-tag";
+import { UPDATE_USER } from "@/lib/models/users/gql";
+import type { User, UpdateUserMutation, UpdateUserMutationVariables } from "@/lib/graphql/__generated__/graphql";
+import { Gender } from "@/lib/graphql/__generated__/graphql";
 
-// Define strict types matching the backend
-type Gender = "man" | "woman" | "non_binary";
+// Pick only the fields we need for the form
+type UserFormData = Pick<User, "id" | "firstName" | "lastName" | "email" | "birthDate" | "gender">;
 
-// Interface for the data we receive (must match what Server Component passes)
-export interface UserData {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    birthDate: string;
-    gender: Gender | null; // Allow null from DB/Server
-}
-
-// Interface for the form state (stricter for inputs)
-interface FormData {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    birthDate: string;
-    gender: Gender; // Form requires a value
-}
-
-const UPDATE_USER = gql`
-  mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
-    updateUser(id: $id, input: $input) {
-        id
-        firstName
-        lastName
-        email
-        birthDate
-        gender
-    }
-}
-`;
-
-export function AccountForm({ initialUser }: { initialUser: UserData }) {
-    const [updateUser, { loading: mutationLoading }] = useMutation<{ updateUser: UserData }, { id: string; input: Partial<Omit<UserData, "id">> }>(UPDATE_USER);
+export function AccountForm({ initialUser }: { initialUser: UserFormData }) {
+    const [updateUser, { loading: mutationLoading }] = useMutation<UpdateUserMutation, UpdateUserMutationVariables>(UPDATE_USER);
 
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    // Initialize form state from props
-    // We treat null gender as empty string for Select, or handle default if needed.
-    // Ideally user should select one.
-    const [formData, setFormData] = useState<FormData>({
+    const [formData, setFormData] = useState({
         ...initialUser,
-        gender: initialUser.gender || "man" // Fallback default or handle empty state visually? Let's default to "man" or require selection if we want to force update.
+        gender: initialUser.gender || Gender.Man,
     });
 
     const handleSubmit = async (e: React.FormEvent) => {

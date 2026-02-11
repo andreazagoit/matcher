@@ -11,21 +11,8 @@ import {
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 import { useQuery } from "@apollo/client/react"
-import gql from "graphql-tag"
+import { GET_RECENT_CONVERSATIONS } from "@/lib/models/conversations/gql"
 import { usePathname } from "next/navigation"
-
-const GET_RECENT_CONVERSATIONS = gql`
-  query GetRecentConversations {
-    conversations {
-      id
-      otherParticipant {
-        firstName
-        lastName
-      }
-      unreadCount
-    }
-  }
-`
 
 interface NavConversation {
     id: string;

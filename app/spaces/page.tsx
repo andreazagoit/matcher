@@ -1,45 +1,14 @@
 import { query } from "@/lib/graphql/apollo-client";
+import { GET_ALL_SPACES } from "@/lib/models/spaces/gql";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/page-shell";
 import { SpaceCard } from "@/components/spaces/space-card";
 import { CreateSpaceButton } from "./create-space-button";
-import gql from "graphql-tag";
-
-const GET_ALL_SPACES = gql`
-  query GetAllSpaces {
-    spaces {
-      id
-      name
-      slug
-      description
-      clientId
-      isActive
-      visibility
-      joinPolicy
-      membersCount
-      createdAt
-      image
-    }
-  }
-`;
-
-interface Space {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  clientId: string;
-  isActive: boolean;
-  visibility: string;
-  joinPolicy: string;
-  membersCount: number;
-  createdAt: string;
-  image?: string;
-}
+import type { GetAllSpacesQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default async function DiscoverSpacesPage() {
-  const { data } = await query({ query: GET_ALL_SPACES });
-  const spaces = (data as { spaces: Space[] }).spaces ?? [];
+  const { data } = await query<GetAllSpacesQuery>({ query: GET_ALL_SPACES });
+  const spaces = data?.spaces ?? [];
 
   return (
     <PageShell

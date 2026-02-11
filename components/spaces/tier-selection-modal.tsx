@@ -11,18 +11,12 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 
-interface Tier {
-    id: string
-    name: string
-    description?: string
-    price: number
-    interval: string
-}
+import type { MembershipTier } from "@/lib/graphql/__generated__/graphql"
 
 interface TierSelectionModalProps {
     isOpen: boolean
     onClose: () => void
-    tiers: Tier[]
+    tiers: MembershipTier[]
     onSelect: (tierId: string) => void
     isJoining: boolean
 }

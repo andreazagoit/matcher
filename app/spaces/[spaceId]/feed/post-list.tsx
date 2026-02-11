@@ -1,14 +1,19 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { graphql } from "@/lib/graphql/client"
+import { useEffect, useState } from "react"
 import {
     Loader2Icon
 } from "lucide-react"
 import { useSession } from "next-auth/react"
-import { PostCard, type Post } from "@/components/feed/post-card"
-
-
+import { PostCard } from "@/components/feed/post-card"
+import { useQuery, useMutation } from "@apollo/client/react"
+import { GET_SPACE_FEED, DELETE_POST } from "@/lib/models/posts/gql"
+import type {
+    GetSpaceFeedQuery,
+    GetSpaceFeedQueryVariables,
+    DeletePostMutation,
+    DeletePostMutationVariables
+} from "@/lib/graphql/__generated__/graphql"
 
 interface PostListProps {
     spaceId: string
@@ -18,58 +23,32 @@ interface PostListProps {
 
 export function PostList({ spaceId, isAdmin, refreshTrigger }: PostListProps) {
     const { data: session } = useSession()
-    const [posts, setPosts] = useState<Post[]>([])
-    const [loading, setLoading] = useState(true)
     const [deletingId, setDeletingId] = useState<string | null>(null)
 
-    const fetchPosts = useCallback(async () => {
-        setLoading(true)
-        try {
-            const data = await graphql<{ space: { feed: Post[] } }>(`
-                query GetSpaceFeed($spaceId: ID!) {
-                    space(id: $spaceId) {
-                        feed(limit: 50) {
-                            id
-                            content
-                            createdAt
-                            author {
-                                id
-                                firstName
-                                lastName
-                            }
-                            likesCount
-                            commentsCount
-                        }
-                    }
-                }
-            `, { spaceId })
+    const { data, loading, refetch } = useQuery<GetSpaceFeedQuery, GetSpaceFeedQueryVariables>(GET_SPACE_FEED, {
+        variables: { spaceId },
+        skip: !spaceId,
+        fetchPolicy: "network-only" // Ensure freshness on mount or when key changes, though cache-and-network might be better for cache
+    });
 
-            if (data.space?.feed) {
-                setPosts(data.space.feed)
-            }
-        } catch (error) {
-            console.error("Failed to fetch posts:", error)
-        } finally {
-            setLoading(false)
-        }
-    }, [spaceId])
+    const [deletePost] = useMutation<DeletePostMutation, DeletePostMutationVariables>(DELETE_POST);
 
     useEffect(() => {
-        fetchPosts()
-    }, [fetchPosts, refreshTrigger])
+        if (refreshTrigger > 0) {
+            refetch();
+        }
+    }, [refreshTrigger, refetch]);
 
     const handleDelete = async (postId: string) => {
         if (!confirm("Are you sure you want to delete this post?")) return
 
         setDeletingId(postId)
         try {
-            await graphql(`
-                mutation DeletePost($postId: ID!) {
-                    deletePost(postId: $postId)
-                }
-            `, { postId })
+            await deletePost({
+                variables: { postId }
+            });
 
-            setPosts(posts.filter(p => p.id !== postId))
+            await refetch();
         } catch (error) {
             console.error("Failed to delete post:", error)
             alert("Failed to delete post")
@@ -77,6 +56,8 @@ export function PostList({ spaceId, isAdmin, refreshTrigger }: PostListProps) {
             setDeletingId(null)
         }
     }
+
+    const posts = data?.space?.feed || [];
 
     if (loading && posts.length === 0) {
         return (

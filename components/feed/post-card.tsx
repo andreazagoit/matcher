@@ -14,26 +14,10 @@ import {
     MoreVertical,
     TrashIcon
 } from "lucide-react"
-
-interface Author {
-    id: string
-    firstName: string
-    lastName: string
-    email?: string
-}
-
-export interface Post {
-    id: string
-    content: string
-    mediaUrls?: string[]
-    createdAt: string
-    author: Author
-    likesCount: number
-    commentsCount: number
-}
+import type { PostFieldsFragment } from "@/lib/graphql/__generated__/graphql"
 
 interface PostCardProps {
-    post: Post
+    post: PostFieldsFragment
     currentUserId?: string
     isAdmin?: boolean
     onDelete?: (postId: string) => void

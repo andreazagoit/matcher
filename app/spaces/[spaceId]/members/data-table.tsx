@@ -41,7 +41,14 @@ import {
     TrashIcon,
     UsersIcon,
 } from "lucide-react"
-import { graphql } from "@/lib/graphql/client"
+import { useMutation } from "@apollo/client/react"
+import { UPDATE_MEMBER_ROLE, REMOVE_MEMBER } from "@/lib/models/members/gql"
+import type {
+    UpdateMemberRoleMutation,
+    UpdateMemberRoleMutationVariables,
+    RemoveMemberMutation,
+    RemoveMemberMutationVariables
+} from "@/lib/graphql/__generated__/graphql"
 
 interface MembersDataTableProps {
     members: Member[]
@@ -67,6 +74,9 @@ export function MembersDataTable({
     const [showBulkRemoveDialog, setShowBulkRemoveDialog] = useState(false)
     const [bulkRole, setBulkRole] = useState<"admin" | "member">("member")
 
+    const [updateMemberRole] = useMutation<UpdateMemberRoleMutation, UpdateMemberRoleMutationVariables>(UPDATE_MEMBER_ROLE);
+    const [removeMember] = useMutation<RemoveMemberMutation, RemoveMemberMutationVariables>(REMOVE_MEMBER);
+
     // Derive selected members from rowSelection
     const selectedMembers = Object.keys(rowSelection)
         .filter((k) => rowSelection[k])
@@ -85,21 +95,22 @@ export function MembersDataTable({
 
         setIsUpdating(true)
         try {
-            await graphql(`
-                mutation UpdateMemberRole($spaceId: ID!, $userId: ID!, $role: String!) {
-                    updateMemberRole(spaceId: $spaceId, userId: $userId, role: $role) {
-                        id
-                        role
-                    }
+            await updateMemberRole({
+                variables: {
+                    spaceId,
+                    userId: selectedMember.user.id,
+                    role: pendingRole,
                 }
-            `, {
-                spaceId,
-                userId: selectedMember.user.id,
-                role: pendingRole,
             })
 
-            // Update local state
-            setSelectedMember({ ...selectedMember, role: pendingRole })
+            // Update local state is tricky with useMutation unless we update cache manually.
+            // But we call onMemberUpdated which refetches in parent.
+            // For now, let's just rely on parent refetch.
+            // We can optimistic update local state if we want, but generated types make it slightly complex if we construct objects incorrectly.
+            // Actually, simply relying on parent refetch (onMemberUpdated) is safer and simpler for now.
+
+            // setSelectedMember({ ...selectedMember, role: pendingRole }) // Can't easily construct full Member if type changed structure
+            // Just close dialog and refresh
             onMemberUpdated?.()
         } catch (error) {
             console.error("Failed to update role:", error)
@@ -122,17 +133,12 @@ export function MembersDataTable({
         try {
             for (const member of selectedMembers) {
                 if (member.role !== bulkRole) {
-                    await graphql(`
-                        mutation UpdateMemberRole($spaceId: ID!, $userId: ID!, $role: String!) {
-                            updateMemberRole(spaceId: $spaceId, userId: $userId, role: $role) {
-                                id
-                                role
-                            }
+                    await updateMemberRole({
+                        variables: {
+                            spaceId,
+                            userId: member.user.id,
+                            role: bulkRole,
                         }
-                    `, {
-                        spaceId,
-                        userId: member.user.id,
-                        role: bulkRole,
                     })
                 }
             }
@@ -151,13 +157,11 @@ export function MembersDataTable({
         setIsUpdating(true)
         try {
             for (const member of selectedMembers) {
-                await graphql(`
-                    mutation RemoveMember($spaceId: ID!, $userId: ID!) {
-                        removeMember(spaceId: $spaceId, userId: $userId)
+                await removeMember({
+                    variables: {
+                        spaceId,
+                        userId: member.user.id,
                     }
-                `, {
-                    spaceId,
-                    userId: member.user.id,
                 })
             }
             onMemberUpdated?.()

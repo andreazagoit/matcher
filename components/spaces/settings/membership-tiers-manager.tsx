@@ -1,7 +1,17 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
-import { graphql } from "@/lib/graphql/client"
+import { useState } from "react"
+import { useQuery, useMutation } from "@apollo/client/react"
+import { GET_SPACE_TIERS, CREATE_TIER, ARCHIVE_TIER } from "@/lib/models/tiers/gql"
+import type {
+    GetSpaceTiersQuery,
+    GetSpaceTiersQueryVariables,
+    CreateTierMutation,
+    CreateTierMutationVariables,
+    ArchiveTierMutation,
+    ArchiveTierMutationVariables,
+    MembershipTier
+} from "@/lib/graphql/__generated__/graphql"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,110 +20,73 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Plus, Trash2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-interface Tier {
-    id: string
-    name: string
-    description?: string
-    price: number
-    interval: string
-    isActive: boolean
-}
-
 interface MembershipTiersManagerProps {
     spaceId: string
 }
 
 export function MembershipTiersManager({ spaceId }: MembershipTiersManagerProps) {
-    const [tiers, setTiers] = useState<Tier[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { data, loading, error: queryError, refetch } = useQuery<GetSpaceTiersQuery, GetSpaceTiersQueryVariables>(GET_SPACE_TIERS, {
+        variables: { spaceId }
+    });
 
-    const [createLoading, setCreateLoading] = useState(false)
-    const [archiveLoading, setArchiveLoading] = useState(false)
+    const [createTier, { loading: createLoading }] = useMutation<CreateTierMutation, CreateTierMutationVariables>(CREATE_TIER);
+    const [archiveTier, { loading: archiveLoading }] = useMutation<ArchiveTierMutation, ArchiveTierMutationVariables>(ARCHIVE_TIER);
 
-    const [isCreating, setIsCreating] = useState(false)
+    const [error, setError] = useState<string | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
     const [newTier, setNewTier] = useState({
         name: "",
         description: "",
         price: 0,
         interval: "month",
-    })
+    });
 
-    // Define fetchTiers with useCallback so it can be a dependency for useEffect
-    const fetchTiers = useCallback(async () => {
-        try {
-            setLoading(true)
-            const data = await graphql<{ space: { tiers: Tier[] } }>(`
-        query GetSpaceTiers($spaceId: ID!) {
-          space(id: $spaceId) {
-            id
-            tiers {
-              id
-              name
-              description
-              price
-              interval
-              isActive
-            }
-          }
-        }
-      `, { spaceId })
-            setTiers(data.space?.tiers || [])
-            setError(null)
-        } catch (err) {
-            console.error(err)
-            setError("Failed to load tiers")
-        } finally {
-            setLoading(false)
-        }
-    }, [spaceId])
-
-    useEffect(() => {
-        fetchTiers()
-    }, [fetchTiers])
+    const tiers = data?.space?.tiers || [];
 
     const handleCreate = async () => {
         try {
-            setCreateLoading(true)
-            await graphql(`
-        mutation CreateTier($spaceId: ID!, $input: CreateTierInput!) {
-          createTier(spaceId: $spaceId, input: $input) {
-            id
-          }
-        }
-      `, {
-                spaceId,
-                input: {
-                    name: newTier.name,
-                    description: newTier.description,
-                    price: Number(newTier.price) * 100, // Convert to cents
-                    interval: newTier.interval,
-                },
-            })
+            await createTier({
+                variables: {
+                    spaceId,
+                    input: {
+                        name: newTier.name,
+                        description: newTier.description,
+                        price: Number(newTier.price) * 100, // Convert to cents
+                        interval: newTier.interval,
+                    },
+                }
+            });
 
-            setIsCreating(false)
-            setNewTier({ name: "", description: "", price: 0, interval: "month" })
-            fetchTiers()
+            setIsCreating(false);
+            setNewTier({ name: "", description: "", price: 0, interval: "month" });
+            refetch();
         } catch (error) {
-            console.error(error)
-            setError("Failed to create tier.")
-        } finally {
-            setCreateLoading(false)
+            console.error(error);
+            setError("Failed to create tier.");
         }
     }
 
     const handleArchive = async (id: string) => {
         if (!confirm("Are you sure? This will hide the tier from new members.")) return;
         try {
-            setArchiveLoading(true)
-            await graphql(`mutation ArchiveTier($id: ID!) { archiveTier(id: $id) }`, { id })
-            fetchTiers()
+            await archiveTier({
+                variables: { id }
+            });
+            refetch();
         } catch (error) {
-            console.error(error)
-            setError("Failed to archive tier.")
-        } finally {
-            setArchiveLoading(false)
+            console.error(error);
+            setError("Failed to archive tier.");
         }
+    }
+
+    if (queryError) {
+        return (
+            <Alert variant="destructive">
+                <AlertCircle className="mr-2 h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>Failed to load tiers</AlertDescription>
+            </Alert>
+        );
     }
 
     return (
@@ -209,7 +182,7 @@ export function MembershipTiersManager({ spaceId }: MembershipTiersManagerProps)
                         No active membership tiers found.
                     </div>
                 ) : (
-                    tiers.map((tier: Tier) => (
+                    tiers.map((tier: MembershipTier) => (
                         <Card key={tier.id}>
                             <CardContent className="flex items-center justify-between p-6">
                                 <div>

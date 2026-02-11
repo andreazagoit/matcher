@@ -10,8 +10,8 @@ export interface SpaceCardProps {
         slug: string;
         description?: string | null;
         visibility: string;
-        isActive: boolean;
-        membersCount: number;
+        isActive?: boolean | null;
+        membersCount?: number | null;
         image?: string | null;
     };
 }

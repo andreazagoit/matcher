@@ -1,31 +1,11 @@
 "use client";
 
 import { useQuery } from "@apollo/client/react";
-import gql from "graphql-tag";
+import { GET_CONVERSATIONS } from "@/lib/models/conversations/gql";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-
-const GET_CONVERSATIONS = gql`
-  query GetConversations {
-    conversations {
-      id
-      otherParticipant {
-        id
-        firstName
-        lastName
-        image
-      }
-      lastMessage {
-        content
-        createdAt
-      }
-      updatedAt
-      unreadCount
-    }
-  }
-`;
 
 interface Participant {
     id: string;

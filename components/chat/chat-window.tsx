@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "@apollo/client/react";
-import gql from "graphql-tag";
+import { GET_MESSAGES, SEND_MESSAGE } from "@/lib/models/conversations/gql";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -10,41 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Send, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-
-const GET_MESSAGES = gql`
-  query GetMessages($conversationId: ID!) {
-    messages(conversationId: $conversationId) {
-      id
-      content
-      createdAt
-      sender {
-        id
-        firstName
-        lastName
-        image
-      }
-    }
-    conversation(id: $conversationId) {
-      id
-      otherParticipant {
-        id
-        firstName
-        lastName
-        image
-      }
-    }
-  }
-`;
-
-const SEND_MESSAGE = gql`
-  mutation SendMessage($conversationId: ID!, $content: String!) {
-    sendMessage(conversationId: $conversationId, content: $content) {
-      id
-      content
-      createdAt
-    }
-  }
-`;
 
 
 interface Participant {

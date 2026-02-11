@@ -1,10 +1,12 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { graphql } from "@/lib/graphql/client"
 import { useSession } from "next-auth/react"
 import { Loader2Icon, SendIcon } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { useMutation } from "@apollo/client/react"
+import { CREATE_POST } from "@/lib/models/posts/gql"
+import type { CreatePostMutation, CreatePostMutationVariables } from "@/lib/graphql/__generated__/graphql"
 
 interface CreatePostProps {
     spaceId: string
@@ -14,22 +16,18 @@ interface CreatePostProps {
 export function CreatePost({ spaceId, onPostCreated }: CreatePostProps) {
     const { data: session } = useSession()
     const [content, setContent] = useState("")
-    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const [createPost, { loading: isSubmitting }] = useMutation<CreatePostMutation, CreatePostMutationVariables>(CREATE_POST);
 
     const handleSubmit = async () => {
         if (!content.trim()) return
 
-        setIsSubmitting(true)
         try {
-            await graphql(`
-                mutation CreatePost($spaceId: ID!, $content: String!) {
-                    createPost(spaceId: $spaceId, content: $content) {
-                        id
-                    }
+            await createPost({
+                variables: {
+                    spaceId,
+                    content: content.trim(),
                 }
-            `, {
-                spaceId,
-                content: content.trim(),
             })
 
             setContent("")
@@ -37,8 +35,6 @@ export function CreatePost({ spaceId, onPostCreated }: CreatePostProps) {
         } catch (error) {
             console.error("Failed to create post:", error)
             alert("Failed to create post")
-        } finally {
-            setIsSubmitting(false)
         }
     }
 

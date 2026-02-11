@@ -19,22 +19,9 @@ import {
     ArrowUpDown,
     UserIcon,
 } from "lucide-react"
+import type { Member } from "@/lib/graphql/__generated__/graphql"
 
-export interface Member {
-    id: string
-    role: "admin" | "member"
-    status: "pending" | "active" | "suspended"
-    joinedAt: string
-    user: {
-        id: string
-        firstName: string
-        lastName: string
-        email: string
-    }
-    tier?: {
-        name: string
-    }
-}
+export type { Member }
 
 export const columns: ColumnDef<Member>[] = [
     {

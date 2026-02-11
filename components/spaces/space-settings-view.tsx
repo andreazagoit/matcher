@@ -17,7 +17,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCwIcon, SaveIcon, CopyIcon } from "lucide-react";
-import { graphql } from "@/lib/graphql/client";
+import { useMutation } from "@apollo/client/react";
+import { UPDATE_SPACE, DELETE_SPACE } from "@/lib/models/spaces/gql";
+import type {
+    UpdateSpaceMutation,
+    UpdateSpaceMutationVariables,
+    DeleteSpaceMutation,
+    DeleteSpaceMutationVariables
+} from "@/lib/graphql/__generated__/graphql";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,18 +49,19 @@ interface SpaceSettingsViewProps {
         id: string;
         name: string;
         slug: string;
-        description?: string;
+        description?: string | null;
         visibility: string;
         joinPolicy: string;
-        clientId?: string;
+        clientId?: string | null;
     };
     onUpdate?: () => void;
 }
 
 export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
     const router = useRouter();
-    const [saving, setSaving] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+    const [updateSpace, { loading: saving }] = useMutation<UpdateSpaceMutation, UpdateSpaceMutationVariables>(UPDATE_SPACE);
+    const [deleteSpace, { loading: deleting }] = useMutation<DeleteSpaceMutation, DeleteSpaceMutationVariables>(DELETE_SPACE);
+
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
@@ -67,30 +75,19 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSaving(true);
         setError(null);
         setSuccess(null);
 
         try {
-            await graphql(`
-        mutation UpdateSpace($id: ID!, $input: UpdateSpaceInput!) {
-          updateSpace(id: $id, input: $input) {
-            id
-            name
-            slug
-            description
-            visibility
-            joinPolicy
-          }
-        }
-      `, {
-                id: space.id,
-                input: {
-                    name: formData.name,
-                    slug: formData.slug || undefined,
-                    description: formData.description,
-                    visibility: formData.visibility,
-                    joinPolicy: formData.joinPolicy,
+            await updateSpace({
+                variables: {
+                    id: space.id,
+                    input: {
+                        name: formData.name,
+                        description: formData.description,
+                        visibility: formData.visibility,
+                        joinPolicy: formData.joinPolicy,
+                    }
                 }
             });
 
@@ -98,25 +95,19 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
             if (onUpdate) onUpdate();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to update space");
-        } finally {
-            setSaving(false);
         }
     };
 
     const handleDelete = async () => {
-        setDeleting(true);
         try {
-            await graphql(`
-        mutation DeleteSpace($id: ID!) {
-          deleteSpace(id: $id)
-        }
-      `, { id: space.id });
+            await deleteSpace({
+                variables: { id: space.id }
+            });
 
             router.push("/spaces");
         } catch (error) {
             console.error("Failed to delete space", error);
             setError("Failed to delete space");
-            setDeleting(false);
         }
     };
 

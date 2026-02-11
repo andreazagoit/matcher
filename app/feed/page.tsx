@@ -1,52 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { graphql } from "@/lib/graphql/client";
+import { useQuery } from "@apollo/client/react";
+import { GET_GLOBAL_FEED } from "@/lib/models/posts/gql";
+import type { GetGlobalFeedQuery, GetGlobalFeedQueryVariables } from "@/lib/graphql/__generated__/graphql";
 import {
     Loader2,
     RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/page-shell";
-import { PostCard, type Post } from "@/components/feed/post-card";
-
-
+import { PostCard } from "@/components/feed/post-card";
 
 export default function FeedPage() {
-    const [posts, setPosts] = useState<Post[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchFeed = async () => {
-        try {
-            const data = await graphql<{ globalFeed: Post[] }>(`
-        query GetGlobalFeed {
-          globalFeed {
-            id
-            content
-            mediaUrls
-            likesCount
-            commentsCount
-            createdAt
-            author {
-              id
-              firstName
-              lastName
-              email
-            }
-          }
-        }
-      `);
-            setPosts(data.globalFeed || []);
-        } catch (error) {
-            console.error("Failed to fetch feed:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchFeed();
-    }, []);
+    const { data, loading, refetch } = useQuery<GetGlobalFeedQuery, GetGlobalFeedQueryVariables>(GET_GLOBAL_FEED);
+    const posts = data?.globalFeed || [];
 
     if (loading && posts.length === 0) { // Only show full page loader if no posts are loaded yet
         return (
@@ -65,7 +32,7 @@ export default function FeedPage() {
                 </div>
             }
             actions={
-                <Button variant="outline" size="sm" onClick={fetchFeed} className="gap-2">
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     Refresh
                 </Button>

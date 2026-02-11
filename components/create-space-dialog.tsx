@@ -19,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { graphql } from "@/lib/graphql/client";
+import { useMutation } from "@apollo/client/react";
+import { CREATE_SPACE } from "@/lib/models/spaces/gql";
+import type { CreateSpaceMutation, CreateSpaceMutationVariables } from "@/lib/graphql/__generated__/graphql";
 
 interface CreateSpaceDialogProps {
   open: boolean;
@@ -29,7 +31,7 @@ interface CreateSpaceDialogProps {
 
 export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpaceDialogProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [createSpace, { loading }] = useMutation<CreateSpaceMutation, CreateSpaceMutationVariables>(CREATE_SPACE);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -60,36 +62,29 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     try {
-      const data = await graphql<{ createSpace: { id: string } }>(`
-        mutation CreateSpace($input: CreateSpaceInput!) {
-          createSpace(input: $input) {
-            id
-            name
-            slug
+      const { data } = await createSpace({
+        variables: {
+          input: {
+            name: formData.name,
+            slug: formData.slug || undefined,
+            description: formData.description,
+            visibility: formData.visibility,
+            joinPolicy: formData.joinPolicy,
           }
-        }
-      `, {
-        input: {
-          name: formData.name,
-          slug: formData.slug || undefined,
-          description: formData.description,
-          visibility: formData.visibility,
-          joinPolicy: formData.joinPolicy,
         }
       });
 
-      onCreated?.();
-      handleOpenChange(false);
-
-      // Navigate directly to the space page
-      router.push(`/spaces/${data.createSpace.id}`);
+      if (data?.createSpace) {
+        onCreated?.();
+        handleOpenChange(false);
+        // Navigate directly to the space page
+        router.push(`/spaces/${data.createSpace.id}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create space");
-      setLoading(false);
     }
   };
 

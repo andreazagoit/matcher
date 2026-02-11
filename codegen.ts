@@ -1,0 +1,30 @@
+import { CodegenConfig } from "@graphql-codegen/cli";
+
+const config: CodegenConfig = {
+    overwrite: true,
+    // Uses introspection against the running dev server
+    schema: "http://localhost:3000/api/client/v1/graphql",
+    // Only scan centralized gql.ts operation files
+    documents: ["lib/models/**/gql.ts"],
+    ignoreNoDocuments: true,
+    generates: {
+        "./lib/graphql/__generated__/graphql.ts": {
+            plugins: ["typescript", "typescript-operations"],
+            config: {
+                // Use `null` for nullable fields instead of optionals
+                avoidOptionals: {
+                    field: true,
+                    inputValue: false,
+                },
+                // Use `unknown` instead of `any` for unconfigured scalars
+                defaultScalarType: "unknown",
+                // Apollo Client always includes `__typename` fields
+                nonOptionalTypename: true,
+                // Don't generate `__typename` for root operation types
+                skipTypeNameForRoot: true,
+            },
+        },
+    },
+};
+
+export default config;

@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@apollo/client/react";
+import { GET_MY_SPACES } from "@/lib/models/spaces/gql";
+import type { GetMySpacesQuery, GetMySpacesQueryVariables } from "@/lib/graphql/__generated__/graphql";
+import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,55 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { CreateSpaceDialog } from "@/components/create-space-dialog";
 import { Plus } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
-import { graphql } from "@/lib/graphql/client";
-
-interface Space {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  clientId: string;
-  isActive: boolean;
-  visibility: string;
-  joinPolicy: string;
-  membersCount: number;
-  createdAt: string;
-}
 
 export default function DashboardPage() {
-  const [spaces, setSpaces] = useState<Space[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, refetch } = useQuery<GetMySpacesQuery, GetMySpacesQueryVariables>(GET_MY_SPACES);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-
-  const fetchSpaces = async () => {
-    try {
-      const data = await graphql<{ mySpaces: Space[] }>(`
-        query GetMySpaces {
-          mySpaces {
-            id
-            name
-            slug
-            description
-            clientId
-            isActive
-            visibility
-            joinPolicy
-            membersCount
-            createdAt
-          }
-        }
-      `);
-      setSpaces(data.mySpaces);
-    } catch (error) {
-      console.error("Failed to fetch spaces:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSpaces();
-  }, []);
+  const spaces = data?.mySpaces || [];
 
   return (
     <PageShell
@@ -140,7 +99,7 @@ export default function DashboardPage() {
       <CreateSpaceDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onCreated={fetchSpaces}
+        onCreated={() => refetch()}
       />
     </PageShell>
   );
