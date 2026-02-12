@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
-import { PageShell } from "@/components/page-shell";
+import { Page } from "@/components/page";
 import { Card } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
@@ -24,18 +24,21 @@ function ChatPageContent() {
 
     const handleSelect = (id: string) => {
         setSelectedConversationId(id);
-        router.push(`/chat?id=${id}`);
+        router.push(`/messages?id=${id}`);
     };
 
     if (status === "loading") return null;
     if (status === "unauthenticated") {
-        signIn("matcher", { callbackUrl: "/chat" });
+        signIn("matcher", { callbackUrl: "/messages" });
         return null;
     }
 
 
     return (
-        <PageShell
+        <Page
+            breadcrumbs={[
+                { label: "Messages" }
+            ]}
             header={
                 <div className="space-y-1">
                     <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
@@ -76,11 +79,11 @@ function ChatPageContent() {
                     )}
                 </Card>
             </div>
-        </PageShell>
+        </Page>
     );
 }
 
-export default function ChatPage() {
+export default function MessagesPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
             <ChatPageContent />

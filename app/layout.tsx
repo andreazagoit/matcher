@@ -38,7 +38,7 @@ export default function RootLayout({
             <SidebarProvider>
               <AppSidebar />
               <SidebarInset>
-                <main className="flex-1 p-4 lg:p-6">{children}</main>
+                {children}
               </SidebarInset>
             </SidebarProvider>
           </ApolloWrapper>

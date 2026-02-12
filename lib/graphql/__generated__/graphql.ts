@@ -416,6 +416,11 @@ export type MarkAsReadMutationVariables = Exact<{
 
 export type MarkAsReadMutation = { markAsRead: boolean | null };
 
+export type GetDailyMatchesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetDailyMatchesQuery = { dailyMatches: Array<{ __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string }> };
+
 export type UpdateMemberRoleMutationVariables = Exact<{
   spaceId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];

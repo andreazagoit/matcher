@@ -3,7 +3,7 @@ import { query } from "@/lib/graphql/apollo-client";
 import { GET_ME } from "@/lib/models/users/gql";
 import { AccountForm } from "./account-form";
 import { AccountHeaderActions } from "./account-header-actions";
-import { PageShell } from "@/components/page-shell";
+import { Page } from "@/components/page";
 import { redirect } from "next/navigation";
 import type { GetMeQuery } from "@/lib/graphql/__generated__/graphql";
 
@@ -22,7 +22,10 @@ export default async function AccountPage() {
     }
 
     return (
-        <PageShell
+        <Page
+            breadcrumbs={[
+                { label: "Account" }
+            ]}
             header={
                 <div className="space-y-1">
                     <h1 className="text-4xl font-extrabold tracking-tight text-foreground bg-clip-text">Account Settings</h1>
@@ -34,6 +37,6 @@ export default async function AccountPage() {
             <div className="w-full mx-auto space-y-8">
                 <AccountForm initialUser={user} />
             </div>
-        </PageShell>
+        </Page>
     );
 }

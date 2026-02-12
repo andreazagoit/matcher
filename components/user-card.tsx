@@ -1,0 +1,46 @@
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { User } from "@/lib/graphql/__generated__/graphql";
+
+interface UserCardProps {
+    user: Partial<User>;
+    compatibility?: number;
+}
+
+export function UserCard({ user, compatibility }: UserCardProps) {
+    const name = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || "Unknown User";
+    const initials = (user.firstName?.[0] || "") + (user.lastName?.[0] || "");
+
+    return (
+        <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="p-0">
+                <div className="relative aspect-square w-full">
+                    <Avatar className="w-full h-full rounded-none">
+                        <AvatarImage
+                            src={user.image ?? ""}
+                            alt={name}
+                            className="object-cover"
+                        />
+                        <AvatarFallback className="rounded-none text-2xl">
+                            {initials || "?"}
+                        </AvatarFallback>
+                    </Avatar>
+                    {compatibility !== undefined && (
+                        <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm font-bold">
+                                {Math.round(compatibility * 100)}% Match
+                            </Badge>
+                        </div>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent className="p-4">
+                <div className="space-y-1">
+                    <h3 className="font-semibold text-lg leading-none truncate">{name}</h3>
+                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}

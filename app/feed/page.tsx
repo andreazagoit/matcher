@@ -8,7 +8,7 @@ import {
     RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageShell } from "@/components/page-shell";
+import { Page } from "@/components/page";
 import { PostCard } from "@/components/feed/post-card";
 
 export default function FeedPage() {
@@ -24,37 +24,32 @@ export default function FeedPage() {
     }
 
     return (
-        <PageShell
+        <Page
+            breadcrumbs={[
+                { label: "Feed" }
+            ]}
             header={
                 <div className="space-y-1">
-                    <h1 className="text-4xl font-extrabold tracking-tight text-foreground bg-clip-text">Feed</h1>
-                    <p className="text-lg text-muted-foreground font-medium">Stay updated with the latest posts from all spaces</p>
+                    <h1 className="text-4xl font-extrabold tracking-tight">Feed</h1>
+                    <p className="text-lg text-muted-foreground font-medium">What&apos;s happening in your communities</p>
                 </div>
             }
-            actions={
-                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </Button>
-            }
         >
-            <div className="space-y-8">
-                {(!posts || posts.length === 0) ? (
-                    <div className="text-center py-24 bg-muted/10 rounded-2xl border-2 border-dashed border-muted-foreground/20">
-                        <div className="text-5xl mb-4">📭</div>
-                        <h3 className="text-xl font-semibold">No posts to show yet</h3>
-                        <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-                            Be the first to share something with the community and start the conversation!
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {posts.map((post) => (
-                            <PostCard key={post.id} post={post} />
-                        ))}
-                    </div>
-                )}
-            </div>
-        </PageShell>
+            {(!posts || posts.length === 0) ? (
+                <div className="text-center py-24 bg-muted/10 rounded-2xl border-2 border-dashed border-muted-foreground/20">
+                    <div className="text-5xl mb-4">📭</div>
+                    <h3 className="text-xl font-semibold">No posts to show yet</h3>
+                    <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+                        Be the first to share something with the community and start the conversation!
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    {posts.map((post) => (
+                        <PostCard key={post.id} post={post} />
+                    ))}
+                </div>
+            )}
+        </Page>
     );
 }

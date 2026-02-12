@@ -8,7 +8,7 @@ import {
   RefreshCwIcon,
   ShieldIcon,
 } from "lucide-react";
-import { PageShell } from "@/components/page-shell";
+import { Page } from "@/components/page";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { GET_SPACE, JOIN_SPACE, LEAVE_SPACE } from "@/lib/models/spaces/gql";
 import type {
@@ -105,9 +105,16 @@ export default function SpaceDetailPage() {
     const tier = space.myMembership.tier;
 
     return (
-      <PageShell header={<SpaceHeader space={space} />} actions={
-        <Button variant="outline" onClick={handleLeave}>Cancel Request</Button>
-      }>
+      <Page
+        breadcrumbs={[
+          { label: "Spaces", href: "/spaces" },
+          { label: space.name }
+        ]}
+        header={<SpaceHeader space={space} />}
+        actions={
+          <Button variant="outline" onClick={handleLeave}>Cancel Request</Button>
+        }
+      >
         <PaymentRequiredView
           spaceName={space.name}
           tierName={tier?.name}
@@ -115,13 +122,17 @@ export default function SpaceDetailPage() {
           interval={tier?.interval}
           onPaymentComplete={() => refetch()}
         />
-      </PageShell>
+      </Page>
     )
   }
 
   return (
     <>
-      <PageShell
+      <Page
+        breadcrumbs={[
+          { label: "Spaces", href: "/spaces" },
+          { label: space.name }
+        ]}
         header={<SpaceHeader space={space} />}
         actions={
           isMember ? (
@@ -193,7 +204,7 @@ export default function SpaceDetailPage() {
             )}
           </Tabs>
         )}
-      </PageShell>
+      </Page>
 
       <TierSelectionModal
         isOpen={isJoinModalOpen}

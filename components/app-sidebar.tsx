@@ -51,13 +51,13 @@ const data = {
     ],
     personal: [
         {
-            title: "My Spaces",
+            title: "Spaces",
             url: "/spaces",
             icon: LayoutGrid,
         },
         {
             title: "Messages",
-            url: "/chat",
+            url: "/messages",
             icon: MessageSquare,
         },
         {
