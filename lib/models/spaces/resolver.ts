@@ -26,9 +26,10 @@ export const spaceResolvers = {
             if (!id && !slug) throw new GraphQLError("ID or Slug required");
 
             const result = await db.query.spaces.findFirst({
-                where: id ? eq(spaces.id, id) : eq(spaces.slug, slug!),
+                where: id ? eq(spaces.id, id) : (slug ? eq(spaces.slug, slug) : undefined),
             });
-            return result;
+
+            return result ?? null;
         },
 
         spaces: async () => {

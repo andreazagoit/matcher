@@ -32,11 +32,11 @@ import { PaymentRequiredView } from "@/components/spaces/payment-required-view";
 export default function SpaceDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const spaceId = params.spaceId as string;
+  const spaceSlug = params.spaceSlug as string;
 
   const { data, loading, error, refetch } = useQuery<GetSpaceQuery, GetSpaceQueryVariables>(GET_SPACE, {
-    variables: { id: spaceId },
-    skip: !spaceId,
+    variables: { slug: spaceSlug },
+    skip: !spaceSlug,
   });
 
   const [joinSpace, { loading: joining }] = useMutation<JoinSpaceMutation, JoinSpaceMutationVariables>(JOIN_SPACE);
@@ -50,7 +50,7 @@ export default function SpaceDetailPage() {
   const handleJoin = async (tierId?: string) => {
     try {
       await joinSpace({
-        variables: { spaceId, tierId }
+        variables: { spaceSlug, tierId }
       });
 
       setIsJoinModalOpen(false);
@@ -73,7 +73,7 @@ export default function SpaceDetailPage() {
     if (!confirm("Are you sure you want to leave this space?")) return;
     try {
       await leaveSpace({
-        variables: { spaceId }
+        variables: { spaceId: space!.id }
       });
       router.push("/spaces");
     } catch (err) {
@@ -154,11 +154,11 @@ export default function SpaceDetailPage() {
             <TabsContent value="feed" className="mt-6">
               <div className="">
                 <CreatePost
-                  spaceId={spaceId}
+                  spaceId={space.id}
                   onPostCreated={() => setFeedRefreshTrigger(prev => prev + 1)}
                 />
                 <PostList
-                  spaceId={spaceId}
+                  spaceId={space.id}
                   isAdmin={currentUserIsAdmin}
                   refreshTrigger={feedRefreshTrigger}
                 />
@@ -178,7 +178,7 @@ export default function SpaceDetailPage() {
                 <CardContent>
                   <MembersDataTable
                     members={(space.members || []) as Member[]}
-                    spaceId={spaceId}
+                    spaceId={space.id}
                     onMemberUpdated={() => refetch()}
                     isAdmin={currentUserIsAdmin}
                   />

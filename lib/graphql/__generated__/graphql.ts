@@ -171,7 +171,7 @@ export type MutationDeleteUserArgs = {
 
 
 export type MutationJoinSpaceArgs = {
-  spaceId: Scalars['ID']['input'];
+  spaceSlug: Scalars['String']['input'];
   tierId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -512,7 +512,7 @@ export type DeleteSpaceMutationVariables = Exact<{
 export type DeleteSpaceMutation = { deleteSpace: boolean };
 
 export type JoinSpaceMutationVariables = Exact<{
-  spaceId: Scalars['ID']['input'];
+  spaceSlug: Scalars['String']['input'];
   tierId?: InputMaybe<Scalars['ID']['input']>;
 }>;
 

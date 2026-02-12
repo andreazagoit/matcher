@@ -1,6 +1,7 @@
 "use client"
 
 import {
+    Compass,
     GalleryVerticalEnd,
     LayoutDashboard,
     LayoutGrid,
@@ -36,27 +37,21 @@ const data = {
         email: "guest@example.com",
         avatar: "",
     },
-    navMain: [
-        {
-            title: "Management",
-            url: "#",
-            items: [
-                {
-                    title: "Dashboard",
-                    url: "/dashboard",
-                    icon: LayoutDashboard,
-                },
-            ],
-        },
-    ],
-    platform: [
+    discover: [
         {
             title: "Feed",
             url: "/feed",
             icon: Rss,
         },
         {
-            title: "Spaces",
+            title: "Discover",
+            url: "/spaces",
+            icon: Compass,
+        },
+    ],
+    personal: [
+        {
+            title: "My Spaces",
             url: "/spaces",
             icon: LayoutGrid,
         },
@@ -64,6 +59,11 @@ const data = {
             title: "Messages",
             url: "/chat",
             icon: MessageSquare,
+        },
+        {
+            title: "Dashboard",
+            url: "/dashboard",
+            icon: LayoutDashboard,
         },
     ],
     navSecondary: [
@@ -113,12 +113,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                {/* Platform Group */}
+                {/* Discover — platform content */}
                 <SidebarGroup>
-                    <SidebarGroupLabel>Platform</SidebarGroupLabel>
+                    <SidebarGroupLabel>Discover</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {data.platform.map((item) => (
+                            {data.discover.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild isActive={pathname === item.url}>
                                         <Link href={item.url}>
@@ -132,28 +132,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                {/* Main Groups (Management etc.) */}
-                {data.navMain.map((item) => (
-                    <SidebarGroup key={item.title}>
-                        <SidebarGroupLabel>
-                            {item.title}
-                        </SidebarGroupLabel>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                {item.items.map((subItem) => (
-                                    <SidebarMenuItem key={subItem.title}>
-                                        <SidebarMenuButton asChild isActive={pathname === subItem.url}>
-                                            <Link href={subItem.url}>
-                                                {subItem.icon && <subItem.icon />}
-                                                <span>{subItem.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ))}
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-                ))}
+                {/* Personal — user area */}
+                <SidebarGroup>
+                    <SidebarGroupLabel>Personal</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {data.personal.map((item) => (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton asChild isActive={pathname === item.url}>
+                                        <Link href={item.url}>
+                                            <item.icon />
+                                            <span>{item.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
 
                 <NavSecondary items={data.navSecondary} className="mt-auto" />
             </SidebarContent>

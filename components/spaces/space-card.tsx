@@ -18,7 +18,7 @@ export interface SpaceCardProps {
 
 export function SpaceCard({ space }: SpaceCardProps) {
     return (
-        <Link href={`/spaces/${space.id}`} className="block h-full group">
+        <Link href={`/spaces/${space.slug}`} className="block h-full group">
             <div className="h-full flex flex-col gap-3">
                 {/* Image Aspect Ratio */}
                 <div className="aspect-square w-full relative bg-muted rounded-xl overflow-hidden ring-1 ring-border/50 group-hover:ring-primary/20 transition-all">

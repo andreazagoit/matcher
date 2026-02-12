@@ -118,8 +118,8 @@ export const DELETE_SPACE = gql`
 `;
 
 export const JOIN_SPACE = gql`
-  mutation JoinSpace($spaceId: ID!, $tierId: ID) {
-    joinSpace(spaceId: $spaceId, tierId: $tierId) {
+  mutation JoinSpace($spaceSlug: String!, $tierId: ID) {
+    joinSpace(spaceSlug: $spaceSlug, tierId: $tierId) {
       id
       status
     }

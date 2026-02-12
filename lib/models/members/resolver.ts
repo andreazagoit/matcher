@@ -53,11 +53,13 @@ export const memberResolvers = {
     },
 
     Mutation: {
-        joinSpace: async (_: unknown, { spaceId, tierId }: { spaceId: string, tierId?: string }, context: ResolverContext) => {
+        joinSpace: async (_: unknown, { spaceSlug, tierId }: { spaceSlug: string, tierId?: string }, context: ResolverContext) => {
             if (!context.user) throw new GraphQLError("Unauthorized");
 
-            const space = await db.query.spaces.findFirst({ where: eq(spaces.id, spaceId) });
+            const space = await db.query.spaces.findFirst({ where: eq(spaces.slug, spaceSlug) });
             if (!space) throw new GraphQLError("Space not found");
+
+            const spaceId = space.id;
 
             const existing = await db.query.members.findFirst({
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, context.user.id)),
