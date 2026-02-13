@@ -26,6 +26,11 @@ export async function createUser(
       lastName: validatedInput.lastName,
       email: validatedInput.email,
       birthDate: validatedInput.birthDate,
+      ...(validatedInput.gender && { gender: validatedInput.gender }),
+      ...(validatedInput.languages && { languages: validatedInput.languages }),
+      ...(validatedInput.latitude !== undefined && { latitude: validatedInput.latitude }),
+      ...(validatedInput.longitude !== undefined && { longitude: validatedInput.longitude }),
+      ...(validatedInput.searchRadius !== undefined && { searchRadius: validatedInput.searchRadius }),
     })
     .returning();
 
@@ -58,6 +63,11 @@ export async function updateUser(
   if (validatedInput.lastName !== undefined) updateData.lastName = validatedInput.lastName;
   if (validatedInput.email !== undefined) updateData.email = validatedInput.email;
   if (validatedInput.birthDate !== undefined) updateData.birthDate = validatedInput.birthDate;
+  if (validatedInput.gender !== undefined) updateData.gender = validatedInput.gender;
+  if (validatedInput.languages !== undefined) updateData.languages = validatedInput.languages;
+  if (validatedInput.latitude !== undefined) updateData.latitude = validatedInput.latitude;
+  if (validatedInput.longitude !== undefined) updateData.longitude = validatedInput.longitude;
+  if (validatedInput.searchRadius !== undefined) updateData.searchRadius = validatedInput.searchRadius;
 
   const [updatedUser] = await db
     .update(users)

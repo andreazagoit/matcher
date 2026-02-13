@@ -8,6 +8,7 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { SearchForm } from "@/components/search-form"
+import { LocationSelector } from "@/components/location-selector"
 import Link from "next/link";
 
 export interface BreadcrumbItem {
@@ -58,6 +59,7 @@ export function Page({
                     )}
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
+                    <LocationSelector />
                     <SearchForm />
                 </div>
             </header>

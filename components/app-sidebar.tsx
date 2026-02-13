@@ -45,7 +45,7 @@ const data = {
         },
         {
             title: "Discover",
-            url: "/spaces",
+            url: "/discover",
             icon: Compass,
         },
     ],

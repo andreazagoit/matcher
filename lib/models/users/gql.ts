@@ -12,6 +12,10 @@ export const USER_FRAGMENT = gql`
     email
     birthDate
     gender
+    languages
+    latitude
+    longitude
+    searchRadius
     image
     createdAt
     updatedAt

@@ -47,7 +47,11 @@ export type CreateUserInput = {
   email: Scalars['String']['input'];
   firstName: Scalars['String']['input'];
   gender?: InputMaybe<Gender>;
+  languages?: InputMaybe<Array<Scalars['String']['input']>>;
   lastName: Scalars['String']['input'];
+  latitude?: InputMaybe<Scalars['Float']['input']>;
+  longitude?: InputMaybe<Scalars['Float']['input']>;
+  searchRadius?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export enum Gender {
@@ -355,7 +359,11 @@ export type UpdateUserInput = {
   email?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
   gender?: InputMaybe<Gender>;
+  languages?: InputMaybe<Array<Scalars['String']['input']>>;
   lastName?: InputMaybe<Scalars['String']['input']>;
+  latitude?: InputMaybe<Scalars['Float']['input']>;
+  longitude?: InputMaybe<Scalars['Float']['input']>;
+  searchRadius?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** Utente base - dati anagrafici */
@@ -368,8 +376,12 @@ export type User = {
   gender: Maybe<Gender>;
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
+  languages: Array<Scalars['String']['output']>;
   lastName: Scalars['String']['output'];
+  latitude: Maybe<Scalars['Float']['output']>;
+  longitude: Maybe<Scalars['Float']['output']>;
   profile: Maybe<Profile>;
+  searchRadius: Scalars['Int']['output'];
   updatedAt: Scalars['String']['output'];
 };
 
@@ -419,7 +431,7 @@ export type MarkAsReadMutation = { markAsRead: boolean | null };
 export type GetDailyMatchesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetDailyMatchesQuery = { dailyMatches: Array<{ __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string }> };
+export type GetDailyMatchesQuery = { dailyMatches: Array<{ __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string }> };
 
 export type UpdateMemberRoleMutationVariables = Exact<{
   spaceId: Scalars['ID']['input'];
@@ -483,7 +495,7 @@ export type GetAllSpacesQuery = { spaces: Array<{ __typename: 'Space', id: strin
 export type GetMySpacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMySpacesQuery = { mySpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null }> };
+export type GetMySpacesQuery = { mySpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', role: string } | null }> };
 
 export type GetSpaceQueryVariables = Exact<{
   id?: InputMaybe<Scalars['ID']['input']>;
@@ -555,12 +567,12 @@ export type ArchiveTierMutationVariables = Exact<{
 
 export type ArchiveTierMutation = { archiveTier: boolean };
 
-export type UserFieldsFragment = { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string };
+export type UserFieldsFragment = { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string };
 
 export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMeQuery = { me: { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string } | null };
+export type GetMeQuery = { me: { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string } | null };
 
 export type UpdateUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -568,4 +580,4 @@ export type UpdateUserMutationVariables = Exact<{
 }>;
 
 
-export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string } | null };
+export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string } | null };

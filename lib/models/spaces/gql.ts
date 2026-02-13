@@ -39,6 +39,9 @@ export const GET_MY_SPACES = gql`
   query GetMySpaces {
     mySpaces {
       ...SpaceFields
+      myMembership {
+        role
+      }
     }
   }
 `;

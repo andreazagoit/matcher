@@ -7,6 +7,8 @@ import {
   index,
   pgEnum,
   boolean,
+  real,
+  integer,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -28,6 +30,16 @@ export const users = pgTable(
     email: text("email").notNull().unique(),
     birthDate: date("birth_date").notNull(),
     gender: genderEnum("gender"),
+
+    // ==========================================
+    // LOCALE & GEOLOCATION
+    // ==========================================
+    /** Spoken languages (ISO 639-1 codes, e.g. ['it', 'en']) */
+    languages: text("languages").array().default([]).notNull(),
+    /** GPS latitude (nullable — user may decline) */
+    latitude: real("latitude"),
+    /** GPS longitude (nullable — user may decline) */
+    longitude: real("longitude"),
 
     // ==========================================
     // AUTHENTICATION FIELDS (NextAuth/Better-Auth)

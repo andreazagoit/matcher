@@ -20,6 +20,10 @@ export const userTypeDefs = `#graphql
     email: String!
     birthDate: String!
     gender: Gender
+    languages: [String!]!
+    latitude: Float
+    longitude: Float
+    searchRadius: Int!
     image: String
     createdAt: String!
     updatedAt: String!
@@ -56,6 +60,10 @@ export const userTypeDefs = `#graphql
     email: String!
     birthDate: String!
     gender: Gender
+    languages: [String!]
+    latitude: Float
+    longitude: Float
+    searchRadius: Int
   }
 
   input UpdateUserInput {
@@ -64,6 +72,10 @@ export const userTypeDefs = `#graphql
     email: String
     birthDate: String
     gender: Gender
+    languages: [String!]
+    latitude: Float
+    longitude: Float
+    searchRadius: Int
   }
 
   enum Gender {
