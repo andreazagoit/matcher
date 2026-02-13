@@ -4,10 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { typeDefs } from "@/lib/graphql/typedefs";
 import { resolvers } from "@/lib/graphql/resolvers";
 import { getAuthContext, type AuthContext } from "@/lib/auth/utils";
+import { createDataLoaders, type DataLoaders } from "@/lib/graphql/dataloaders";
 
 export interface GraphQLContext {
   req: NextRequest;
   auth: AuthContext;
+  loaders: DataLoaders;
 }
 
 const server = new ApolloServer<GraphQLContext>({
@@ -21,6 +23,7 @@ const handler = startServerAndCreateNextHandler<NextRequest, GraphQLContext>(ser
     return {
       req,
       auth: authContext,
+      loaders: createDataLoaders(authContext.user?.id),
     };
   },
 });

@@ -1,13 +1,10 @@
 import { db } from "@/lib/db/drizzle";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { createSpace, updateSpace, deleteSpace } from "./operations";
 import { GraphQLError } from "graphql";
-
-interface ResolverContext {
-    user?: { id: string } | null;
-}
+import type { GraphQLContext } from "@/app/api/client/v1/graphql/route";
 
 interface CreateSpaceInput {
     name: string;
@@ -39,11 +36,11 @@ export const spaceResolvers = {
             });
         },
 
-        mySpaces: async (_: unknown, __: unknown, context: ResolverContext) => {
-            if (!context.user) return [];
+        mySpaces: async (_: unknown, __: unknown, { auth }: GraphQLContext) => {
+            if (!auth.user) return [];
 
             const userMemberships = await db.query.members.findMany({
-                where: eq(members.userId, context.user.id),
+                where: eq(members.userId, auth.user.id),
                 with: {
                     space: true
                 }
@@ -57,24 +54,24 @@ export const spaceResolvers = {
     },
 
     Mutation: {
-        createSpace: async (_: unknown, { input }: { input: CreateSpaceInput }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
+        createSpace: async (_: unknown, { input }: { input: CreateSpaceInput }, { auth }: GraphQLContext) => {
+            if (!auth.user) throw new GraphQLError("Unauthorized");
 
             const result = await createSpace({
                 ...input,
-                creatorId: context.user.id,
+                creatorId: auth.user.id,
             });
 
             return result.space;
         },
 
-        updateSpace: async (_: unknown, { id, input }: { id: string; input: UpdateSpaceInput }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
+        updateSpace: async (_: unknown, { id, input }: { id: string; input: UpdateSpaceInput }, { auth }: GraphQLContext) => {
+            if (!auth.user) throw new GraphQLError("Unauthorized");
 
             const memberRecord = await db.query.members.findFirst({
                 where: and(
                     eq(members.spaceId, id),
-                    eq(members.userId, context.user.id),
+                    eq(members.userId, auth.user.id),
                     eq(members.role, "admin")
                 )
             });
@@ -84,13 +81,13 @@ export const spaceResolvers = {
             return updateSpace(id, input);
         },
 
-        deleteSpace: async (_: unknown, { id }: { id: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
+        deleteSpace: async (_: unknown, { id }: { id: string }, { auth }: GraphQLContext) => {
+            if (!auth.user) throw new GraphQLError("Unauthorized");
 
             const memberRecord = await db.query.members.findFirst({
                 where: and(
                     eq(members.spaceId, id),
-                    eq(members.userId, context.user.id),
+                    eq(members.userId, auth.user.id),
                     eq(members.role, "admin")
                 )
             });
@@ -102,12 +99,8 @@ export const spaceResolvers = {
     },
 
     Space: {
-        membersCount: async (parent: Space) => {
-            const result = await db
-                .select({ count: count() })
-                .from(members)
-                .where(eq(members.spaceId, parent.id));
-            return result[0]?.count ?? 0;
+        membersCount: async (parent: Space, _: unknown, { loaders }: GraphQLContext) => {
+            return loaders.membersCountLoader.load(parent.id);
         },
     },
 };
