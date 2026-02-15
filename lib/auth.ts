@@ -5,8 +5,8 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db/drizzle";
 import * as schema from "./db/schemas";
 
-const authServerUrl = process.env.OAUTH_SERVER_URL || "http://localhost:4000";
-const appUrl = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const authServerUrl = process.env.OAUTH_SERVER_URL;
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
 /**
  * Matcher — better-auth configuration
