@@ -5,7 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db/drizzle";
 import * as schema from "./db/schemas";
 
-const identityMatcherUrl = process.env.IDENTITYMATCHER_URL || "http://localhost:4000";
+const authServerUrl = process.env.OAUTH_SERVER_URL || "http://localhost:4000";
 const appUrl = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 /**
@@ -67,7 +67,7 @@ export const auth = betterAuth({
       config: [
         {
           providerId: "identitymatcher",
-          discoveryUrl: `${identityMatcherUrl}/.well-known/oauth-authorization-server`,
+          discoveryUrl: `${authServerUrl}/.well-known/oauth-authorization-server`,
           clientId: process.env.OAUTH_CLIENT_ID!,
           clientSecret: process.env.OAUTH_CLIENT_SECRET!,
           pkce: true,
