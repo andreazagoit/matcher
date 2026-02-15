@@ -10,7 +10,7 @@ import {
 // Client Components Apollo Client — uses absolute URL (required for SSR)
 function makeClient() {
   const httpLink = new HttpLink({
-    uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/client/v1/graphql`,
+    uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/graphql`,
     credentials: "include",
   });
 

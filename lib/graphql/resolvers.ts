@@ -1,3 +1,4 @@
+import { GraphQLScalarType, Kind } from "graphql";
 import { conversationResolvers } from "../models/conversations/resolver";
 import { matchResolvers } from "../models/matches/resolver";
 import { memberResolvers } from "../models/members/resolver";
@@ -6,7 +7,23 @@ import { spaceResolvers } from "../models/spaces/resolver";
 import { tierResolvers } from "../models/tiers/resolver";
 import { userResolvers } from "../models/users/resolver";
 
+const JSONScalar = new GraphQLScalarType({
+  name: "JSON",
+  description: "Arbitrary JSON scalar",
+  serialize: (value) => value,
+  parseValue: (value) => value,
+  parseLiteral: (ast) => {
+    if (ast.kind === Kind.STRING) return JSON.parse(ast.value);
+    if (ast.kind === Kind.INT) return parseInt(ast.value, 10);
+    if (ast.kind === Kind.FLOAT) return parseFloat(ast.value);
+    if (ast.kind === Kind.BOOLEAN) return ast.value;
+    return null;
+  },
+});
+
 export const resolvers = {
+
+  JSON: JSONScalar,
 
   Query: {
     ...conversationResolvers.Query,
@@ -18,6 +35,7 @@ export const resolvers = {
 
   Mutation: {
     ...conversationResolvers.Mutation,
+    ...matchResolvers.Mutation,
     ...spaceResolvers.Mutation,
     ...userResolvers.Mutation,
   },
@@ -33,5 +51,4 @@ export const resolvers = {
     ...postResolvers.Space,
     ...tierResolvers.Space
   },
-  User: userResolvers.User,
 };

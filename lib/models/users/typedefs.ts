@@ -1,17 +1,13 @@
 /**
- * GraphQL Schema per Users
- * 
- * NUOVA ARCHITETTURA:
- * - User: solo dati anagrafici base
- * - Profile: profilo con traits + embeddings (per matching)
- * - Test: sessioni e risposte ai questionari
- * 
- * Values/Interests ora fanno parte del sistema test, non più dell'utente direttamente.
+ * GraphQL Schema for Users
+ *
+ * User: local demographic + auth data (stored in matcher DB).
+ * Profile/assessment/matching data comes from Identity Matcher (see matches module).
  */
 
 export const userTypeDefs = `#graphql
   """
-  Utente base - dati anagrafici
+  Local user — demographic + auth data
   """
   type User {
     id: ID!
@@ -23,32 +19,7 @@ export const userTypeDefs = `#graphql
     image: String
     createdAt: String!
     updatedAt: String!
-    
-    # Relazione con profilo (opzionale, esiste dopo test completato)
-    profile: Profile
   }
-
-  """
-  Profilo utente con traits e dati per matching
-  """
-  type Profile {
-    id: ID!
-    userId: ID!
-    
-    # Traits aggregati per asse
-    
-    # Descrizioni testuali generate
-    psychologicalDescription: String
-    valuesDescription: String
-    interestsDescription: String
-    behavioralDescription: String
-    
-    # Timestamps
-    createdAt: String!
-    updatedAt: String!
-    embeddingsComputedAt: String
-  }
-
 
   input CreateUserInput {
     givenName: String!
@@ -72,21 +43,10 @@ export const userTypeDefs = `#graphql
     non_binary
   }
 
-  input MatchOptions {
-    limit: Int = 10
-    gender: [Gender!]
-    minAge: Int
-    maxAge: Int
-  }
-
   extend type Query {
     user(id: ID!): User
     users: [User!]!
     me: User
-    
-    # Matching (richiede profilo completato)
-    # Se userId non è fornito, usa l'utente autenticato
-    findMatches(userId: ID, options: MatchOptions): [User!]!
   }
 
   extend type Mutation {
@@ -95,4 +55,3 @@ export const userTypeDefs = `#graphql
     deleteUser(id: ID!): Boolean!
   }
 `;
-

@@ -4,7 +4,7 @@ import { members, type Member } from "./schema";
 import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { membershipTiers } from "@/lib/models/tiers/schema";
 import { GraphQLError } from "graphql";
-import type { GraphQLContext } from "@/app/api/client/v1/graphql/route";
+import type { GraphQLContext } from "@/lib/graphql/context";
 
 export const memberResolvers = {
     Member: {

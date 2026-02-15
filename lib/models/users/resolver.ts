@@ -1,3 +1,8 @@
+/**
+ * User resolvers — local CRUD only.
+ * Matching/profile operations are in the matches module (proxied to Identity Matcher).
+ */
+
 import {
   createUser,
   updateUser,
@@ -5,20 +10,8 @@ import {
   getUserById,
   getAllUsers,
 } from "./operations";
-import {
-  findMatches,
-  getProfileByUserId,
-} from "@/lib/models/profiles/operations";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
-import type { User } from "./schema";
-import type { GraphQLContext } from "@/app/api/client/v1/graphql/route";
-
-interface MatchOptions {
-  limit?: number;
-  gender?: ("man" | "woman" | "non_binary")[];
-  minAge?: number;
-  maxAge?: number;
-}
+import type { GraphQLContext } from "@/lib/graphql/context";
 
 class AuthError extends Error {
   constructor(message: string, public code: string = "UNAUTHENTICATED") {
@@ -32,7 +25,7 @@ export const userResolvers = {
     user: async (
       _: unknown,
       { id }: { id: string },
-      context: GraphQLContext
+      context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
@@ -53,38 +46,13 @@ export const userResolvers = {
       }
       return context.auth.user;
     },
-
-    findMatches: async (
-      _: unknown,
-      { userId, options }: { userId?: string; options?: MatchOptions },
-      context: GraphQLContext
-    ) => {
-      if (!context.auth.user) {
-        throw new AuthError("Authentication required");
-      }
-
-      const targetUserId = userId || context.auth.user.id;
-
-      if (!targetUserId) {
-        throw new Error("User ID required.");
-      }
-
-      const matches = await findMatches(targetUserId, {
-        limit: options?.limit ?? 10,
-        gender: options?.gender,
-        minAge: options?.minAge,
-        maxAge: options?.maxAge,
-      });
-
-      return matches.map((match) => match.user);
-    },
   },
 
   Mutation: {
     createUser: async (
       _: unknown,
       { input }: { input: CreateUserInput },
-      context: GraphQLContext
+      context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
@@ -95,7 +63,7 @@ export const userResolvers = {
     updateUser: async (
       _: unknown,
       { id, input }: { id: string; input: UpdateUserInput },
-      context: GraphQLContext
+      context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
@@ -112,7 +80,7 @@ export const userResolvers = {
     deleteUser: async (
       _: unknown,
       { id }: { id: string },
-      context: GraphQLContext
+      context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
@@ -124,12 +92,6 @@ export const userResolvers = {
       }
 
       return await deleteUser(id);
-    },
-  },
-
-  User: {
-    profile: async (user: User) => {
-      return await getProfileByUserId(user.id);
     },
   },
 };

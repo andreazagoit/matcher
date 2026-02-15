@@ -1,15 +1,13 @@
 import "dotenv/config";
 import { db } from "../drizzle";
 import { users } from "../../models/users/schema";
-import { assessments, type AssessmentAnswersJson } from "../../models/assessments/schema";
-import { profiles } from "../../models/profiles/schema";
-import { QUESTIONS, SECTIONS, ASSESSMENT_NAME } from "../../models/assessments/questions";
-import { assembleProfile } from "../../models/assessments/assembler";
-import { generateAllUserEmbeddings } from "../../embeddings";
 import { createSpace } from "../../models/spaces/operations";
 
 /**
- * Seeding Script - Creates 25 users with completed assessments and profiles.
+ * Seeding Script - Creates users and spaces.
+ *
+ * Note: Assessments, profiles, and embeddings are managed by Identity Matcher.
+ * Run the identitymatcher seed script to populate that data.
  */
 
 const SEED_USERS = [
@@ -43,73 +41,11 @@ const SEED_USERS = [
   { givenName: "Gabriele", familyName: "Martinelli", email: "gabriele.martinelli@example.com", birthdate: "1992-12-28", gender: "man" as const },
 ];
 
-// Example open-ended answers
-const OPEN_ANSWERS: Record<string, string[]> = {
-  "psy-open": [
-    "Sono una persona curiosa e riflessiva, mi piace ascoltare gli altri",
-    "Mi considero empatico/a e attento/a ai dettagli",
-    "Sono spontaneo/a e mi piace vivere il momento",
-    "Mi definisco una persona calma e razionale",
-    "Sono creativo/a e sempre alla ricerca di nuove idee",
-  ],
-  "val-open": [
-    "Cerco sempre di essere autentico/a e fedele a me stesso/a",
-    "L'onestà e il rispetto sono fondamentali per me",
-    "Credo nell'equilibrio tra lavoro e vita personale",
-    "La famiglia e gli affetti sono la mia priorità",
-    "Voglio fare la differenza e aiutare gli altri",
-  ],
-  "int-open": [
-    "Amo la natura, il trekking e la fotografia",
-    "Mi appassiona la musica, suono la chitarra da anni",
-    "Adoro viaggiare e scoprire nuove culture",
-    "Mi piace cucinare e sperimentare ricette nuove",
-    "Sono appassionato/a di cinema e serie TV",
-  ],
-  "beh-open": [
-    "All'inizio sono riservato/a ma poi mi apro molto",
-    "Mi piace costruire connessioni profonde gradualmente",
-    "Sono diretto/a e apprezzo chi lo è con me",
-    "Preferisco poche relazioni ma significative",
-    "Sono molto affettuoso/a quando mi sento a mio agio",
-  ],
-};
-
-/**
- * Generates random answers for the assessment.
- * Format: { questionId: value }
- * - Closed: range 1-5
- * - Open: string response
- */
-function generateRandomAnswers(): AssessmentAnswersJson {
-  const answers: AssessmentAnswersJson = {};
-
-  for (const section of SECTIONS) {
-    for (const question of QUESTIONS[section]) {
-      if (question.type === "closed") {
-        // Random value between 1 and 5
-        answers[question.id] = Math.floor(Math.random() * 5) + 1;
-      } else {
-        // Select a random open-ended response from the example set
-        const openOptions = OPEN_ANSWERS[question.id] || [""];
-        answers[question.id] = openOptions[Math.floor(Math.random() * openOptions.length)];
-      }
-    }
-  }
-
-  return answers;
-}
-
 async function seed() {
   console.log(`🌱 Seeding database with ${SEED_USERS.length} users...\n`);
 
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("❌ OPENAI_API_KEY is required");
-    process.exit(1);
-  }
-
   try {
-    // 0. Create system admin and Space
+    // 1. Create system admin and Space
     const adminData = {
       ...SEED_USERS[0],
       name: `${SEED_USERS[0].givenName} ${SEED_USERS[0].familyName}`,
@@ -149,56 +85,20 @@ async function seed() {
     });
     console.log(`  🌲 Created Space: Nature Lovers`);
 
-    // Process other users (skip admin)
+    // 2. Create other users (skip admin)
     for (let i = 1; i < SEED_USERS.length; i++) {
       const userData = {
         ...SEED_USERS[i],
         name: `${SEED_USERS[i].givenName} ${SEED_USERS[i].familyName}`,
       };
 
-      // 1. Create User
-      const [user] = await db.insert(users).values(userData).returning();
-
-      // 2. Generate test answers
-      const answers = generateRandomAnswers();
-
-      // 3. Persist Assessment
-      await db.insert(assessments).values({
-        userId: user.id,
-        assessmentName: ASSESSMENT_NAME,
-        answers,
-        status: "completed",
-      });
-
-      // 4. Assemble ProfileData (generates axis descriptions)
-      const profileData = assembleProfile(answers);
-
-      // 5. Generate Vector Embeddings via OpenAI
-      const embeddings = await generateAllUserEmbeddings({
-        psychological: profileData.psychologicalDesc,
-        values: profileData.valuesDesc,
-        interests: profileData.interestsDesc,
-        behavioral: profileData.behavioralDesc,
-      });
-
-      // 6. Persist Profile
-      await db.insert(profiles).values({
-        userId: user.id,
-        psychologicalDesc: profileData.psychologicalDesc,
-        valuesDesc: profileData.valuesDesc,
-        interestsDesc: profileData.interestsDesc,
-        behavioralDesc: profileData.behavioralDesc,
-        psychologicalEmbedding: embeddings.psychological,
-        valuesEmbedding: embeddings.values,
-        interestsEmbedding: embeddings.interests,
-        behavioralEmbedding: embeddings.behavioral,
-        assessmentVersion: 1,
-      });
-
+      await db.insert(users).values(userData).returning();
       console.log(`  ✓ ${i + 1}/${SEED_USERS.length} - ${userData.givenName} ${userData.familyName}`);
     }
 
-    console.log(`\n✅ Created ${SEED_USERS.length} users with test sessions and profiles`);
+    console.log(`\n✅ Created ${SEED_USERS.length} users and demo spaces`);
+    console.log(`\nℹ️  Note: Assessments, profiles, and embeddings are managed by Identity Matcher.`);
+    console.log(`   Run the identitymatcher seed script to populate that data.`);
 
   } catch (error) {
     console.error("❌ Seed failed:", error);

@@ -1,15 +1,28 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User } from "@/lib/graphql/__generated__/graphql";
+
+interface UserCardUser {
+    id?: string;
+    name?: string;
+    givenName?: string;
+    familyName?: string;
+    email?: string;
+    image?: string | null;
+    gender?: string | null;
+    birthdate?: string;
+}
 
 interface UserCardProps {
-    user: Partial<User>;
+    user: UserCardUser;
     compatibility?: number;
 }
 
 export function UserCard({ user, compatibility }: UserCardProps) {
-    const name = `${user.givenName ?? ""} ${user.familyName ?? ""}`.trim() || user.email || "Unknown User";
+    const name = user.name
+        || `${user.givenName ?? ""} ${user.familyName ?? ""}`.trim()
+        || user.email
+        || "Unknown User";
     const initials = (user.givenName?.[0] || "") + (user.familyName?.[0] || "");
 
     return (
@@ -38,7 +51,9 @@ export function UserCard({ user, compatibility }: UserCardProps) {
             <CardContent className="p-4">
                 <div className="space-y-1">
                     <h3 className="font-semibold text-lg leading-none truncate">{name}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                    {user.email && (
+                        <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                    )}
                 </div>
             </CardContent>
         </Card>

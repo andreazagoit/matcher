@@ -4,7 +4,7 @@ import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { createSpace, updateSpace, deleteSpace } from "./operations";
 import { GraphQLError } from "graphql";
-import type { GraphQLContext } from "@/app/api/client/v1/graphql/route";
+import type { GraphQLContext } from "@/lib/graphql/context";
 
 interface CreateSpaceInput {
     name: string;

@@ -11,7 +11,7 @@ export const { getClient, query, PreloadQuery } = registerApolloClient(() => {
   return new ApolloClient({
     cache: new InMemoryCache(),
     link: new HttpLink({
-      uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/client/v1/graphql`,
+      uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/graphql`,
       // Custom fetch that forwards request cookies for server-side auth
       fetch: async (uri, options) => {
         const cookieStore = await cookies();
