@@ -5,14 +5,12 @@ import { GET_GLOBAL_FEED } from "@/lib/models/posts/gql";
 import type { GetGlobalFeedQuery, GetGlobalFeedQueryVariables } from "@/lib/graphql/__generated__/graphql";
 import {
     Loader2,
-    RefreshCw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Page } from "@/components/page";
 import { PostCard } from "@/components/feed/post-card";
 
 export default function FeedPage() {
-    const { data, loading, refetch } = useQuery<GetGlobalFeedQuery, GetGlobalFeedQueryVariables>(GET_GLOBAL_FEED);
+    const { data, loading } = useQuery<GetGlobalFeedQuery, GetGlobalFeedQueryVariables>(GET_GLOBAL_FEED);
     const posts = data?.globalFeed || [];
 
     if (loading && posts.length === 0) { // Only show full page loader if no posts are loaded yet
