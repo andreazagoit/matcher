@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Send, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 
 
 interface Participant {
     id: string;
-    firstName: string;
-    lastName: string;
+    givenName: string;
+    familyName: string;
     image?: string;
 }
 
@@ -85,10 +85,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={conversation?.otherParticipant?.image} />
-                        <AvatarFallback>{conversation?.otherParticipant?.firstName[0]}</AvatarFallback>
+                        <AvatarFallback>{conversation?.otherParticipant?.givenName[0]}</AvatarFallback>
                     </Avatar>
                     <div className="font-semibold">
-                        {conversation?.otherParticipant?.firstName} {conversation?.otherParticipant?.lastName}
+                        {conversation?.otherParticipant?.givenName} {conversation?.otherParticipant?.familyName}
                     </div>
                 </div>
             </div>

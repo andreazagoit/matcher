@@ -66,8 +66,8 @@ async function generateDailyMatches(userId: string) {
     const candidates = await db
         .select({
             id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
+            givenName: users.givenName,
+            familyName: users.familyName,
             image: users.image,
             compatibility: similarity,
         })

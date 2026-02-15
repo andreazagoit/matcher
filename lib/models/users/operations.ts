@@ -22,15 +22,11 @@ export async function createUser(
   const [newUser] = await db
     .insert(users)
     .values({
-      firstName: validatedInput.firstName,
-      lastName: validatedInput.lastName,
+      givenName: validatedInput.givenName,
+      familyName: validatedInput.familyName,
       email: validatedInput.email,
-      birthDate: validatedInput.birthDate,
+      birthdate: validatedInput.birthdate,
       ...(validatedInput.gender && { gender: validatedInput.gender }),
-      ...(validatedInput.languages && { languages: validatedInput.languages }),
-      ...(validatedInput.latitude !== undefined && { latitude: validatedInput.latitude }),
-      ...(validatedInput.longitude !== undefined && { longitude: validatedInput.longitude }),
-      ...(validatedInput.searchRadius !== undefined && { searchRadius: validatedInput.searchRadius }),
     })
     .returning();
 
@@ -59,16 +55,11 @@ export async function updateUser(
     updatedAt: new Date(),
   };
 
-  if (validatedInput.firstName !== undefined) updateData.firstName = validatedInput.firstName;
-  if (validatedInput.lastName !== undefined) updateData.lastName = validatedInput.lastName;
+  if (validatedInput.givenName !== undefined) updateData.givenName = validatedInput.givenName;
+  if (validatedInput.familyName !== undefined) updateData.familyName = validatedInput.familyName;
   if (validatedInput.email !== undefined) updateData.email = validatedInput.email;
-  if (validatedInput.birthDate !== undefined) updateData.birthDate = validatedInput.birthDate;
+  if (validatedInput.birthdate !== undefined) updateData.birthdate = validatedInput.birthdate;
   if (validatedInput.gender !== undefined) updateData.gender = validatedInput.gender;
-  if (validatedInput.languages !== undefined) updateData.languages = validatedInput.languages;
-  if (validatedInput.latitude !== undefined) updateData.latitude = validatedInput.latitude;
-  if (validatedInput.longitude !== undefined) updateData.longitude = validatedInput.longitude;
-  if (validatedInput.searchRadius !== undefined) updateData.searchRadius = validatedInput.searchRadius;
-
   const [updatedUser] = await db
     .update(users)
     .set(updateData)

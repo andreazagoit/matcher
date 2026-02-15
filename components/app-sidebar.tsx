@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useSession } from "@/lib/auth-client"
 import { NavUser } from "@/components/nav-user"
 import { NavSecondary } from "@/components/nav-secondary"
 

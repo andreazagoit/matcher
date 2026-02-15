@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useSession } from "next-auth/react"
+import { useSession } from "@/lib/auth-client"
 import { Loader2Icon, SendIcon } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { useMutation } from "@apollo/client/react"

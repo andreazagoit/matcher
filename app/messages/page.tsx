@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
 import { Page } from "@/components/page";
 import { Card } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession, signIn } from "@/lib/auth-client";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import { Suspense } from "react";
 
 function ChatPageContent() {
-    const { status } = useSession();
+    const { data: session, isPending } = useSession();
     const searchParams = useSearchParams();
     const router = useRouter();
 
     const conversationId = searchParams.get("id");
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversationId);
+    const oauthRedirectStartedRef = useRef(false);
 
     // URL param and state are already synced by initialization and handleSelect
     // No need for redundant useEffect that triggers cascading renders
@@ -27,11 +28,14 @@ function ChatPageContent() {
         router.push(`/messages?id=${id}`);
     };
 
-    if (status === "loading") return null;
-    if (status === "unauthenticated") {
-        signIn("matcher", { callbackUrl: "/messages" });
-        return null;
-    }
+    useEffect(() => {
+        if (!isPending && !session && !oauthRedirectStartedRef.current) {
+            oauthRedirectStartedRef.current = true;
+            signIn.oauth2({ providerId: "identitymatcher", callbackURL: "/messages" });
+        }
+    }, [isPending, session]);
+
+    if (isPending || !session) return null;
 
 
     return (

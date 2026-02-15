@@ -1,7 +1,10 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
-
+/**
+ * Auth provider wrapper.
+ * better-auth uses cookie-based sessions — no client-side provider needed.
+ * This component is kept as a passthrough for layout compatibility.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    return <SessionProvider>{children}</SessionProvider>;
+    return <>{children}</>;
 }

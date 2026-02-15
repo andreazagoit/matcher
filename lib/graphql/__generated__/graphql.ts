@@ -43,15 +43,11 @@ export type CreateTierInput = {
 };
 
 export type CreateUserInput = {
-  birthDate: Scalars['String']['input'];
+  birthdate: Scalars['String']['input'];
   email: Scalars['String']['input'];
-  firstName: Scalars['String']['input'];
+  givenName: Scalars['String']['input'];
   gender?: InputMaybe<Gender>;
-  languages?: InputMaybe<Array<Scalars['String']['input']>>;
-  lastName: Scalars['String']['input'];
-  latitude?: InputMaybe<Scalars['Float']['input']>;
-  longitude?: InputMaybe<Scalars['Float']['input']>;
-  searchRadius?: InputMaybe<Scalars['Int']['input']>;
+  familyName: Scalars['String']['input'];
 };
 
 export enum Gender {
@@ -355,63 +351,55 @@ export type UpdateTierInput = {
 };
 
 export type UpdateUserInput = {
-  birthDate?: InputMaybe<Scalars['String']['input']>;
+  birthdate?: InputMaybe<Scalars['String']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
-  firstName?: InputMaybe<Scalars['String']['input']>;
+  givenName?: InputMaybe<Scalars['String']['input']>;
   gender?: InputMaybe<Gender>;
-  languages?: InputMaybe<Array<Scalars['String']['input']>>;
-  lastName?: InputMaybe<Scalars['String']['input']>;
-  latitude?: InputMaybe<Scalars['Float']['input']>;
-  longitude?: InputMaybe<Scalars['Float']['input']>;
-  searchRadius?: InputMaybe<Scalars['Int']['input']>;
+  familyName?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** Utente base - dati anagrafici */
 export type User = {
   __typename: 'User';
-  birthDate: Scalars['String']['output'];
+  birthdate: Scalars['String']['output'];
   createdAt: Scalars['String']['output'];
   email: Scalars['String']['output'];
-  firstName: Scalars['String']['output'];
+  givenName: Scalars['String']['output'];
   gender: Maybe<Gender>;
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
-  languages: Array<Scalars['String']['output']>;
-  lastName: Scalars['String']['output'];
-  latitude: Maybe<Scalars['Float']['output']>;
-  longitude: Maybe<Scalars['Float']['output']>;
+  familyName: Scalars['String']['output'];
   profile: Maybe<Profile>;
-  searchRadius: Scalars['Int']['output'];
   updatedAt: Scalars['String']['output'];
 };
 
-export type ConversationFieldsFragment = { __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, firstName: string, lastName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null };
+export type ConversationFieldsFragment = { __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null };
 
-export type MessageFieldsFragment = { __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, firstName: string, lastName: string, image: string | null } };
+export type MessageFieldsFragment = { __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } };
 
 export type GetConversationsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, firstName: string, lastName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null }> };
+export type GetConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null }> };
 
 export type GetRecentConversationsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetRecentConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, unreadCount: number | null, otherParticipant: { __typename: 'User', firstName: string, lastName: string } }> };
+export type GetRecentConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, unreadCount: number | null, otherParticipant: { __typename: 'User', givenName: string, familyName: string } }> };
 
 export type GetMessagesQueryVariables = Exact<{
   conversationId: Scalars['ID']['input'];
 }>;
 
 
-export type GetMessagesQuery = { messages: Array<{ __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, firstName: string, lastName: string, image: string | null } }>, conversation: { __typename: 'Conversation', id: string, otherParticipant: { __typename: 'User', id: string, firstName: string, lastName: string, image: string | null } } | null };
+export type GetMessagesQuery = { messages: Array<{ __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } }>, conversation: { __typename: 'Conversation', id: string, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } } | null };
 
 export type StartConversationMutationVariables = Exact<{
   targetUserId: Scalars['ID']['input'];
 }>;
 
 
-export type StartConversationMutation = { startConversation: { __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, firstName: string, lastName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null } };
+export type StartConversationMutation = { startConversation: { __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null } };
 
 export type SendMessageMutationVariables = Exact<{
   conversationId: Scalars['ID']['input'];
@@ -431,7 +419,7 @@ export type MarkAsReadMutation = { markAsRead: boolean | null };
 export type GetDailyMatchesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetDailyMatchesQuery = { dailyMatches: Array<{ __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string }> };
+export type GetDailyMatchesQuery = { dailyMatches: Array<{ __typename: 'User', id: string, givenName: string, familyName: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string }> };
 
 export type UpdateMemberRoleMutationVariables = Exact<{
   spaceId: Scalars['ID']['input'];
@@ -450,7 +438,7 @@ export type RemoveMemberMutationVariables = Exact<{
 
 export type RemoveMemberMutation = { removeMember: boolean };
 
-export type PostFieldsFragment = { __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: string, author: { __typename: 'User', id: string, firstName: string, lastName: string } };
+export type PostFieldsFragment = { __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: string, author: { __typename: 'User', id: string, givenName: string, familyName: string } };
 
 export type GetGlobalFeedQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -458,7 +446,7 @@ export type GetGlobalFeedQueryVariables = Exact<{
 }>;
 
 
-export type GetGlobalFeedQuery = { globalFeed: Array<{ __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: string, author: { __typename: 'User', id: string, firstName: string, lastName: string } }> | null };
+export type GetGlobalFeedQuery = { globalFeed: Array<{ __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: string, author: { __typename: 'User', id: string, givenName: string, familyName: string } }> | null };
 
 export type GetSpaceFeedQueryVariables = Exact<{
   spaceId: Scalars['ID']['input'];
@@ -467,7 +455,7 @@ export type GetSpaceFeedQueryVariables = Exact<{
 }>;
 
 
-export type GetSpaceFeedQuery = { space: { __typename: 'Space', feed: Array<{ __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: string, author: { __typename: 'User', id: string, firstName: string, lastName: string } }> | null } | null };
+export type GetSpaceFeedQuery = { space: { __typename: 'Space', feed: Array<{ __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: string, author: { __typename: 'User', id: string, givenName: string, familyName: string } }> | null } | null };
 
 export type CreatePostMutationVariables = Exact<{
   spaceId: Scalars['ID']['input'];
@@ -504,7 +492,7 @@ export type GetSpaceQueryVariables = Exact<{
 }>;
 
 
-export type GetSpaceQuery = { space: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', id: string, role: string, status: string, tier: { __typename: 'MembershipTier', id: string, name: string, price: number, interval: string } | null } | null, tiers: Array<{ __typename: 'MembershipTier', id: string, name: string, description: string | null, price: number, currency: string, interval: string, isActive: boolean, spaceId: string }> | null, members: Array<{ __typename: 'Member', id: string, role: string, status: string, joinedAt: string, tier: { __typename: 'MembershipTier', name: string } | null, user: { __typename: 'User', id: string, firstName: string, lastName: string, email: string } }> | null } | null };
+export type GetSpaceQuery = { space: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', id: string, role: string, status: string, tier: { __typename: 'MembershipTier', id: string, name: string, price: number, interval: string } | null } | null, tiers: Array<{ __typename: 'MembershipTier', id: string, name: string, description: string | null, price: number, currency: string, interval: string, isActive: boolean, spaceId: string }> | null, members: Array<{ __typename: 'Member', id: string, role: string, status: string, joinedAt: string, tier: { __typename: 'MembershipTier', name: string } | null, user: { __typename: 'User', id: string, givenName: string, familyName: string, email: string } }> | null } | null };
 
 export type CreateSpaceMutationVariables = Exact<{
   input: CreateSpaceInput;
@@ -567,12 +555,12 @@ export type ArchiveTierMutationVariables = Exact<{
 
 export type ArchiveTierMutation = { archiveTier: boolean };
 
-export type UserFieldsFragment = { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string };
+export type UserFieldsFragment = { __typename: 'User', id: string, givenName: string, familyName: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string };
 
 export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMeQuery = { me: { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string } | null };
+export type GetMeQuery = { me: { __typename: 'User', id: string, givenName: string, familyName: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string } | null };
 
 export type UpdateUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -580,4 +568,4 @@ export type UpdateUserMutationVariables = Exact<{
 }>;
 
 
-export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, firstName: string, lastName: string, email: string, birthDate: string, gender: Gender | null, languages: Array<string>, latitude: number | null, longitude: number | null, searchRadius: number, image: string | null, createdAt: string, updatedAt: string } | null };
+export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, givenName: string, familyName: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string } | null };

@@ -13,7 +13,7 @@ export const platformResolvers = {
             }
             return {
                 id: context.auth.user.id,
-                name: `${context.auth.user.firstName} ${context.auth.user.lastName}`,
+                name: `${context.auth.user.givenName} ${context.auth.user.familyName}`,
                 image: context.auth.user.image
             };
         }

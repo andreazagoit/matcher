@@ -9,8 +9,8 @@ interface UserCardProps {
 }
 
 export function UserCard({ user, compatibility }: UserCardProps) {
-    const name = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || "Unknown User";
-    const initials = (user.firstName?.[0] || "") + (user.lastName?.[0] || "");
+    const name = `${user.givenName ?? ""} ${user.familyName ?? ""}`.trim() || user.email || "Unknown User";
+    const initials = (user.givenName?.[0] || "") + (user.familyName?.[0] || "");
 
     return (
         <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">

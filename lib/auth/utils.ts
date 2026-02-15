@@ -1,12 +1,13 @@
-import { auth } from "@/lib/oauth/auth";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 export interface AuthContext {
     user: {
         id: string;
-        firstName: string;
-        lastName: string;
+        givenName: string;
+        familyName: string;
         email: string;
-        birthDate: string;
+        birthdate: string;
         gender: string | null;
         createdAt: string;
         updatedAt: string;
@@ -16,26 +17,30 @@ export interface AuthContext {
 
 /**
  * Utility to get the authenticated user context for GraphQL resolvers.
- * Performs a check to ensure the user actually exists in the DB.
+ * Uses better-auth session from cookies.
  */
 export async function getAuthContext(): Promise<AuthContext> {
-    const session = await auth();
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
 
     if (!session?.user?.id) {
         return { user: null };
     }
 
+    const u = session.user;
+
     return {
         user: {
-            id: session.user.id,
-            firstName: (session.user as { firstName?: string }).firstName || "",
-            lastName: (session.user as { lastName?: string }).lastName || "",
-            email: session.user.email || "",
-            birthDate: (session.user as { birthDate?: string }).birthDate || "",
-            gender: (session.user as { gender?: string | null }).gender || null,
-            createdAt: (session.user as { createdAt?: string }).createdAt || new Date().toISOString(),
-            updatedAt: (session.user as { updatedAt?: string }).updatedAt || new Date().toISOString(),
-            image: (session.user as { image?: string | null }).image || null,
+            id: u.id,
+            givenName: (u as Record<string, unknown>).givenName as string || "",
+            familyName: (u as Record<string, unknown>).familyName as string || "",
+            email: u.email || "",
+            birthdate: (u as Record<string, unknown>).birthdate as string || "",
+            gender: (u as Record<string, unknown>).gender as string | null || null,
+            createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
+            updatedAt: u.updatedAt ? new Date(u.updatedAt).toISOString() : new Date().toISOString(),
+            image: u.image || null,
         },
     };
 }

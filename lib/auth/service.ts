@@ -9,9 +9,9 @@ import { users } from "@/lib/models/users/schema";
 export interface SignUpInput {
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
-    birthDate: string;
+    givenName: string;
+    familyName: string;
+    birthdate: string;
     gender?: "man" | "woman" | "non_binary";
 }
 
@@ -26,9 +26,9 @@ export async function signUp(input: SignUpInput) {
         .insert(users)
         .values({
             email: input.email,
-            firstName: input.firstName,
-            lastName: input.lastName,
-            birthDate: input.birthDate,
+            givenName: input.givenName,
+            familyName: input.familyName,
+            birthdate: input.birthdate,
             gender: input.gender,
         })
         .returning();

@@ -1,4 +1,5 @@
-import { auth } from "@/lib/oauth/auth";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import { query } from "@/lib/graphql/apollo-client";
 import { GET_ME } from "@/lib/models/users/gql";
 import { AccountForm } from "./account-form";
@@ -8,7 +9,9 @@ import { redirect } from "next/navigation";
 import type { GetMeQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default async function AccountPage() {
-    const session = await auth();
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
 
     if (!session?.user?.id) {
         redirect("/");

@@ -7,15 +7,11 @@ import { gql } from "graphql-tag";
 export const USER_FRAGMENT = gql`
   fragment UserFields on User {
     id
-    firstName
-    lastName
+    givenName
+    familyName
     email
-    birthDate
+    birthdate
     gender
-    languages
-    latitude
-    longitude
-    searchRadius
     image
     createdAt
     updatedAt
@@ -47,3 +43,4 @@ export const UPDATE_USER = gql`
     }
   }
 `;
+

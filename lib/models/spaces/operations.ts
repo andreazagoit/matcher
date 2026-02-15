@@ -188,26 +188,3 @@ export async function validateApiKey(secretKey: string): Promise<Space | null> {
   return null;
 }
 
-export async function validateOAuthClient(clientId: string): Promise<Space | null> {
-  const space = await getSpaceByClientId(clientId);
-  if (!space || !space.isActive) return null;
-  return space;
-}
-
-export function isRedirectUriAllowed(space: Space | null, redirectUri: string): boolean {
-  if (!space) return false;
-  return space.redirectUris?.includes(redirectUri) ?? false;
-}
-
-export async function validateClientCredentials(
-  clientId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _clientSecret?: string
-): Promise<Space | null> {
-  return validateOAuthClient(clientId);
-}
-
-export function clientSupportsGrant(_space: Space, grantType: string): boolean {
-  const supportedGrants = ["authorization_code", "refresh_token"];
-  return supportedGrants.includes(grantType);
-}

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { signIn, signOut } from "next-auth/react";
+import { signIn, signOut, useSession } from "@/lib/auth-client";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -15,45 +14,18 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogIn } from "lucide-react";
 
-interface UserInfo {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-}
-
 export function UserNav() {
-    const [user, setUser] = useState<UserInfo | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function checkAuth() {
-            try {
-                const res = await fetch("/oauth/api/profile-status");
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.authenticated) {
-                        setUser(data.user);
-                    }
-                }
-            } catch {
-                // Not authenticated
-            } finally {
-                setLoading(false);
-            }
-        }
-        checkAuth();
-    }, []);
+    const { data: session, isPending } = useSession();
 
     const handleLogin = () => {
-        signIn("matcher", { callbackUrl: "/spaces" });
+        signIn.oauth2({ providerId: "identitymatcher", callbackURL: "/spaces" });
     };
 
     const handleLogout = async () => {
-        await signOut({ callbackUrl: "/" });
+        await signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } });
     };
 
-    if (loading) {
+    if (isPending) {
         return (
             <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
@@ -61,7 +33,7 @@ export function UserNav() {
         );
     }
 
-    if (!user) {
+    if (!session?.user) {
         return (
             <Button onClick={handleLogin} size="sm" variant="outline">
                 <LogIn className="mr-2 h-4 w-4" />
@@ -70,13 +42,17 @@ export function UserNav() {
         );
     }
 
+    const user = session.user;
+    const givenName = (user as Record<string, unknown>).givenName as string || "";
+    const familyName = (user as Record<string, unknown>).familyName as string || "";
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                         <AvatarFallback>
-                            {user.firstName?.[0]}{user.lastName?.[0]}
+                            {givenName?.[0]}{familyName?.[0]}
                         </AvatarFallback>
                     </Avatar>
                 </Button>
@@ -84,7 +60,7 @@ export function UserNav() {
             <DropdownMenuContent align="end" className="w-[200px]">
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
+                        <p className="text-sm font-medium leading-none">{givenName} {familyName}</p>
                         <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                     </div>
                 </DropdownMenuLabel>

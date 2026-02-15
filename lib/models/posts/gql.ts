@@ -14,8 +14,8 @@ export const POST_FRAGMENT = gql`
     createdAt
     author {
       id
-      firstName
-      lastName
+      givenName
+      familyName
     }
   }
 `;

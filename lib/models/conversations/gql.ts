@@ -12,8 +12,8 @@ export const CONVERSATION_FRAGMENT = gql`
     updatedAt
     otherParticipant {
       id
-      firstName
-      lastName
+      givenName
+      familyName
       image
     }
     lastMessage {
@@ -33,8 +33,8 @@ export const MESSAGE_FRAGMENT = gql`
     createdAt
     sender {
       id
-      firstName
-      lastName
+      givenName
+      familyName
       image
     }
   }
@@ -58,8 +58,8 @@ export const GET_RECENT_CONVERSATIONS = gql`
     conversations {
       id
       otherParticipant {
-        firstName
-        lastName
+        givenName
+        familyName
       }
       unreadCount
     }
@@ -76,8 +76,8 @@ export const GET_MESSAGES = gql`
       id
       otherParticipant {
         id
-        firstName
-        lastName
+        givenName
+        familyName
         image
       }
     }

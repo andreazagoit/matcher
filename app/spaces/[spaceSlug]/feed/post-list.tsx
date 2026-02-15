@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
     Loader2Icon
 } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useSession } from "@/lib/auth-client"
 import { PostCard } from "@/components/feed/post-card"
 import { useQuery, useMutation } from "@apollo/client/react"
 import { GET_SPACE_FEED, DELETE_POST } from "@/lib/models/posts/gql"

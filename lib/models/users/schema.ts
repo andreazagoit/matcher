@@ -7,8 +7,6 @@ import {
   index,
   pgEnum,
   boolean,
-  real,
-  integer,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -23,26 +21,22 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
 
     // ==========================================
-    // DEMOGRAPHIC DATA
+    // BETTER-AUTH REQUIRED FIELDS
     // ==========================================
-    firstName: text("first_name").notNull(),
-    lastName: text("last_name").notNull(),
+    /** Display name (required by better-auth, auto-set from givenName + familyName) */
+    name: text("name").notNull().default(""),
+
+    // ==========================================
+    // DEMOGRAPHIC DATA (OIDC standard naming)
+    // ==========================================
+    givenName: text("given_name"),
+    familyName: text("family_name"),
     email: text("email").notNull().unique(),
-    birthDate: date("birth_date").notNull(),
+    birthdate: date("birthdate"),
     gender: genderEnum("gender"),
 
     // ==========================================
-    // LOCALE & GEOLOCATION
-    // ==========================================
-    /** Spoken languages (ISO 639-1 codes, e.g. ['it', 'en']) */
-    languages: text("languages").array().default([]).notNull(),
-    /** GPS latitude (nullable — user may decline) */
-    latitude: real("latitude"),
-    /** GPS longitude (nullable — user may decline) */
-    longitude: real("longitude"),
-
-    // ==========================================
-    // AUTHENTICATION FIELDS (NextAuth/Better-Auth)
+    // AUTHENTICATION FIELDS (Better-Auth)
     // ==========================================
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),

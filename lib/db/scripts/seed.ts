@@ -14,33 +14,33 @@ import { createSpace } from "../../models/spaces/operations";
 
 const SEED_USERS = [
   // Admin user
-  { firstName: "Admin", lastName: "System", email: "admin@matcher.local", birthDate: "1990-01-01", gender: "man" as const },
+  { givenName: "Admin", familyName: "System", email: "admin@matcher.local", birthdate: "1990-01-01", gender: "man" as const },
   // Regular users
-  { firstName: "Mario", lastName: "Rossi", email: "mario.rossi@example.com", birthDate: "1995-03-15", gender: "man" as const },
-  { firstName: "Laura", lastName: "Bianchi", email: "laura.bianchi@example.com", birthDate: "1998-07-22", gender: "woman" as const },
-  { firstName: "Alessandro", lastName: "Verdi", email: "alessandro.verdi@example.com", birthDate: "1992-11-08", gender: "man" as const },
-  { firstName: "Giulia", lastName: "Neri", email: "giulia.neri@example.com", birthDate: "1996-05-30", gender: "woman" as const },
-  { firstName: "Marco", lastName: "Ferrari", email: "marco.ferrari@example.com", birthDate: "1994-01-20", gender: "man" as const },
-  { firstName: "Sofia", lastName: "Romano", email: "sofia.romano@example.com", birthDate: "1997-09-12", gender: "woman" as const },
-  { firstName: "Luca", lastName: "Colombo", email: "luca.colombo@example.com", birthDate: "1993-06-25", gender: "man" as const },
-  { firstName: "Emma", lastName: "Ricci", email: "emma.ricci@example.com", birthDate: "1999-02-14", gender: "woman" as const },
-  { firstName: "Andrea", lastName: "Marino", email: "andrea.marino@example.com", birthDate: "1991-12-03", gender: "man" as const },
-  { firstName: "Chiara", lastName: "Greco", email: "chiara.greco@example.com", birthDate: "1996-08-18", gender: "woman" as const },
-  { firstName: "Francesco", lastName: "Bruno", email: "francesco.bruno@example.com", birthDate: "1994-04-07", gender: "man" as const },
-  { firstName: "Valentina", lastName: "Gallo", email: "valentina.gallo@example.com", birthDate: "1998-10-29", gender: "woman" as const },
-  { firstName: "Matteo", lastName: "Conti", email: "matteo.conti@example.com", birthDate: "1992-07-11", gender: "man" as const },
-  { firstName: "Alessia", lastName: "Costa", email: "alessia.costa@example.com", birthDate: "1997-03-22", gender: "woman" as const },
-  { firstName: "Davide", lastName: "Fontana", email: "davide.fontana@example.com", birthDate: "1995-11-05", gender: "man" as const },
-  { firstName: "Martina", lastName: "Caruso", email: "martina.caruso@example.com", birthDate: "1999-01-16", gender: "woman" as const },
-  { firstName: "Simone", lastName: "Mancini", email: "simone.mancini@example.com", birthDate: "1993-09-28", gender: "man" as const },
-  { firstName: "Giorgia", lastName: "Rizzo", email: "giorgia.rizzo@example.com", birthDate: "1996-12-09", gender: "woman" as const },
-  { firstName: "Riccardo", lastName: "Lombardi", email: "riccardo.lombardi@example.com", birthDate: "1994-05-19", gender: "man" as const },
-  { firstName: "Elisa", lastName: "Moretti", email: "elisa.moretti@example.com", birthDate: "1998-08-31", gender: "woman" as const },
-  { firstName: "Lorenzo", lastName: "Serra", email: "lorenzo.serra@example.com", birthDate: "1993-02-14", gender: "man" as const },
-  { firstName: "Francesca", lastName: "De Luca", email: "francesca.deluca@example.com", birthDate: "1997-06-07", gender: "woman" as const },
-  { firstName: "Tommaso", lastName: "Longo", email: "tommaso.longo@example.com", birthDate: "1995-10-23", gender: "man" as const },
-  { firstName: "Beatrice", lastName: "Leone", email: "beatrice.leone@example.com", birthDate: "1998-04-11", gender: "woman" as const },
-  { firstName: "Gabriele", lastName: "Martinelli", email: "gabriele.martinelli@example.com", birthDate: "1992-12-28", gender: "man" as const },
+  { givenName: "Mario", familyName: "Rossi", email: "mario.rossi@example.com", birthdate: "1995-03-15", gender: "man" as const },
+  { givenName: "Laura", familyName: "Bianchi", email: "laura.bianchi@example.com", birthdate: "1998-07-22", gender: "woman" as const },
+  { givenName: "Alessandro", familyName: "Verdi", email: "alessandro.verdi@example.com", birthdate: "1992-11-08", gender: "man" as const },
+  { givenName: "Giulia", familyName: "Neri", email: "giulia.neri@example.com", birthdate: "1996-05-30", gender: "woman" as const },
+  { givenName: "Marco", familyName: "Ferrari", email: "marco.ferrari@example.com", birthdate: "1994-01-20", gender: "man" as const },
+  { givenName: "Sofia", familyName: "Romano", email: "sofia.romano@example.com", birthdate: "1997-09-12", gender: "woman" as const },
+  { givenName: "Luca", familyName: "Colombo", email: "luca.colombo@example.com", birthdate: "1993-06-25", gender: "man" as const },
+  { givenName: "Emma", familyName: "Ricci", email: "emma.ricci@example.com", birthdate: "1999-02-14", gender: "woman" as const },
+  { givenName: "Andrea", familyName: "Marino", email: "andrea.marino@example.com", birthdate: "1991-12-03", gender: "man" as const },
+  { givenName: "Chiara", familyName: "Greco", email: "chiara.greco@example.com", birthdate: "1996-08-18", gender: "woman" as const },
+  { givenName: "Francesco", familyName: "Bruno", email: "francesco.bruno@example.com", birthdate: "1994-04-07", gender: "man" as const },
+  { givenName: "Valentina", familyName: "Gallo", email: "valentina.gallo@example.com", birthdate: "1998-10-29", gender: "woman" as const },
+  { givenName: "Matteo", familyName: "Conti", email: "matteo.conti@example.com", birthdate: "1992-07-11", gender: "man" as const },
+  { givenName: "Alessia", familyName: "Costa", email: "alessia.costa@example.com", birthdate: "1997-03-22", gender: "woman" as const },
+  { givenName: "Davide", familyName: "Fontana", email: "davide.fontana@example.com", birthdate: "1995-11-05", gender: "man" as const },
+  { givenName: "Martina", familyName: "Caruso", email: "martina.caruso@example.com", birthdate: "1999-01-16", gender: "woman" as const },
+  { givenName: "Simone", familyName: "Mancini", email: "simone.mancini@example.com", birthdate: "1993-09-28", gender: "man" as const },
+  { givenName: "Giorgia", familyName: "Rizzo", email: "giorgia.rizzo@example.com", birthdate: "1996-12-09", gender: "woman" as const },
+  { givenName: "Riccardo", familyName: "Lombardi", email: "riccardo.lombardi@example.com", birthdate: "1994-05-19", gender: "man" as const },
+  { givenName: "Elisa", familyName: "Moretti", email: "elisa.moretti@example.com", birthdate: "1998-08-31", gender: "woman" as const },
+  { givenName: "Lorenzo", familyName: "Serra", email: "lorenzo.serra@example.com", birthdate: "1993-02-14", gender: "man" as const },
+  { givenName: "Francesca", familyName: "De Luca", email: "francesca.deluca@example.com", birthdate: "1997-06-07", gender: "woman" as const },
+  { givenName: "Tommaso", familyName: "Longo", email: "tommaso.longo@example.com", birthdate: "1995-10-23", gender: "man" as const },
+  { givenName: "Beatrice", familyName: "Leone", email: "beatrice.leone@example.com", birthdate: "1998-04-11", gender: "woman" as const },
+  { givenName: "Gabriele", familyName: "Martinelli", email: "gabriele.martinelli@example.com", birthdate: "1992-12-28", gender: "man" as const },
 ];
 
 // Example open-ended answers
@@ -110,26 +110,23 @@ async function seed() {
 
   try {
     // 0. Create system admin and Space
-    const adminData = SEED_USERS[0];
+    const adminData = {
+      ...SEED_USERS[0],
+      name: `${SEED_USERS[0].givenName} ${SEED_USERS[0].familyName}`,
+    };
     const [adminUser] = await db.insert(users).values(adminData).returning();
     console.log(`  🔑 Created Admin User: ${adminData.email}`);
 
-    const systemSpace = await createSpace({
+    const { space: systemSpace } = await createSpace({
       name: "Matcher System",
       slug: "matcher-system",
       description: "Official Matcher System Space for internal use",
-      redirectUris: [
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/matcher`, // Auth.js callback
-      ],
       creatorId: adminUser.id,
       visibility: "hidden",
       joinPolicy: "invite_only",
       image: "https://placehold.co/400x400/333/fff?text=System",
     });
-    console.log(`  🔑 Created System Space:`);
-    console.log(`     Client ID: ${systemSpace.clientId}`);
-    console.log(`     Secret Key: ${systemSpace.secretKey}`);
-    console.log(`     ⚠️  Add these to .env as OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET`);
+    console.log(`  🔑 Created System Space: ${systemSpace.slug}`);
 
     // Create some public demo spaces
     await createSpace({
@@ -154,7 +151,10 @@ async function seed() {
 
     // Process other users (skip admin)
     for (let i = 1; i < SEED_USERS.length; i++) {
-      const userData = SEED_USERS[i];
+      const userData = {
+        ...SEED_USERS[i],
+        name: `${SEED_USERS[i].givenName} ${SEED_USERS[i].familyName}`,
+      };
 
       // 1. Create User
       const [user] = await db.insert(users).values(userData).returning();
@@ -195,7 +195,7 @@ async function seed() {
         assessmentVersion: 1,
       });
 
-      console.log(`  ✓ ${i + 1}/${SEED_USERS.length} - ${userData.firstName} ${userData.lastName}`);
+      console.log(`  ✓ ${i + 1}/${SEED_USERS.length} - ${userData.givenName} ${userData.familyName}`);
     }
 
     console.log(`\n✅ Created ${SEED_USERS.length} users with test sessions and profiles`);

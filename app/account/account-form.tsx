@@ -14,7 +14,7 @@ import type { User, UpdateUserMutation, UpdateUserMutationVariables } from "@/li
 import { Gender } from "@/lib/graphql/__generated__/graphql";
 
 // Pick only the fields we need for the form
-type UserFormData = Pick<User, "id" | "firstName" | "lastName" | "email" | "birthDate" | "gender">;
+type UserFormData = Pick<User, "id" | "givenName" | "familyName" | "email" | "birthdate" | "gender">;
 
 export function AccountForm({ initialUser }: { initialUser: UserFormData }) {
     const [updateUser, { loading: mutationLoading }] = useMutation<UpdateUserMutation, UpdateUserMutationVariables>(UPDATE_USER);
@@ -40,10 +40,10 @@ export function AccountForm({ initialUser }: { initialUser: UserFormData }) {
                 variables: {
                     id,
                     input: {
-                        firstName: input.firstName,
-                        lastName: input.lastName,
+                        givenName: input.givenName,
+                        familyName: input.familyName,
                         email: input.email,
-                        birthDate: input.birthDate,
+                        birthdate: input.birthdate,
                         gender: input.gender,
                     }
                 }
@@ -72,21 +72,21 @@ export function AccountForm({ initialUser }: { initialUser: UserFormData }) {
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2.5">
-                            <Label htmlFor="firstName" className="text-sm font-semibold">First Name</Label>
+                            <Label htmlFor="givenName" className="text-sm font-semibold">Given Name</Label>
                             <Input
-                                id="firstName"
-                                value={formData.firstName}
-                                onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                                id="givenName"
+                                value={formData.givenName}
+                                onChange={(e) => setFormData(prev => ({ ...prev, givenName: e.target.value }))}
                                 required
                                 className="h-11"
                             />
                         </div>
                         <div className="space-y-2.5">
-                            <Label htmlFor="lastName" className="text-sm font-semibold">Last Name</Label>
+                            <Label htmlFor="familyName" className="text-sm font-semibold">Family Name</Label>
                             <Input
-                                id="lastName"
-                                value={formData.lastName}
-                                onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                                id="familyName"
+                                value={formData.familyName}
+                                onChange={(e) => setFormData(prev => ({ ...prev, familyName: e.target.value }))}
                                 required
                                 className="h-11"
                             />
@@ -107,13 +107,13 @@ export function AccountForm({ initialUser }: { initialUser: UserFormData }) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2.5">
-                            <Label htmlFor="birthDate" className="text-sm font-semibold">Birth Date</Label>
+                            <Label htmlFor="birthdate" className="text-sm font-semibold">Birth Date</Label>
                             <Input
-                                id="birthDate"
+                                id="birthdate"
                                 type="date"
                                 // Ensure date format YYYY-MM-DD
-                                value={formData.birthDate ? new Date(formData.birthDate).toISOString().split('T')[0] : ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+                                value={formData.birthdate ? new Date(formData.birthdate).toISOString().split('T')[0] : ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, birthdate: e.target.value }))}
                                 required
                                 className="h-11"
                             />

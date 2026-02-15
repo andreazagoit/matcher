@@ -164,16 +164,16 @@ export async function findMatches(
     filterConditions.push(inArray(users.gender, gender));
   }
 
-  // Age calculated from birthDate (using SQL interval logic)
+  // Age calculated from birthdate (using SQL interval logic)
   if (minAge !== undefined) {
     filterConditions.push(
-      sql`EXTRACT(YEAR FROM AGE(${users.birthDate})) >= ${minAge}`
+      sql`EXTRACT(YEAR FROM AGE(${users.birthdate})) >= ${minAge}`
     );
   }
 
   if (maxAge !== undefined) {
     filterConditions.push(
-      sql`EXTRACT(YEAR FROM AGE(${users.birthDate})) <= ${maxAge}`
+      sql`EXTRACT(YEAR FROM AGE(${users.birthdate})) <= ${maxAge}`
     );
   }
 

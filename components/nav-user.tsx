@@ -16,7 +16,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
-import { signIn } from "next-auth/react"
+import { signIn } from "@/lib/auth-client"
 
 export function NavUser({
     user,
@@ -34,7 +34,7 @@ export function NavUser({
         return (
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" onClick={() => signIn("matcher")}>
+                    <SidebarMenuButton size="lg" onClick={() => signIn.oauth2({ providerId: "identitymatcher" })}>
                         <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                             <LogIn className="size-4" />
                         </div>

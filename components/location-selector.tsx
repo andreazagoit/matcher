@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMutation, useQuery } from "@apollo/client/react";
-import { MapPin, Target, Save, Loader2 } from "lucide-react";
+import { MapPin, Target, Loader2 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -10,15 +9,18 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-    DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { UPDATE_USER, GET_ME } from "@/lib/models/users/gql";
 import { toast } from "sonner";
-import type { GetMeQuery, UpdateUserMutation, UpdateUserMutationVariables } from "@/lib/graphql/__generated__/graphql";
 
+/**
+ * Location Selector
+ *
+ * Saves GPS position and search radius locally (cookies).
+ * In the future, position will be sent to identitymatcher via its API.
+ */
 export function LocationSelector() {
     const [open, setOpen] = useState(false);
     const [radius, setRadius] = useState(50);
@@ -26,37 +28,38 @@ export function LocationSelector() {
     const [lng, setLng] = useState<number | null>(null);
     const [isLocating, setIsLocating] = useState(false);
 
-    const { data: meData } = useQuery<GetMeQuery>(GET_ME);
-    const [updateUser] = useMutation<UpdateUserMutation, UpdateUserMutationVariables>(UPDATE_USER, {
-        onCompleted: () => {
-            toast.success("Position updated!");
-            setOpen(false);
-        },
-        onError: (error) => {
-            toast.error(error.message);
-        },
-        refetchQueries: [{ query: GET_ME }],
-    });
-
-    // Load preferences on mount
+    // Load preferences from cookies on mount
     useEffect(() => {
-        // Load radius from cookie
-        const cookies = document.cookie.split(';');
-        const radiusCookie = cookies.find(c => c.trim().startsWith('matcher_radius='));
+        const cookies = document.cookie.split(";");
+
+        const radiusCookie = cookies.find((c) =>
+            c.trim().startsWith("matcher_radius=")
+        );
         if (radiusCookie) {
-            const val = parseInt(radiusCookie.split('=')[1]);
+            const val = parseInt(radiusCookie.split("=")[1]);
             if (!isNaN(val)) setRadius(val);
         }
 
-        if (meData?.me) {
-            if (meData.me.latitude) setLat(meData.me.latitude);
-            if (meData.me.longitude) setLng(meData.me.longitude);
+        const latCookie = cookies.find((c) =>
+            c.trim().startsWith("matcher_lat=")
+        );
+        if (latCookie) {
+            const val = parseFloat(latCookie.split("=")[1]);
+            if (!isNaN(val)) setLat(val);
         }
-    }, [meData]);
+
+        const lngCookie = cookies.find((c) =>
+            c.trim().startsWith("matcher_lng=")
+        );
+        if (lngCookie) {
+            const val = parseFloat(lngCookie.split("=")[1]);
+            if (!isNaN(val)) setLng(val);
+        }
+    }, []);
 
     // Save radius to cookie whenever it changes
     useEffect(() => {
-        document.cookie = `matcher_radius=${radius}; path=/; max-age=${60 * 60 * 24 * 365}`; // 1 year
+        document.cookie = `matcher_radius=${radius}; path=/; max-age=${60 * 60 * 24 * 365}`;
     }, [radius]);
 
     const handleGetLocation = () => {
@@ -68,28 +71,24 @@ export function LocationSelector() {
         }
 
         navigator.geolocation.getCurrentPosition(
-            async (position) => {
+            (position) => {
                 const newLat = position.coords.latitude;
                 const newLng = position.coords.longitude;
                 setLat(newLat);
                 setLng(newLng);
                 setIsLocating(false);
 
-                // Automatically update db
-                if (meData?.me?.id) {
-                    await updateUser({
-                        variables: {
-                            id: meData.me.id,
-                            input: {
-                                latitude: newLat,
-                                longitude: newLng,
-                            },
-                        },
-                    });
-                }
+                // Save to cookies
+                const maxAge = 60 * 60 * 24 * 365; // 1 year
+                document.cookie = `matcher_lat=${newLat}; path=/; max-age=${maxAge}`;
+                document.cookie = `matcher_lng=${newLng}; path=/; max-age=${maxAge}`;
+
+                toast.success("Position updated!");
             },
             (error) => {
-                toast.error("Unable to retrieve your location: " + error.message);
+                toast.error(
+                    "Unable to retrieve your location: " + error.message
+                );
                 setIsLocating(false);
             }
         );
@@ -111,13 +110,16 @@ export function LocationSelector() {
                 <DialogHeader>
                     <DialogTitle>Matching Radius & Location</DialogTitle>
                     <DialogDescription>
-                        Set your current location and how far you want to look for matches.
+                        Set your current location and how far you want to look
+                        for matches.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="radius">Search Radius: {radius} km</Label>
+                            <Label htmlFor="radius">
+                                Search Radius: {radius} km
+                            </Label>
                             <Target className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <Slider
@@ -147,7 +149,9 @@ export function LocationSelector() {
                                 ) : (
                                     <MapPin className="mr-2 h-4 w-4" />
                                 )}
-                                {hasLocation ? "Update Position" : "Get Current Position"}
+                                {hasLocation
+                                    ? "Update Position"
+                                    : "Get Current Position"}
                             </Button>
                         </div>
                     </div>

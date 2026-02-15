@@ -15,15 +15,11 @@ export const userTypeDefs = `#graphql
   """
   type User {
     id: ID!
-    firstName: String!
-    lastName: String!
+    givenName: String!
+    familyName: String!
     email: String!
-    birthDate: String!
+    birthdate: String!
     gender: Gender
-    languages: [String!]!
-    latitude: Float
-    longitude: Float
-    searchRadius: Int!
     image: String
     createdAt: String!
     updatedAt: String!
@@ -55,27 +51,19 @@ export const userTypeDefs = `#graphql
 
 
   input CreateUserInput {
-    firstName: String!
-    lastName: String!
+    givenName: String!
+    familyName: String!
     email: String!
-    birthDate: String!
+    birthdate: String!
     gender: Gender
-    languages: [String!]
-    latitude: Float
-    longitude: Float
-    searchRadius: Int
   }
 
   input UpdateUserInput {
-    firstName: String
-    lastName: String
+    givenName: String
+    familyName: String
     email: String
-    birthDate: String
+    birthdate: String
     gender: Gender
-    languages: [String!]
-    latitude: Float
-    longitude: Float
-    searchRadius: Int
   }
 
   enum Gender {

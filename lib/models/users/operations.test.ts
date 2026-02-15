@@ -35,8 +35,8 @@ describe("findMatches", () => {
 
       // Check user fields
       expect(match.user).toHaveProperty("id");
-      expect(match.user).toHaveProperty("firstName");
-      expect(match.user).toHaveProperty("lastName");
+      expect(match.user).toHaveProperty("givenName");
+      expect(match.user).toHaveProperty("familyName");
     }
   });
 
