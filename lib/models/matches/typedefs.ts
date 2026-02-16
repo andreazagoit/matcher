@@ -9,6 +9,7 @@ export const matchTypeDefs = `#graphql
   type Match {
     user: MatchUser!
     similarity: Float!
+    distance: Float
     breakdown: MatchBreakdown!
   }
 
@@ -63,7 +64,7 @@ export const matchTypeDefs = `#graphql
     Find compatible matches for the authenticated user.
     Data is fetched from Identity Matcher.
     """
-    findMatches(limit: Int, gender: [String!], minAge: Int, maxAge: Int): [Match!]!
+    findMatches(maxDistance: Float! = 50, limit: Int, gender: [String!], minAge: Int, maxAge: Int): [Match!]!
 
     """
     Get the authenticated user's profile status (assessment + embeddings).

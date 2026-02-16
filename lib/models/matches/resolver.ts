@@ -26,6 +26,7 @@ export const matchResolvers = {
     findMatches: async (
       _: unknown,
       args: {
+        maxDistance?: number;
         limit?: number;
         gender?: string[];
         minAge?: number;
@@ -37,16 +38,17 @@ export const matchResolvers = {
       const externalId = await requireExternalUserId(user.id);
 
       const data = await idmGraphQL<{
-        findMatches: unknown[];
+        userMatches: unknown[];
       }>(IDM_FIND_MATCHES, {
         userId: externalId,
+        maxDistance: args.maxDistance ?? 50,
         limit: args.limit ?? 10,
         gender: args.gender,
         minAge: args.minAge,
         maxAge: args.maxAge,
       });
 
-      return data.findMatches;
+      return data.userMatches;
     },
 
     profileStatus: async (
@@ -58,10 +60,10 @@ export const matchResolvers = {
       const externalId = await requireExternalUserId(user.id);
 
       const data = await idmGraphQL<{
-        profileStatus: unknown;
+        userProfileStatus: unknown;
       }>(IDM_PROFILE_STATUS, { userId: externalId });
 
-      return data.profileStatus;
+      return data.userProfileStatus;
     },
 
     assessmentQuestions: async () => {
@@ -83,13 +85,13 @@ export const matchResolvers = {
       const externalId = await requireExternalUserId(user.id);
 
       const data = await idmGraphQL<{
-        submitAssessment: unknown;
+        submitUserAssessment: unknown;
       }>(IDM_SUBMIT_ASSESSMENT, {
         userId: externalId,
         answers: args.answers,
       });
 
-      return data.submitAssessment;
+      return data.submitUserAssessment;
     },
   },
 };

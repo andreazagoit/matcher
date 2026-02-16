@@ -10,8 +10,8 @@
 // ============================================
 
 export const IDM_FIND_MATCHES = `
-  query FindMatches($userId: ID!, $limit: Int, $gender: [String!], $minAge: Int, $maxAge: Int) {
-    findMatches(userId: $userId, limit: $limit, gender: $gender, minAge: $minAge, maxAge: $maxAge) {
+  query UserMatches($userId: ID!, $maxDistance: Float!, $limit: Int, $gender: [String!], $minAge: Int, $maxAge: Int) {
+    userMatches(userId: $userId, maxDistance: $maxDistance, limit: $limit, gender: $gender, minAge: $minAge, maxAge: $maxAge) {
       user {
         id
         name
@@ -22,6 +22,7 @@ export const IDM_FIND_MATCHES = `
         birthdate
       }
       similarity
+      distance
       breakdown {
         psychological
         values
@@ -33,8 +34,8 @@ export const IDM_FIND_MATCHES = `
 `;
 
 export const IDM_PROFILE_STATUS = `
-  query ProfileStatus($userId: ID!) {
-    profileStatus(userId: $userId) {
+  query UserProfileStatus($userId: ID!) {
+    userProfileStatus(userId: $userId) {
       hasAssessment
       hasProfile
       assessmentName
@@ -65,8 +66,8 @@ export const IDM_ASSESSMENT_QUESTIONS = `
 // ============================================
 
 export const IDM_SUBMIT_ASSESSMENT = `
-  mutation SubmitAssessment($userId: ID!, $answers: JSON!) {
-    submitAssessment(userId: $userId, answers: $answers) {
+  mutation SubmitUserAssessment($userId: ID!, $answers: JSON!) {
+    submitUserAssessment(userId: $userId, answers: $answers) {
       success
       profileComplete
     }

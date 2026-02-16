@@ -1,8 +1,8 @@
 import { gql } from "graphql-tag";
 
 export const GET_FIND_MATCHES = gql`
-  query GetFindMatches($limit: Int) {
-    findMatches(limit: $limit) {
+  query GetFindMatches($maxDistance: Float = 50, $limit: Int) {
+    findMatches(maxDistance: $maxDistance, limit: $limit) {
       user {
         id
         name
@@ -13,6 +13,7 @@ export const GET_FIND_MATCHES = gql`
         birthdate
       }
       similarity
+      distance
       breakdown {
         psychological
         values
