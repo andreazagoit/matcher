@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { ApolloWrapper } from "@/lib/graphql/apollo-provider";
 import { AuthProvider } from "@/components/auth-provider";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -38,6 +38,9 @@ export default function RootLayout({
             <SidebarProvider>
               <AppSidebar />
               <SidebarInset>
+                <div className="md:hidden sticky top-0 z-20 border-b bg-background/95 backdrop-blur px-2 py-2">
+                  <SidebarTrigger />
+                </div>
                 {children}
               </SidebarInset>
             </SidebarProvider>
