@@ -31,6 +31,16 @@ export const auth = betterAuth({
     },
   },
 
+  account: {
+    accountLinking: {
+      enabled: true,
+      // Identity Matcher is our trusted auth provider; allow implicit relinking
+      // when users recreate their upstream account with the same verified email.
+      trustedProviders: ["identitymatcher"],
+      updateUserInfoOnLink: true,
+    },
+  },
+
   user: {
     modelName: "users",
     additionalFields: {
@@ -67,7 +77,7 @@ export const auth = betterAuth({
       config: [
         {
           providerId: "identitymatcher",
-          discoveryUrl: `${authServerUrl}/.well-known/oauth-authorization-server`,
+          discoveryUrl: `${authServerUrl}/.well-known/openid-configuration`,
           clientId: process.env.OAUTH_CLIENT_ID!,
           clientSecret: process.env.OAUTH_CLIENT_SECRET!,
           pkce: true,
