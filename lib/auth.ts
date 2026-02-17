@@ -77,7 +77,7 @@ export const auth = betterAuth({
       config: [
         {
           providerId: "identitymatcher",
-          discoveryUrl: `${authServerUrl}/.well-known/openid-configuration`,
+          discoveryUrl: `${authServerUrl}/api/auth/.well-known/openid-configuration`,
           clientId: process.env.OAUTH_CLIENT_ID!,
           clientSecret: process.env.OAUTH_CLIENT_SECRET!,
           pkce: true,
