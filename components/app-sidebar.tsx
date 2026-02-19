@@ -1,7 +1,7 @@
 "use client"
 
 import {
-    Bell,
+    Calendar,
     Compass,
     GalleryVerticalEnd,
     LayoutDashboard,
@@ -57,6 +57,11 @@ const data = {
             icon: LayoutGrid,
         },
         {
+            title: "Events",
+            url: "/events",
+            icon: Calendar,
+        },
+        {
             title: "Messages",
             url: "/messages",
             icon: MessageSquare,
@@ -65,11 +70,6 @@ const data = {
             title: "Dashboard",
             url: "/dashboard",
             icon: LayoutDashboard,
-        },
-        {
-            title: "Notifiche",
-            url: "/notifications",
-            icon: Bell,
         },
     ],
     navSecondary: [

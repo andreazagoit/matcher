@@ -22,6 +22,42 @@ export const GET_SPACE_EVENTS = gql`
   }
 `;
 
+export const GET_MY_UPCOMING_EVENTS = gql`
+  query MyUpcomingEvents {
+    myUpcomingEvents {
+      id
+      title
+      description
+      location
+      startsAt
+      endsAt
+      maxAttendees
+      status
+      attendeeCount
+      tags
+      spaceId
+    }
+  }
+`;
+
+export const GET_RECOMMENDED_EVENTS = gql`
+  query RecommendedEvents($limit: Int) {
+    recommendedEvents(limit: $limit) {
+      id
+      title
+      description
+      location
+      startsAt
+      endsAt
+      maxAttendees
+      status
+      attendeeCount
+      tags
+      spaceId
+    }
+  }
+`;
+
 // ============================================
 // MUTATIONS
 // ============================================
