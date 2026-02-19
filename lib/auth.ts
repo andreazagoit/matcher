@@ -1,18 +1,18 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { genericOAuth } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins";
+import { expo } from "@better-auth/expo";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db/drizzle";
 import * as schema from "./db/schemas";
+import { sendOTPEmail } from "./email";
 
-const authServerUrl = process.env.OAUTH_SERVER_URL;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
 /**
  * Matcher — better-auth configuration
  *
- * Authenticates users via IdentityMatcher (external OAuth 2.1 provider).
- * Local session management using better-auth with Drizzle/PostgreSQL.
+ * Standalone auth with email OTP and email+password registration.
  */
 export const auth = betterAuth({
   baseURL: appUrl,
@@ -26,18 +26,7 @@ export const auth = betterAuth({
 
   advanced: {
     database: {
-      // Generate UUIDs at app level (auth tables use text PK without DB default)
       generateId: () => crypto.randomUUID(),
-    },
-  },
-
-  account: {
-    accountLinking: {
-      enabled: true,
-      // Identity Matcher is our trusted auth provider; allow implicit relinking
-      // when users recreate their upstream account with the same verified email.
-      trustedProviders: ["identitymatcher"],
-      updateUserInfoOnLink: true,
     },
   },
 
@@ -67,25 +56,31 @@ export const auth = betterAuth({
     },
   },
 
+  emailAndPassword: {
+    enabled: true,
+  },
+
   session: {
     expiresIn: 7 * 24 * 60 * 60, // 7 days
     updateAge: 24 * 60 * 60, // 1 day
+    cookieCache: {
+      enabled: true,
+      strategy: "jwe",
+      maxAge: 300, // 5 minutes
+      refreshCache: false,
+    },
   },
 
   plugins: [
-    genericOAuth({
-      config: [
-        {
-          providerId: "identitymatcher",
-          discoveryUrl: `${authServerUrl}/api/auth/.well-known/openid-configuration`,
-          clientId: process.env.OAUTH_CLIENT_ID!,
-          clientSecret: process.env.OAUTH_CLIENT_SECRET!,
-          pkce: true,
-          prompt: "consent",
-          scopes: ["openid", "profile", "email", "location"],
-        },
-      ],
+    emailOTP({
+      async sendVerificationOTP({ email, otp, type }) {
+        await sendOTPEmail(email, otp, type);
+      },
+      otpLength: 6,
+      expiresIn: 300, // 5 minutes
+      disableSignUp: true, // signup handled separately (needs profile fields)
     }),
+    expo(),
     nextCookies(),
   ],
 });

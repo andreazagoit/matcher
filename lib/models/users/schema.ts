@@ -7,6 +7,7 @@ import {
   index,
   pgEnum,
   boolean,
+  geometry,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -42,6 +43,13 @@ export const users = pgTable(
     image: text("image"),
 
     // ==========================================
+    // LOCATION (PostGIS)
+    // x = longitude, y = latitude (PostGIS convention)
+    // ==========================================
+    location: geometry("location", { type: "point", mode: "xy", srid: 4326 }),
+    locationUpdatedAt: timestamp("location_updated_at"),
+
+    // ==========================================
     // TIMESTAMPS
     // ==========================================
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -49,6 +57,7 @@ export const users = pgTable(
   },
   (table) => [
     index("users_email_idx").on(table.email),
+    index("users_location_gist_idx").using("gist", table.location),
   ]
 );
 
@@ -56,8 +65,8 @@ export const users = pgTable(
 // RELATIONS
 // ==========================================
 
-// Note: Relations with assessments and profiles are defined in their 
-// respective schema files to prevent circular dependency issues.
+// Note: Relations with profiles are defined in their respective
+// schema files to prevent circular dependency issues.
 
 // ==========================================
 // INFERRED TYPES

@@ -12,19 +12,47 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  JSON: { input: unknown; output: unknown; }
 };
+
+export enum AttendeeStatus {
+  Attended = 'attended',
+  Going = 'going',
+  Interested = 'interested'
+}
 
 export type Conversation = {
   __typename: 'Conversation';
   createdAt: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  initiator: User;
   lastMessage: Maybe<Message>;
   lastMessageAt: Maybe<Scalars['String']['output']>;
-  otherParticipant: User;
-  participant1: User;
-  participant2: User;
+  otherUser: User;
+  recipient: User;
+  source: Maybe<Scalars['String']['output']>;
+  status: ConversationStatus;
   unreadCount: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['String']['output'];
+};
+
+export enum ConversationStatus {
+  Active = 'active',
+  Declined = 'declined',
+  Request = 'request'
+}
+
+export type CreateEventInput = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  endsAt?: InputMaybe<Scalars['String']['input']>;
+  lat?: InputMaybe<Scalars['Float']['input']>;
+  location?: InputMaybe<Scalars['String']['input']>;
+  lon?: InputMaybe<Scalars['Float']['input']>;
+  maxAttendees?: InputMaybe<Scalars['Int']['input']>;
+  spaceId: Scalars['ID']['input'];
+  startsAt: Scalars['String']['input'];
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  title: Scalars['String']['input'];
 };
 
 export type CreateSpaceInput = {
@@ -32,6 +60,7 @@ export type CreateSpaceInput = {
   joinPolicy?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   slug?: InputMaybe<Scalars['String']['input']>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
   visibility?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -45,10 +74,54 @@ export type CreateTierInput = {
 export type CreateUserInput = {
   birthdate: Scalars['String']['input'];
   email: Scalars['String']['input'];
-  givenName: Scalars['String']['input'];
-  gender?: InputMaybe<Gender>;
   familyName: Scalars['String']['input'];
+  gender?: InputMaybe<Gender>;
+  givenName: Scalars['String']['input'];
 };
+
+export type Event = {
+  __typename: 'Event';
+  attendeeCount: Scalars['Int']['output'];
+  attendees: Array<EventAttendee>;
+  coordinates: Maybe<EventCoordinates>;
+  createdAt: Scalars['String']['output'];
+  createdBy: Scalars['ID']['output'];
+  description: Maybe<Scalars['String']['output']>;
+  endsAt: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  location: Maybe<Scalars['String']['output']>;
+  maxAttendees: Maybe<Scalars['Int']['output']>;
+  spaceId: Scalars['ID']['output'];
+  startsAt: Scalars['String']['output'];
+  status: EventStatus;
+  tags: Array<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
+  updatedAt: Scalars['String']['output'];
+};
+
+export type EventAttendee = {
+  __typename: 'EventAttendee';
+  attendedAt: Maybe<Scalars['String']['output']>;
+  eventId: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
+  registeredAt: Scalars['String']['output'];
+  status: AttendeeStatus;
+  user: Maybe<User>;
+  userId: Scalars['ID']['output'];
+};
+
+export type EventCoordinates = {
+  __typename: 'EventCoordinates';
+  lat: Scalars['Float']['output'];
+  lon: Scalars['Float']['output'];
+};
+
+export enum EventStatus {
+  Cancelled = 'cancelled',
+  Completed = 'completed',
+  Draft = 'draft',
+  Published = 'published'
+}
 
 export enum Gender {
   Man = 'man',
@@ -56,11 +129,31 @@ export enum Gender {
   Woman = 'woman'
 }
 
-export type MatchOptions = {
-  gender?: InputMaybe<Array<Gender>>;
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  maxAge?: InputMaybe<Scalars['Int']['input']>;
-  minAge?: InputMaybe<Scalars['Int']['input']>;
+export type Location = {
+  __typename: 'Location';
+  lat: Scalars['Float']['output'];
+  lon: Scalars['Float']['output'];
+};
+
+export type Match = {
+  __typename: 'Match';
+  distanceKm: Maybe<Scalars['Float']['output']>;
+  score: Scalars['Float']['output'];
+  sharedEventIds: Array<Scalars['String']['output']>;
+  sharedSpaceIds: Array<Scalars['String']['output']>;
+  sharedTags: Array<Scalars['String']['output']>;
+  user: MatchUser;
+};
+
+export type MatchUser = {
+  __typename: 'MatchUser';
+  birthdate: Maybe<Scalars['String']['output']>;
+  familyName: Maybe<Scalars['String']['output']>;
+  gender: Maybe<Scalars['String']['output']>;
+  givenName: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  image: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
 };
 
 export type Member = {
@@ -101,6 +194,8 @@ export type Mutation = {
   __typename: 'Mutation';
   approveMember: Member;
   archiveTier: Scalars['Boolean']['output'];
+  /** Create a new event in a space. */
+  createEvent: Event;
   createPost: Post;
   createSpace: Space;
   createTier: MembershipTier;
@@ -110,11 +205,25 @@ export type Mutation = {
   deleteUser: Scalars['Boolean']['output'];
   joinSpace: Member;
   leaveSpace: Scalars['Boolean']['output'];
+  /** Mark all messages in a conversation as read. */
   markAsRead: Maybe<Scalars['Boolean']['output']>;
+  /** Mark an event as completed. Attendees with status 'going' become 'attended'. */
+  markEventCompleted: Event;
   removeMember: Scalars['Boolean']['output'];
+  /** Respond to an event (going, interested). */
+  respondToEvent: EventAttendee;
+  /** Accept or decline a message request. */
+  respondToRequest: Conversation;
+  /** Send a message in an existing conversation. */
   sendMessage: Message;
-  startConversation: Conversation;
+  /** Send a message request to another user. Creates a conversation with status=request. */
+  sendMessageRequest: Conversation;
+  /** Update an existing event. */
+  updateEvent: Event;
+  updateLocation: User;
   updateMemberRole: Member;
+  /** Set the user's declared interests (replaces previous declared tags). */
+  updateMyInterests: Array<UserInterest>;
   updateSpace: Space;
   updateTier: MembershipTier;
   updateUser: Maybe<User>;
@@ -129,6 +238,11 @@ export type MutationApproveMemberArgs = {
 
 export type MutationArchiveTierArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationCreateEventArgs = {
+  input: CreateEventInput;
 };
 
 
@@ -186,9 +300,26 @@ export type MutationMarkAsReadArgs = {
 };
 
 
+export type MutationMarkEventCompletedArgs = {
+  eventId: Scalars['ID']['input'];
+};
+
+
 export type MutationRemoveMemberArgs = {
   spaceId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationRespondToEventArgs = {
+  eventId: Scalars['ID']['input'];
+  status: AttendeeStatus;
+};
+
+
+export type MutationRespondToRequestArgs = {
+  accept: Scalars['Boolean']['input'];
+  conversationId: Scalars['ID']['input'];
 };
 
 
@@ -198,8 +329,22 @@ export type MutationSendMessageArgs = {
 };
 
 
-export type MutationStartConversationArgs = {
-  targetUserId: Scalars['ID']['input'];
+export type MutationSendMessageRequestArgs = {
+  content: Scalars['String']['input'];
+  recipientId: Scalars['ID']['input'];
+  source?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type MutationUpdateEventArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateEventInput;
+};
+
+
+export type MutationUpdateLocationArgs = {
+  lat: Scalars['Float']['input'];
+  lon: Scalars['Float']['input'];
 };
 
 
@@ -207,6 +352,11 @@ export type MutationUpdateMemberRoleArgs = {
   role: Scalars['String']['input'];
   spaceId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateMyInterestsArgs = {
+  tags: Array<Scalars['String']['input']>;
 };
 
 
@@ -238,33 +388,75 @@ export type Post = {
   mediaUrls: Maybe<Array<Scalars['String']['output']>>;
 };
 
-/** Profilo utente con traits e dati per matching */
 export type Profile = {
   __typename: 'Profile';
-  behavioralDescription: Maybe<Scalars['String']['output']>;
-  createdAt: Scalars['String']['output'];
-  embeddingsComputedAt: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  interestsDescription: Maybe<Scalars['String']['output']>;
-  psychologicalDescription: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['String']['output'];
   userId: Scalars['ID']['output'];
-  valuesDescription: Maybe<Scalars['String']['output']>;
+};
+
+export type ProfileStatus = {
+  __typename: 'ProfileStatus';
+  hasProfile: Scalars['Boolean']['output'];
+  updatedAt: Maybe<Scalars['String']['output']>;
 };
 
 export type Query = {
   __typename: 'Query';
+  /** Get all valid tags as a flat list. */
+  allTags: Array<Scalars['String']['output']>;
+  /** Get a single conversation by ID. */
   conversation: Maybe<Conversation>;
+  /** Get active conversations for the authenticated user. */
   conversations: Array<Conversation>;
-  /** Get daily suggested matches for the current user */
-  dailyMatches: Array<User>;
-  findMatches: Array<User>;
+  /** Get attendees for an event. */
+  eventAttendees: Array<EventAttendee>;
+  /**
+   * Search upcoming events by tags.
+   * matchAll=true requires ALL tags, false requires at least one.
+   */
+  eventsByTags: Array<Event>;
+  /**
+   * Find compatible matches for the authenticated user.
+   * Uses tag overlap, shared spaces/events, proximity, and behavioral similarity.
+   */
+  findMatches: Array<Match>;
   globalFeed: Maybe<Array<Post>>;
   me: Maybe<User>;
+  /** Get pending message requests (inbox). */
+  messageRequests: Array<Conversation>;
+  /** Get messages for a conversation. */
   messages: Array<Message>;
+  /** Get the authenticated user's interests with weights. */
+  myInterests: Array<UserInterest>;
+  /** Get the authenticated user's profile. */
+  myProfile: Maybe<Profile>;
   mySpaces: Array<Space>;
+  /** Get the authenticated user's upcoming events. */
+  myUpcomingEvents: Array<Event>;
+  /** Get the authenticated user's profile status. */
+  profileStatus: ProfileStatus;
+  /**
+   * Get recommended events based on behavioral similarity and tag overlap.
+   * Falls back to upcoming events for new users.
+   */
+  recommendedEvents: Array<Event>;
+  /**
+   * Get recommended spaces based on behavioral similarity and tag overlap.
+   * Excludes spaces the user is already a member of.
+   */
+  recommendedSpaces: Array<Space>;
   space: Maybe<Space>;
+  /** Get events for a specific space. */
+  spaceEvents: Array<Event>;
   spaces: Array<Space>;
+  /**
+   * Search public spaces by tags.
+   * matchAll=true requires ALL tags, false requires at least one.
+   */
+  spacesByTags: Array<Space>;
+  /** Get tag categories (shared vocabulary for profiles, events, spaces). */
+  tagCategories: Array<TagCategoryEntry>;
   user: Maybe<User>;
   users: Array<User>;
 };
@@ -275,9 +467,24 @@ export type QueryConversationArgs = {
 };
 
 
+export type QueryEventAttendeesArgs = {
+  eventId: Scalars['ID']['input'];
+};
+
+
+export type QueryEventsByTagsArgs = {
+  matchAll?: InputMaybe<Scalars['Boolean']['input']>;
+  tags: Array<Scalars['String']['input']>;
+};
+
+
 export type QueryFindMatchesArgs = {
-  options?: InputMaybe<MatchOptions>;
-  userId?: InputMaybe<Scalars['ID']['input']>;
+  gender?: InputMaybe<Array<Scalars['String']['input']>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  maxAge?: InputMaybe<Scalars['Int']['input']>;
+  maxDistance?: Scalars['Float']['input'];
+  minAge?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -292,9 +499,30 @@ export type QueryMessagesArgs = {
 };
 
 
+export type QueryRecommendedEventsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryRecommendedSpacesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type QuerySpaceArgs = {
   id?: InputMaybe<Scalars['ID']['input']>;
   slug?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QuerySpaceEventsArgs = {
+  spaceId: Scalars['ID']['input'];
+};
+
+
+export type QuerySpacesByTagsArgs = {
+  matchAll?: InputMaybe<Scalars['Boolean']['input']>;
+  tags: Array<Scalars['String']['input']>;
 };
 
 
@@ -304,7 +532,6 @@ export type QueryUserArgs = {
 
 export type Space = {
   __typename: 'Space';
-  clientId: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
   description: Maybe<Scalars['String']['output']>;
   feed: Maybe<Array<Post>>;
@@ -317,6 +544,7 @@ export type Space = {
   myMembership: Maybe<Member>;
   name: Scalars['String']['output'];
   slug: Scalars['String']['output'];
+  tags: Array<Scalars['String']['output']>;
   tiers: Maybe<Array<MembershipTier>>;
   type: Maybe<Scalars['String']['output']>;
   visibility: Scalars['String']['output'];
@@ -334,11 +562,31 @@ export type SpaceMembersArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type TagCategoryEntry = {
+  __typename: 'TagCategoryEntry';
+  category: Scalars['String']['output'];
+  tags: Array<Scalars['String']['output']>;
+};
+
+export type UpdateEventInput = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  endsAt?: InputMaybe<Scalars['String']['input']>;
+  lat?: InputMaybe<Scalars['Float']['input']>;
+  location?: InputMaybe<Scalars['String']['input']>;
+  lon?: InputMaybe<Scalars['Float']['input']>;
+  maxAttendees?: InputMaybe<Scalars['Int']['input']>;
+  startsAt?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<EventStatus>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  title?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdateSpaceInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   image?: InputMaybe<Scalars['String']['input']>;
   joinPolicy?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
   visibility?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -353,53 +601,75 @@ export type UpdateTierInput = {
 export type UpdateUserInput = {
   birthdate?: InputMaybe<Scalars['String']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
-  givenName?: InputMaybe<Scalars['String']['input']>;
-  gender?: InputMaybe<Gender>;
   familyName?: InputMaybe<Scalars['String']['input']>;
+  gender?: InputMaybe<Gender>;
+  givenName?: InputMaybe<Scalars['String']['input']>;
 };
 
-/** Utente base - dati anagrafici */
+/** User — demographic, auth, and location data */
 export type User = {
   __typename: 'User';
   birthdate: Scalars['String']['output'];
   createdAt: Scalars['String']['output'];
   email: Scalars['String']['output'];
-  givenName: Scalars['String']['output'];
+  familyName: Scalars['String']['output'];
   gender: Maybe<Gender>;
+  givenName: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
-  familyName: Scalars['String']['output'];
-  profile: Maybe<Profile>;
+  location: Maybe<Location>;
+  locationUpdatedAt: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['String']['output'];
 };
 
-export type ConversationFieldsFragment = { __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null };
+export type UserInterest = {
+  __typename: 'UserInterest';
+  tag: Scalars['String']['output'];
+  weight: Scalars['Float']['output'];
+};
+
+export type ConversationFieldsFragment = { __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherUser: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null };
 
 export type MessageFieldsFragment = { __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } };
 
 export type GetConversationsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null }> };
+export type GetConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherUser: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null }> };
+
+export type GetMessageRequestsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetMessageRequestsQuery = { messageRequests: Array<{ __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherUser: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null }> };
 
 export type GetRecentConversationsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetRecentConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, unreadCount: number | null, otherParticipant: { __typename: 'User', givenName: string, familyName: string } }> };
+export type GetRecentConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, unreadCount: number | null, otherUser: { __typename: 'User', givenName: string, familyName: string } }> };
 
 export type GetMessagesQueryVariables = Exact<{
   conversationId: Scalars['ID']['input'];
 }>;
 
 
-export type GetMessagesQuery = { messages: Array<{ __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } }>, conversation: { __typename: 'Conversation', id: string, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } } | null };
+export type GetMessagesQuery = { messages: Array<{ __typename: 'Message', id: string, conversationId: string, content: string, readAt: string | null, createdAt: string, sender: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } }>, conversation: { __typename: 'Conversation', id: string, status: ConversationStatus, otherUser: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null } } | null };
 
-export type StartConversationMutationVariables = Exact<{
-  targetUserId: Scalars['ID']['input'];
+export type SendMessageRequestMutationVariables = Exact<{
+  recipientId: Scalars['ID']['input'];
+  content: Scalars['String']['input'];
+  source?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
-export type StartConversationMutation = { startConversation: { __typename: 'Conversation', id: string, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherParticipant: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null } };
+export type SendMessageRequestMutation = { sendMessageRequest: { __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherUser: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null } };
+
+export type RespondToRequestMutationVariables = Exact<{
+  conversationId: Scalars['ID']['input'];
+  accept: Scalars['Boolean']['input'];
+}>;
+
+
+export type RespondToRequestMutation = { respondToRequest: { __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: string | null, createdAt: string, updatedAt: string, unreadCount: number | null, otherUser: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: string } | null } };
 
 export type SendMessageMutationVariables = Exact<{
   conversationId: Scalars['ID']['input'];
@@ -416,10 +686,50 @@ export type MarkAsReadMutationVariables = Exact<{
 
 export type MarkAsReadMutation = { markAsRead: boolean | null };
 
-export type GetDailyMatchesQueryVariables = Exact<{ [key: string]: never; }>;
+export type SpaceEventsQueryVariables = Exact<{
+  spaceId: Scalars['ID']['input'];
+}>;
 
 
-export type GetDailyMatchesQuery = { dailyMatches: Array<{ __typename: 'User', id: string, givenName: string, familyName: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: string, updatedAt: string }> };
+export type SpaceEventsQuery = { spaceEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: string, endsAt: string | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, createdBy: string, tags: Array<string> }> };
+
+export type CreateEventMutationVariables = Exact<{
+  input: CreateEventInput;
+}>;
+
+
+export type CreateEventMutation = { createEvent: { __typename: 'Event', id: string } };
+
+export type RespondToEventMutationVariables = Exact<{
+  eventId: Scalars['ID']['input'];
+  status: AttendeeStatus;
+}>;
+
+
+export type RespondToEventMutation = { respondToEvent: { __typename: 'EventAttendee', id: string, status: AttendeeStatus } };
+
+export type MarkEventCompletedMutationVariables = Exact<{
+  eventId: Scalars['ID']['input'];
+}>;
+
+
+export type MarkEventCompletedMutation = { markEventCompleted: { __typename: 'Event', id: string, status: EventStatus } };
+
+export type GetFindMatchesQueryVariables = Exact<{
+  maxDistance?: Scalars['Float']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  gender?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  minAge?: InputMaybe<Scalars['Int']['input']>;
+  maxAge?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, name: string, givenName: string | null, familyName: string | null, image: string | null, gender: string | null, birthdate: string | null } }> };
+
+export type GetProfileStatusQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetProfileStatusQuery = { profileStatus: { __typename: 'ProfileStatus', hasProfile: boolean, updatedAt: string | null } };
 
 export type UpdateMemberRoleMutationVariables = Exact<{
   spaceId: Scalars['ID']['input'];
@@ -473,17 +783,17 @@ export type DeletePostMutationVariables = Exact<{
 
 export type DeletePostMutation = { deletePost: boolean };
 
-export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null };
+export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: string, isActive: boolean | null, membersCount: number | null, type: string | null };
 
 export type GetAllSpacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAllSpacesQuery = { spaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null }> };
+export type GetAllSpacesQuery = { spaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: string, isActive: boolean | null, membersCount: number | null, type: string | null }> };
 
 export type GetMySpacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMySpacesQuery = { mySpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', role: string } | null }> };
+export type GetMySpacesQuery = { mySpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: string, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', role: string } | null }> };
 
 export type GetSpaceQueryVariables = Exact<{
   id?: InputMaybe<Scalars['ID']['input']>;
@@ -492,7 +802,7 @@ export type GetSpaceQueryVariables = Exact<{
 }>;
 
 
-export type GetSpaceQuery = { space: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', id: string, role: string, status: string, tier: { __typename: 'MembershipTier', id: string, name: string, price: number, interval: string } | null } | null, tiers: Array<{ __typename: 'MembershipTier', id: string, name: string, description: string | null, price: number, currency: string, interval: string, isActive: boolean, spaceId: string }> | null, members: Array<{ __typename: 'Member', id: string, role: string, status: string, joinedAt: string, tier: { __typename: 'MembershipTier', name: string } | null, user: { __typename: 'User', id: string, givenName: string, familyName: string, email: string } }> | null } | null };
+export type GetSpaceQuery = { space: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: string, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', id: string, role: string, status: string, tier: { __typename: 'MembershipTier', id: string, name: string, price: number, interval: string } | null } | null, tiers: Array<{ __typename: 'MembershipTier', id: string, name: string, description: string | null, price: number, currency: string, interval: string, isActive: boolean, spaceId: string }> | null, members: Array<{ __typename: 'Member', id: string, role: string, status: string, joinedAt: string, tier: { __typename: 'MembershipTier', name: string } | null, user: { __typename: 'User', id: string, givenName: string, familyName: string, email: string } }> | null } | null };
 
 export type CreateSpaceMutationVariables = Exact<{
   input: CreateSpaceInput;
@@ -507,7 +817,7 @@ export type UpdateSpaceMutationVariables = Exact<{
 }>;
 
 
-export type UpdateSpaceMutation = { updateSpace: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, visibility: string, joinPolicy: string, createdAt: string, clientId: string | null, isActive: boolean | null, membersCount: number | null, type: string | null } };
+export type UpdateSpaceMutation = { updateSpace: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: string, isActive: boolean | null, membersCount: number | null, type: string | null } };
 
 export type DeleteSpaceMutationVariables = Exact<{
   id: Scalars['ID']['input'];

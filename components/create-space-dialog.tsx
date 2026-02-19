@@ -19,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ALL_TAGS } from "@/lib/models/tags/data";
+import { Badge } from "@/components/ui/badge";
 import { useMutation } from "@apollo/client/react";
 import { CREATE_SPACE } from "@/lib/models/spaces/gql";
 import type { CreateSpaceMutation, CreateSpaceMutationVariables } from "@/lib/graphql/__generated__/graphql";
@@ -38,6 +40,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
     name: "",
     slug: "",
     description: "",
+    tags: [] as string[],
     visibility: "public",
     joinPolicy: "open",
   });
@@ -47,6 +50,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
       name: "",
       slug: "",
       description: "",
+      tags: [],
       visibility: "public",
       joinPolicy: "open",
     });
@@ -71,6 +75,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
             name: formData.name,
             slug: formData.slug || undefined,
             description: formData.description,
+            tags: formData.tags.length > 0 ? formData.tags : undefined,
             visibility: formData.visibility,
             joinPolicy: formData.joinPolicy,
           }
@@ -136,6 +141,32 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="A community for fitness enthusiasts"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-md border p-2">
+                {ALL_TAGS.map((tag) => {
+                  const isSelected = formData.tags.includes(tag);
+                  return (
+                    <Badge
+                      key={tag}
+                      variant={isSelected ? "default" : "outline"}
+                      className="cursor-pointer text-xs py-1 px-2"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          tags: isSelected
+                            ? prev.tags.filter((t: string) => t !== tag)
+                            : [...prev.tags, tag],
+                        }))
+                      }
+                    >
+                      {tag}
+                    </Badge>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2">

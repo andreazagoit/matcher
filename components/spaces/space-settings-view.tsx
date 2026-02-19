@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, RefreshCwIcon, SaveIcon, CopyIcon } from "lucide-react";
+import { AlertCircle, RefreshCwIcon, SaveIcon } from "lucide-react";
 import { useMutation } from "@apollo/client/react";
 import { UPDATE_SPACE, DELETE_SPACE } from "@/lib/models/spaces/gql";
 import type {
@@ -36,12 +36,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupButton,
-    InputGroupInput,
-} from "@/components/ui/input-group";
 import { MembershipTiersManager } from "./settings/membership-tiers-manager";
 
 interface SpaceSettingsViewProps {
@@ -52,7 +46,6 @@ interface SpaceSettingsViewProps {
         description?: string | null;
         visibility: string;
         joinPolicy: string;
-        clientId?: string | null;
     };
     onUpdate?: () => void;
 }
@@ -109,11 +102,6 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
             console.error("Failed to delete space", error);
             setError("Failed to delete space");
         }
-    };
-
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        // Maybe add toast here?
     };
 
     return (
@@ -229,41 +217,6 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
                     <MembershipTiersManager spaceId={space.id} />
                 </CardContent>
             </Card>
-
-            {/* Developer Settings (Merged) */}
-            {space.clientId && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Developer Credentials</CardTitle>
-                        <CardDescription>Use these to integrate your custom apps with this Space</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label>Client ID</Label>
-                            <InputGroup>
-                                <InputGroupInput
-                                    value={space.clientId}
-                                    readOnly
-                                    className="font-mono bg-muted"
-                                />
-                                <InputGroupAddon align="inline-end">
-                                    <InputGroupButton
-                                        size="icon-xs"
-                                        variant="ghost"
-                                        onClick={() => copyToClipboard(space.clientId!)}
-                                    >
-                                        <CopyIcon className="h-4 w-4" />
-                                    </InputGroupButton>
-                                </InputGroupAddon>
-                            </InputGroup>
-                        </div>
-                        <div className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 p-4 rounded-lg text-sm">
-                            Secret keys are only shown once upon creation or rotation. If you lost your secret key, you can generate a new one in Settings (Not implemented yet).
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
 
             {/* Danger Zone */}
             <Card className="border-destructive/50">

@@ -19,7 +19,6 @@ import { toast } from "sonner";
  * Location Selector
  *
  * Saves GPS position and search radius locally (cookies).
- * In the future, position will be sent to identitymatcher via its API.
  */
 export function LocationSelector() {
     const [radius, setRadius] = useState(50);
@@ -51,7 +50,6 @@ export function LocationSelector() {
         );
         if (latCookie) {
             const val = parseFloat(latCookie.split("=")[1]);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (!isNaN(val)) setLat(val);
         }
 
@@ -60,7 +58,6 @@ export function LocationSelector() {
         );
         if (lngCookie) {
             const val = parseFloat(lngCookie.split("=")[1]);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (!isNaN(val)) setLng(val);
         }
     }, []);

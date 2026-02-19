@@ -34,7 +34,7 @@ export const session = pgTable(
 
 /**
  * Better-Auth Account Table
- * Stores OAuth account links (e.g. identitymatcher)
+ * Stores authentication account links (email+password, OAuth, etc.)
  */
 export const account = pgTable(
   "account",

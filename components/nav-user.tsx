@@ -16,7 +16,6 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
-import { signIn } from "@/lib/auth-client"
 
 export function NavUser({
     user,
@@ -34,14 +33,16 @@ export function NavUser({
         return (
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" onClick={() => signIn.oauth2({ providerId: "identitymatcher" })}>
-                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                            <LogIn className="size-4" />
-                        </div>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-medium">Log in</span>
-                            <span className="truncate text-xs">Access your account</span>
-                        </div>
+                    <SidebarMenuButton size="lg" asChild>
+                        <Link href="/sign-in">
+                            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                                <LogIn className="size-4" />
+                            </div>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                                <span className="truncate font-medium">Log in</span>
+                                <span className="truncate text-xs">Access your account</span>
+                            </div>
+                        </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>

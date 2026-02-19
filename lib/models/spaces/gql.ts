@@ -11,10 +11,10 @@ export const SPACE_FRAGMENT = gql`
     slug
     description
     image
+    tags
     visibility
     joinPolicy
     createdAt
-    clientId
     isActive
     membersCount
     type

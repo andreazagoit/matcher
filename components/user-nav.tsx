@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn, signOut, useSession } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -17,10 +17,6 @@ import { LogIn } from "lucide-react";
 export function UserNav() {
     const { data: session, isPending } = useSession();
 
-    const handleLogin = () => {
-        signIn.oauth2({ providerId: "identitymatcher", callbackURL: "/spaces" });
-    };
-
     const handleLogout = async () => {
         await signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } });
     };
@@ -35,9 +31,11 @@ export function UserNav() {
 
     if (!session?.user) {
         return (
-            <Button onClick={handleLogin} size="sm" variant="outline">
-                <LogIn className="mr-2 h-4 w-4" />
-                Login
+            <Button asChild size="sm" variant="outline">
+                <Link href="/sign-in">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
+                </Link>
             </Button>
         );
     }

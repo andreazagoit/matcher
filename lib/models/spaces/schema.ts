@@ -6,14 +6,16 @@ import {
   boolean,
   index,
 } from "drizzle-orm/pg-core";
+import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
 import { relations } from "drizzle-orm";
 import { members } from "@/lib/models/members/schema";
 
+const EMBEDDING_DIMENSIONS = 1536;
+
 /**
- * Spaces Schema (ex Apps)
+ * Spaces Schema
  * 
  * Represents a community/club/space.
- * Inherits OAuth capabilities from Apps.
  */
 
 export const spaces = pgTable(
@@ -23,35 +25,31 @@ export const spaces = pgTable(
 
     // Branding
     name: text("name").notNull(),
-    slug: text("slug").unique().notNull(), // URL friendly identifier
+    slug: text("slug").unique().notNull(),
     description: text("description"),
     image: text("image"),
-
-    // OAuth credentials (inherited from Apps)
-    clientId: text("client_id").unique().notNull(),
-    secretKey: text("secret_key").notNull(),
-    secretKeyHash: text("secret_key_hash").notNull(),
-    redirectUris: text("redirect_uris").array(),
 
     // Visibility & Access
     visibility: text("visibility", { enum: ["public", "private", "hidden"] }).default("public").notNull(),
     type: text("type", { enum: ["free", "tiered"] }).default("free").notNull(),
     joinPolicy: text("join_policy", { enum: ["open", "apply", "invite_only"] }).default("open").notNull(),
 
-    // Token settings
-    accessTokenTtl: text("access_token_ttl").default("3600"),
-    refreshTokenTtl: text("refresh_token_ttl").default("2592000"),
-
     // Status
     isActive: boolean("is_active").default(true).notNull(),
+
+    // Tags (shared vocabulary from models/tags/data.ts)
+    tags: text("tags").array().default([]),
+
+    // AI embedding for recommendations (name + description + tags)
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
 
     // Timestamps
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("spaces_client_id_idx").on(table.clientId),
     index("spaces_slug_idx").on(table.slug),
+    index("spaces_tags_idx").using("gin", table.tags),
   ]
 );
 

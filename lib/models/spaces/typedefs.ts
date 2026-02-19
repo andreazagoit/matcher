@@ -5,10 +5,10 @@ export const spaceTypeDefs = `#graphql
     slug: String!
     description: String
     image: String
+    tags: [String!]!
     visibility: String!
     joinPolicy: String!
     createdAt: String!
-    clientId: String
     isActive: Boolean
     membersCount: Int
     type: String
@@ -20,6 +20,7 @@ export const spaceTypeDefs = `#graphql
     description: String
     visibility: String
     joinPolicy: String
+    tags: [String!]
   }
 
   input UpdateSpaceInput {
@@ -28,12 +29,25 @@ export const spaceTypeDefs = `#graphql
     visibility: String
     joinPolicy: String
     image: String
+    tags: [String!]
   }
 
   extend type Query {
     space(id: ID, slug: String): Space
     spaces: [Space!]!
     mySpaces: [Space!]!
+
+    """
+    Search public spaces by tags.
+    matchAll=true requires ALL tags, false requires at least one.
+    """
+    spacesByTags(tags: [String!]!, matchAll: Boolean): [Space!]!
+
+    """
+    Get recommended spaces based on behavioral similarity and tag overlap.
+    Excludes spaces the user is already a member of.
+    """
+    recommendedSpaces(limit: Int): [Space!]!
   }
 
   extend type Mutation {

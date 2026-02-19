@@ -108,6 +108,25 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
- * @deprecated Use profiles system for matching.
+ * Update a user's location (PostGIS point).
+ * PostGIS convention: x = longitude, y = latitude.
  */
+export async function updateUserLocation(
+  id: string,
+  lat: number,
+  lon: number,
+): Promise<User> {
+  const [updated] = await db
+    .update(users)
+    .set({
+      location: { x: lon, y: lat },
+      locationUpdatedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, id))
+    .returning();
+
+  if (!updated) throw new Error("User not found");
+  return updated;
+}
 

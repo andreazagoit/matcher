@@ -28,7 +28,7 @@ interface Message {
 
 interface Conversation {
     id: string;
-    otherParticipant: Participant;
+    otherUser: Participant;
 }
 
 interface ChatWindowProps {
@@ -84,11 +84,11 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             <div className="flex items-center p-4">
                 <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={conversation?.otherParticipant?.image} />
-                        <AvatarFallback>{conversation?.otherParticipant?.givenName[0]}</AvatarFallback>
+                        <AvatarImage src={conversation?.otherUser?.image} />
+                        <AvatarFallback>{conversation?.otherUser?.givenName[0]}</AvatarFallback>
                     </Avatar>
                     <div className="font-semibold">
-                        {conversation?.otherParticipant?.givenName} {conversation?.otherParticipant?.familyName}
+                        {conversation?.otherUser?.givenName} {conversation?.otherUser?.familyName}
                     </div>
                 </div>
             </div>

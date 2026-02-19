@@ -3,6 +3,9 @@ import { eq, and } from "drizzle-orm";
 import { members, type Member } from "./schema";
 import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { membershipTiers } from "@/lib/models/tiers/schema";
+import { boostInterestsFromTags, getUserInterests } from "@/lib/models/interests/operations";
+import { embedUser } from "@/lib/models/embeddings/operations";
+import { users } from "@/lib/models/users/schema";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 
@@ -77,6 +80,20 @@ export const memberResolvers = {
                 throw new GraphQLError("Failed to create member record", {
                     extensions: { code: "INTERNAL_SERVER_ERROR" }
                 });
+            }
+
+            // Boost interests and regenerate embedding in background
+            if (space.tags?.length && status === "active") {
+                const userId = auth.user.id;
+                (async () => {
+                    await boostInterestsFromTags(userId, space.tags!, 0.1);
+                    const interests = await getUserInterests(userId);
+                    const userData = await db.query.users.findFirst({ where: eq(users.id, userId) });
+                    await embedUser(userId, {
+                        tags: interests.map((i) => i.tag),
+                        birthdate: userData?.birthdate ?? null,
+                    });
+                })().catch(() => {});
             }
 
             return newMember;

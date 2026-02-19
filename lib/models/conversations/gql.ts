@@ -7,10 +7,12 @@ import { gql } from "graphql-tag";
 export const CONVERSATION_FRAGMENT = gql`
   fragment ConversationFields on Conversation {
     id
+    status
+    source
     lastMessageAt
     createdAt
     updatedAt
-    otherParticipant {
+    otherUser {
       id
       givenName
       familyName
@@ -53,11 +55,20 @@ export const GET_CONVERSATIONS = gql`
   }
 `;
 
+export const GET_MESSAGE_REQUESTS = gql`
+  ${CONVERSATION_FRAGMENT}
+  query GetMessageRequests {
+    messageRequests {
+      ...ConversationFields
+    }
+  }
+`;
+
 export const GET_RECENT_CONVERSATIONS = gql`
   query GetRecentConversations {
     conversations {
       id
-      otherParticipant {
+      otherUser {
         givenName
         familyName
       }
@@ -74,7 +85,8 @@ export const GET_MESSAGES = gql`
     }
     conversation(id: $conversationId) {
       id
-      otherParticipant {
+      status
+      otherUser {
         id
         givenName
         familyName
@@ -88,10 +100,19 @@ export const GET_MESSAGES = gql`
 // MUTATIONS
 // ============================================
 
-export const START_CONVERSATION = gql`
+export const SEND_MESSAGE_REQUEST = gql`
   ${CONVERSATION_FRAGMENT}
-  mutation StartConversation($targetUserId: ID!) {
-    startConversation(targetUserId: $targetUserId) {
+  mutation SendMessageRequest($recipientId: ID!, $content: String!, $source: String) {
+    sendMessageRequest(recipientId: $recipientId, content: $content, source: $source) {
+      ...ConversationFields
+    }
+  }
+`;
+
+export const RESPOND_TO_REQUEST = gql`
+  ${CONVERSATION_FRAGMENT}
+  mutation RespondToRequest($conversationId: ID!, $accept: Boolean!) {
+    respondToRequest(conversationId: $conversationId, accept: $accept) {
       ...ConversationFields
     }
   }

@@ -9,6 +9,9 @@ async function init() {
   try {
     await client`CREATE EXTENSION IF NOT EXISTS vector`;
     console.log("✅ pgvector extension enabled!");
+
+    await client`CREATE EXTENSION IF NOT EXISTS postgis`;
+    console.log("✅ PostGIS extension enabled!");
   } catch (error) {
     console.error("❌ Init failed:", error);
     process.exit(1);

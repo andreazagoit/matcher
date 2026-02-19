@@ -40,7 +40,7 @@ const data = {
     discover: [
         {
             title: "Feed",
-            url: "/feed",
+            url: "/",
             icon: Rss,
         },
         {

@@ -1,16 +1,13 @@
 /**
- * Resolvers for matching — proxied to Identity Matcher's GraphQL API.
+ * Resolvers for matching — local matching engine v2.
  */
 
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
-import { idmGraphQL, requireExternalUserId } from "@/lib/identitymatcher/client";
-import {
-  IDM_FIND_MATCHES,
-  IDM_PROFILE_STATUS,
-  IDM_ASSESSMENT_QUESTIONS,
-  IDM_SUBMIT_ASSESSMENT,
-} from "@/lib/identitymatcher/queries";
+import { getUserInterests } from "@/lib/models/interests/operations";
+import { getProfileByUserId } from "@/lib/models/profiles/operations";
+import { findMatches } from "./operations";
+import type { Gender } from "@/lib/graphql/__generated__/graphql";
 
 function requireAuth(context: GraphQLContext) {
   if (!context.auth.user) {
@@ -28,27 +25,23 @@ export const matchResolvers = {
       args: {
         maxDistance?: number;
         limit?: number;
-        gender?: string[];
+        offset?: number;
+        gender?: Gender[];
         minAge?: number;
         maxAge?: number;
       },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const externalId = await requireExternalUserId(user.id);
 
-      const data = await idmGraphQL<{
-        userMatches: unknown[];
-      }>(IDM_FIND_MATCHES, {
-        userId: externalId,
+      return findMatches(user.id, {
         maxDistance: args.maxDistance ?? 50,
-        limit: args.limit ?? 10,
+        limit: args.limit ?? 20,
+        offset: args.offset ?? 0,
         gender: args.gender,
         minAge: args.minAge,
         maxAge: args.maxAge,
       });
-
-      return data.userMatches;
     },
 
     profileStatus: async (
@@ -57,41 +50,15 @@ export const matchResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const externalId = await requireExternalUserId(user.id);
+      const [interests, profile] = await Promise.all([
+        getUserInterests(user.id),
+        getProfileByUserId(user.id),
+      ]);
 
-      const data = await idmGraphQL<{
-        userProfileStatus: unknown;
-      }>(IDM_PROFILE_STATUS, { userId: externalId });
-
-      return data.userProfileStatus;
-    },
-
-    assessmentQuestions: async () => {
-      const data = await idmGraphQL<{
-        assessmentQuestions: unknown[];
-      }>(IDM_ASSESSMENT_QUESTIONS);
-
-      return data.assessmentQuestions;
-    },
-  },
-
-  Mutation: {
-    submitAssessment: async (
-      _: unknown,
-      args: { answers: Record<string, unknown> },
-      context: GraphQLContext,
-    ) => {
-      const user = requireAuth(context);
-      const externalId = await requireExternalUserId(user.id);
-
-      const data = await idmGraphQL<{
-        submitUserAssessment: unknown;
-      }>(IDM_SUBMIT_ASSESSMENT, {
-        userId: externalId,
-        answers: args.answers,
-      });
-
-      return data.submitUserAssessment;
+      return {
+        hasProfile: interests.length > 0,
+        updatedAt: profile?.updatedAt?.toISOString() ?? null,
+      };
     },
   },
 };

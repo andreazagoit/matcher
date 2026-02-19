@@ -1,13 +1,10 @@
 /**
  * GraphQL Schema for Users
- *
- * User: local demographic + auth data (stored in matcher DB).
- * Profile/assessment/matching data comes from Identity Matcher (see matches module).
  */
 
 export const userTypeDefs = `#graphql
   """
-  Local user — demographic + auth data
+  User — demographic, auth, and location data
   """
   type User {
     id: ID!
@@ -17,8 +14,15 @@ export const userTypeDefs = `#graphql
     birthdate: String!
     gender: Gender
     image: String
+    location: Location
+    locationUpdatedAt: String
     createdAt: String!
     updatedAt: String!
+  }
+
+  type Location {
+    lat: Float!
+    lon: Float!
   }
 
   input CreateUserInput {
@@ -53,5 +57,6 @@ export const userTypeDefs = `#graphql
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
+    updateLocation(lat: Float!, lon: Float!): User!
   }
 `;

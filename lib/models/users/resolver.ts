@@ -1,6 +1,5 @@
 /**
- * User resolvers — local CRUD only.
- * Matching/profile operations are in the matches module (proxied to Identity Matcher).
+ * User resolvers — CRUD and location.
  */
 
 import {
@@ -9,9 +8,12 @@ import {
   deleteUser,
   getUserById,
   getAllUsers,
+  updateUserLocation,
 } from "./operations";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
 import type { GraphQLContext } from "@/lib/graphql/context";
+import { embedUser } from "@/lib/models/embeddings/operations";
+import { getUserInterests } from "@/lib/models/interests/operations";
 
 class AuthError extends Error {
   constructor(message: string, public code: string = "UNAUTHENTICATED") {
@@ -74,7 +76,18 @@ export const userResolvers = {
         throw new AuthError("You can only update your own profile", "FORBIDDEN");
       }
 
-      return await updateUser(id, input);
+      const updatedUser = await updateUser(id, input);
+
+      // Regenerate embedding in background when profile data changes
+      (async () => {
+        const interests = await getUserInterests(id);
+        await embedUser(id, {
+          tags: interests.map((i) => i.tag),
+          birthdate: updatedUser.birthdate ?? null,
+        });
+      })().catch(() => {});
+
+      return updatedUser;
     },
 
     deleteUser: async (
@@ -86,12 +99,30 @@ export const userResolvers = {
         throw new AuthError("Authentication required");
       }
 
-      // Only allow self-deletion for now
       if (context.auth.user.id !== id) {
         throw new AuthError("Forbidden", "FORBIDDEN");
       }
 
       return await deleteUser(id);
+    },
+
+    updateLocation: async (
+      _: unknown,
+      { lat, lon }: { lat: number; lon: number },
+      context: GraphQLContext,
+    ) => {
+      if (!context.auth.user) {
+        throw new AuthError("Authentication required");
+      }
+
+      return await updateUserLocation(context.auth.user.id, lat, lon);
+    },
+  },
+
+  User: {
+    location: (parent: { location?: { x: number; y: number } | null }) => {
+      if (!parent.location) return null;
+      return { lat: parent.location.y, lon: parent.location.x };
     },
   },
 };

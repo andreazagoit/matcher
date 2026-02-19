@@ -16,7 +16,7 @@ interface Participant {
 
 interface Conversation {
     id: string;
-    otherParticipant: Participant;
+    otherUser: Participant;
     lastMessage?: {
         content: string;
         createdAt: string;
@@ -58,15 +58,15 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                     >
                         <div className="flex w-full items-center gap-3">
                             <Avatar>
-                                <AvatarImage src={conv.otherParticipant.image} />
+                                <AvatarImage src={conv.otherUser.image} />
                                 <AvatarFallback>
-                                    {conv.otherParticipant.givenName[0]}
-                                    {conv.otherParticipant.familyName[0]}
+                                    {conv.otherUser.givenName[0]}
+                                    {conv.otherUser.familyName[0]}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="grid gap-1 flex-1">
                                 <div className="font-semibold flex justify-between">
-                                    <span>{conv.otherParticipant.givenName} {conv.otherParticipant.familyName}</span>
+                                    <span>{conv.otherUser.givenName} {conv.otherUser.familyName}</span>
                                     {conv.unreadCount > 0 && (
                                         <span className="flex h-2 w-2 rounded-full bg-primary" />
                                     )}
