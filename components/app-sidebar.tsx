@@ -39,14 +39,14 @@ const data = {
     },
     discover: [
         {
-            title: "Feed",
-            url: "/",
-            icon: Rss,
-        },
-        {
             title: "Discover",
             url: "/discover",
             icon: Compass,
+        },
+        {
+            title: "Feed",
+            url: "/feed",
+            icon: Rss,
         },
     ],
     personal: [
@@ -88,6 +88,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     // Adapt fetched user to NavUser expected format
     const navUser = session?.user ? {
+        username: (session.user as Record<string, unknown>).username as string | undefined,
         name: session.user.name || "User",
         email: session.user.email || "",
         avatar: session.user.image || "",
@@ -104,8 +105,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                     <GalleryVerticalEnd className="size-4" />
                                 </div>
                                 <div className="flex flex-col gap-0.5 leading-none">
-                                    <span className="font-semibold">Matcher</span>
-                                    <span className="">v1.0.0</span>
+                                <span className="font-semibold">Matcher</span>
+                                <span className="text-xs text-muted-foreground">Connect & Explore</span>
                                 </div>
                             </Link>
                         </SidebarMenuButton>

@@ -22,7 +22,7 @@ const SEED_SPACES = [
     description: "Hiking, photography, and outdoor adventures.",
     visibility: "public" as const,
     joinPolicy: "open" as const,
-    tags: ["trekking", "campeggio", "montagna", "fotografia"],
+    tags: ["trekking", "camping", "mountains", "photography"],
   },
   {
     name: "Milano Singles",
@@ -30,6 +30,7 @@ const SEED_SPACES = [
     description: "Community per single milanesi alla ricerca dell'anima gemella",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["travel", "parties", "restaurants", "cinema"],
   },
   {
     name: "Roma Dating",
@@ -37,6 +38,7 @@ const SEED_SPACES = [
     description: "Incontri romantici nella città eterna",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["restaurants", "wine", "travel", "museums"],
   },
   {
     name: "Outdoor Adventures",
@@ -44,6 +46,7 @@ const SEED_SPACES = [
     description: "Per chi ama la montagna, il trekking e le avventure all'aria aperta",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["trekking", "climbing", "camping", "mountains", "cycling"],
   },
   {
     name: "Book Lovers Club",
@@ -51,6 +54,7 @@ const SEED_SPACES = [
     description: "Connessioni profonde tra amanti della lettura",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["reading", "writing", "art", "theater"],
   },
   {
     name: "Foodies & Wine",
@@ -58,6 +62,7 @@ const SEED_SPACES = [
     description: "Buon cibo, buon vino, buona compagnia",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["cooking", "restaurants", "wine", "craft_beer", "street_food"],
   },
   {
     name: "Tech Professionals",
@@ -65,6 +70,7 @@ const SEED_SPACES = [
     description: "Dating per professionisti del settore tech",
     visibility: "public" as const,
     joinPolicy: "apply" as const,
+    tags: ["coding", "gaming", "coffee"],
   },
   {
     name: "Artists & Creatives",
@@ -72,6 +78,7 @@ const SEED_SPACES = [
     description: "Dove le menti creative si incontrano",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["art", "drawing", "music", "photography", "writing"],
   },
   {
     name: "Fitness Partners",
@@ -79,6 +86,7 @@ const SEED_SPACES = [
     description: "Trova il tuo partner di allenamento... e forse di più",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["gym", "running", "yoga", "swimming", "cycling"],
   },
   {
     name: "30+ Connection",
@@ -86,6 +94,7 @@ const SEED_SPACES = [
     description: "Dating maturo per over 30",
     visibility: "public" as const,
     joinPolicy: "open" as const,
+    tags: ["wine", "restaurants", "travel", "cinema", "theater"],
   },
   {
     name: "VIP Exclusive",
@@ -93,6 +102,7 @@ const SEED_SPACES = [
     description: "Community esclusiva su invito",
     visibility: "private" as const,
     joinPolicy: "invite_only" as const,
+    tags: ["wine", "travel", "art"],
   },
 ];
 

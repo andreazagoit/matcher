@@ -7,13 +7,16 @@ import {
   updateUser,
   deleteUser,
   getUserById,
+  getUserByUsername,
   getAllUsers,
   updateUserLocation,
+  isUsernameTaken,
 } from "./operations";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
 import type { GraphQLContext } from "@/lib/graphql/context";
 import { embedUser } from "@/lib/models/embeddings/operations";
 import { getUserInterests } from "@/lib/models/interests/operations";
+import type { UserInterest } from "@/lib/models/interests/schema";
 
 class AuthError extends Error {
   constructor(message: string, public code: string = "UNAUTHENTICATED") {
@@ -26,13 +29,13 @@ export const userResolvers = {
   Query: {
     user: async (
       _: unknown,
-      { id }: { id: string },
+      { username }: { username: string },
       context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
-      return await getUserById(id);
+      return await getUserByUsername(username);
     },
 
     users: async (_: unknown, __: unknown, context: GraphQLContext) => {
@@ -47,6 +50,10 @@ export const userResolvers = {
         return null;
       }
       return context.auth.user;
+    },
+
+    checkUsername: async (_: unknown, { username }: { username: string }) => {
+      return await isUsernameTaken(username);
     },
   },
 
@@ -123,6 +130,9 @@ export const userResolvers = {
     location: (parent: { location?: { x: number; y: number } | null }) => {
       if (!parent.location) return null;
       return { lat: parent.location.y, lon: parent.location.x };
+    },
+    interests: (parent: { id: string }): Promise<UserInterest[]> => {
+      return getUserInterests(parent.id);
     },
   },
 };

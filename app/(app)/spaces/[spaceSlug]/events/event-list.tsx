@@ -250,7 +250,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
         <div className="grid gap-4">
           {events.map(
             (event) => {
-              const startDate = new Date(event.startsAt);
+              const startDate = new Date(event.startsAt as string);
               const isPast = startDate < new Date();
               const isPublished = event.status === "published";
               const isCompleted = event.status === "completed";

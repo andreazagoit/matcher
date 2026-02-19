@@ -10,14 +10,14 @@ export const eventTypeDefs = `#graphql
     description: String
     location: String
     coordinates: EventCoordinates
-    startsAt: String!
-    endsAt: String
+    startsAt: DateTime!
+    endsAt: DateTime
     maxAttendees: Int
     tags: [String!]!
     status: EventStatus!
     createdBy: ID!
-    createdAt: String!
-    updatedAt: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
     attendees: [EventAttendee!]!
     attendeeCount: Int!
   }
@@ -33,8 +33,8 @@ export const eventTypeDefs = `#graphql
     userId: ID!
     user: User
     status: AttendeeStatus!
-    registeredAt: String!
-    attendedAt: String
+    registeredAt: DateTime!
+    attendedAt: DateTime
   }
 
   enum EventStatus {

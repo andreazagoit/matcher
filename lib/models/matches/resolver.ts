@@ -5,7 +5,7 @@
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 import { getUserInterests } from "@/lib/models/interests/operations";
-import { getProfileByUserId } from "@/lib/models/profiles/operations";
+import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
 import { findMatches } from "./operations";
 import type { Gender } from "@/lib/graphql/__generated__/graphql";
 
@@ -36,8 +36,9 @@ export const matchResolvers = {
 
       return findMatches(user.id, {
         maxDistance: args.maxDistance ?? 50,
-        limit: args.limit ?? 20,
+        limit: args.limit ?? 8,
         offset: args.offset ?? 0,
+        candidatePool: 200,
         gender: args.gender,
         minAge: args.minAge,
         maxAge: args.maxAge,
@@ -50,14 +51,14 @@ export const matchResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const [interests, profile] = await Promise.all([
+      const [interests, embeddingRow] = await Promise.all([
         getUserInterests(user.id),
-        getProfileByUserId(user.id),
+        getStoredEmbedding(user.id, "user"),
       ]);
 
       return {
-        hasProfile: interests.length > 0,
-        updatedAt: profile?.updatedAt?.toISOString() ?? null,
+        hasProfile: interests.length > 0 || embeddingRow !== null,
+        updatedAt: null,
       };
     },
   },

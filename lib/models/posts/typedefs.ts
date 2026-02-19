@@ -5,12 +5,13 @@ export const postTypeDefs = `#graphql
     mediaUrls: [String!]
     likesCount: Int
     commentsCount: Int
-    createdAt: String!
+    createdAt: DateTime!
     author: User!
+    space: Space!
   }
 
   extend type Query {
-    globalFeed(limit: Int, offset: Int): [Post!]
+    userFeed(limit: Int, offset: Int): [Post!]!
   }
 
   extend type Space {

@@ -111,7 +111,7 @@ export default function SpaceDetailPage() {
           { label: "Spaces", href: "/spaces" },
           { label: space.name }
         ]}
-        header={<SpaceHeader space={space} />}
+        header={<SpaceHeader space={{ ...space, createdAt: space.createdAt as string | undefined }} />}
         actions={
           <Button variant="outline" onClick={handleLeave}>Cancel Request</Button>
         }
@@ -134,7 +134,7 @@ export default function SpaceDetailPage() {
           { label: "Spaces", href: "/spaces" },
           { label: space.name }
         ]}
-        header={<SpaceHeader space={space} />}
+        header={<SpaceHeader space={{ ...space, createdAt: space.createdAt as string | undefined }} />}
         actions={
           isMember ? (
             <Button variant="outline" onClick={handleLeave}>Leave Space</Button>

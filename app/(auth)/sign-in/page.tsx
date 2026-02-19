@@ -48,9 +48,8 @@ export default function SignInPage() {
       });
 
       if (result?.error) {
-        fail(
-          (result.error as { message?: string }).message || "Invio OTP fallito",
-        );
+        const message = (result.error as { message?: string }).message ?? "";
+        fail(message || "Invio OTP fallito");
         return;
       }
 
@@ -120,7 +119,7 @@ export default function SignInPage() {
             <CardDescription>
               {step === "email"
                 ? "Inserisci la tua email per ricevere un codice di accesso"
-                : `Abbiamo inviato un codice a ${email}`}
+                : `Se l'indirizzo ${email} è registrato, riceverai un codice a breve.`}
             </CardDescription>
           </CardHeader>
 
@@ -210,6 +209,15 @@ export default function SignInPage() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="mt-6 text-center">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+              <ArrowLeftIcon className="w-4 h-4" />
+              Indietro
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

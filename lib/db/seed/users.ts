@@ -1,6 +1,10 @@
 import { db } from "../drizzle";
 import { users } from "../../models/users/schema";
 
+function toUsername(given: string, family: string): string {
+  return `${given}_${family}`.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 30);
+}
+
 export const SEED_USERS = [
   { givenName: "Admin", familyName: "System", email: "admin@matcher.local", birthdate: "1990-01-01", gender: "man" as const },
   { givenName: "Mario", familyName: "Rossi", email: "mario.rossi@example.com", birthdate: "1995-03-15", gender: "man" as const },
@@ -45,6 +49,7 @@ export async function seedUsers() {
       .insert(users)
       .values({
         ...seed,
+        username: toUsername(seed.givenName, seed.familyName),
         name: `${seed.givenName} ${seed.familyName}`,
       })
       .returning({ id: users.id, email: users.email });

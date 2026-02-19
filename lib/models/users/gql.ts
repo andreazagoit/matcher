@@ -7,6 +7,7 @@ import { gql } from "graphql-tag";
 export const USER_FRAGMENT = gql`
   fragment UserFields on User {
     id
+    username
     givenName
     familyName
     email
@@ -31,6 +32,25 @@ export const GET_ME = gql`
   }
 `;
 
+export const GET_USER = gql`
+  ${USER_FRAGMENT}
+  query GetUser($username: String!) {
+    user(username: $username) {
+      ...UserFields
+      interests {
+        tag
+        weight
+      }
+    }
+  }
+`;
+
+export const CHECK_USERNAME = gql`
+  query CheckUsername($username: String!) {
+    checkUsername(username: $username)
+  }
+`;
+
 // ============================================
 // MUTATIONS
 // ============================================
@@ -40,6 +60,10 @@ export const UPDATE_USER = gql`
   mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
     updateUser(id: $id, input: $input) {
       ...UserFields
+      interests {
+        tag
+        weight
+      }
     }
   }
 `;

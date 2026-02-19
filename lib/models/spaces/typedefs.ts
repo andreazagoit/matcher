@@ -8,7 +8,7 @@ export const spaceTypeDefs = `#graphql
     tags: [String!]!
     visibility: String!
     joinPolicy: String!
-    createdAt: String!
+    createdAt: DateTime!
     isActive: Boolean
     membersCount: Int
     type: String

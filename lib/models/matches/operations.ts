@@ -13,7 +13,7 @@
 
 import { db } from "@/lib/db/drizzle";
 import { users, type User } from "@/lib/models/users/schema";
-import { profiles } from "@/lib/models/profiles/schema";
+import { embeddings } from "@/lib/models/embeddings/schema";
 import { userInterests } from "@/lib/models/interests/schema";
 import { members } from "@/lib/models/members/schema";
 import { eventAttendees } from "@/lib/models/events/schema";
@@ -43,6 +43,7 @@ interface MatchFilters {
   maxDistance: number;
   limit: number;
   offset: number;
+  candidatePool?: number; // fetch this many top candidates, then randomly sample `limit` from them
   gender?: NonNullable<User["gender"]>[];
   minAge?: number;
   maxAge?: number;
@@ -56,13 +57,18 @@ export async function findMatches(
 ): Promise<MatchResult[]> {
   const currentUser = await db.query.users.findFirst({
     where: eq(users.id, userId),
-    with: { profile: true },
   });
 
   if (!currentUser) throw new Error("User not found");
 
+  // Location is required for daily matches
   const myLocation = currentUser.location;
-  const myBehaviorEmbedding = currentUser.profile?.behaviorEmbedding;
+  if (!myLocation) return [];
+
+  const myEmbeddingRow = await db.query.embeddings.findFirst({
+    where: and(eq(embeddings.entityId, userId), eq(embeddings.entityType, "user")),
+  });
+  const myBehaviorEmbedding = myEmbeddingRow?.embedding ?? null;
 
   // Get current user's interest tags for overlap calculation
   const myInterests = await db.query.userInterests.findMany({
@@ -123,12 +129,15 @@ export async function findMatches(
       AND ea.status IN ('going', 'attended')
   )`;
 
-  const distanceSql = myLocation
-    ? sql<number>`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`
-    : sql<number>`NULL`;
+  const distanceSql = sql<number>`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
 
-  const behaviorSimSql = myBehaviorEmbedding
-    ? sql<number>`1 - (${profiles.behaviorEmbedding} <=> ${JSON.stringify(myBehaviorEmbedding)}::vector)`
+  const embeddingStr = myBehaviorEmbedding ? `[${myBehaviorEmbedding.join(",")}]` : null;
+  const behaviorSimSql = embeddingStr
+    ? sql<number>`COALESCE((
+        SELECT 1 - (e.embedding <=> ${embeddingStr}::vector)
+        FROM ${embeddings} e
+        WHERE e.entity_id = ${users.id} AND e.entity_type = 'user'
+      ), 0)`
     : sql<number>`0`;
 
   const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
@@ -143,9 +152,7 @@ export async function findMatches(
       ? sql<number>`${sharedEventsCountSql}::float / ${Math.max(myEventIds.length, 1)}`
       : sql<number>`0`;
 
-  const proximityScoreSql = myLocation
-    ? sql<number>`CASE WHEN ${distanceSql} <= ${filters.maxDistance} THEN 1 - (${distanceSql} / ${filters.maxDistance}) ELSE 0 END`
-    : sql<number>`0`;
+  const proximityScoreSql = sql<number>`CASE WHEN ${distanceSql} <= ${filters.maxDistance} THEN 1 - (${distanceSql} / ${filters.maxDistance}) ELSE 0 END`;
 
   const finalScoreSql = sql<number>`(
     0.35 * ${interestScoreSql} +
@@ -165,6 +172,8 @@ export async function findMatches(
         )`
       : sql<string[]>`'{}'::text[]`;
 
+  const poolSize = filters.candidatePool ?? filters.limit;
+
   const candidates = await db
     .select({
       user: {
@@ -181,7 +190,6 @@ export async function findMatches(
       sharedTags: sharedTagsSql,
     })
     .from(users)
-    .leftJoin(profiles, eq(users.id, profiles.userId))
     .where(
       and(
         ne(users.id, userId),
@@ -203,6 +211,10 @@ export async function findMatches(
               ),
             ),
         ),
+        // Candidates must have a location set
+        sql`${users.location} IS NOT NULL`,
+        // Must be within maxDistance radius
+        sql`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`,
         filters.gender?.length
           ? inArray(users.gender, filters.gender)
           : undefined,
@@ -212,16 +224,18 @@ export async function findMatches(
         filters.maxAge
           ? sql`${ageSql} <= ${filters.maxAge}`
           : undefined,
-        myLocation
-          ? sql`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`
-          : undefined,
       ),
     )
     .orderBy(sql`${finalScoreSql} DESC`)
-    .limit(filters.limit)
+    .limit(poolSize)
     .offset(filters.offset);
 
-  return candidates.map((c) => ({
+  // If candidatePool was used, randomly sample `limit` from the pool
+  const results = filters.candidatePool
+    ? candidates.sort(() => Math.random() - 0.5).slice(0, filters.limit)
+    : candidates;
+
+  return results.map((c) => ({
     ...c,
     sharedSpaceIds: [],
     sharedEventIds: [],

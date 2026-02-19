@@ -16,6 +16,12 @@ export const POST_FRAGMENT = gql`
       id
       givenName
       familyName
+      image
+    }
+    space {
+      id
+      name
+      slug
     }
   }
 `;
@@ -24,10 +30,10 @@ export const POST_FRAGMENT = gql`
 // QUERIES
 // ============================================
 
-export const GET_GLOBAL_FEED = gql`
+export const GET_USER_FEED = gql`
   ${POST_FRAGMENT}
-  query GetGlobalFeed($limit: Int, $offset: Int) {
-    globalFeed(limit: $limit, offset: $offset) {
+  query GetUserFeed($limit: Int, $offset: Int) {
+    userFeed(limit: $limit, offset: $offset) {
       ...PostFields
     }
   }

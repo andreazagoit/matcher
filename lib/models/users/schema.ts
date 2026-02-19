@@ -30,6 +30,7 @@ export const users = pgTable(
     // ==========================================
     // DEMOGRAPHIC DATA (OIDC standard naming)
     // ==========================================
+    username: text("username").unique(),
     givenName: text("given_name"),
     familyName: text("family_name"),
     email: text("email").notNull().unique(),
@@ -57,6 +58,7 @@ export const users = pgTable(
   },
   (table) => [
     index("users_email_idx").on(table.email),
+    index("users_username_idx").on(table.username),
     index("users_location_gist_idx").using("gist", table.location),
   ]
 );
@@ -65,8 +67,6 @@ export const users = pgTable(
 // RELATIONS
 // ==========================================
 
-// Note: Relations with profiles are defined in their respective
-// schema files to prevent circular dependency issues.
 
 // ==========================================
 // INFERRED TYPES

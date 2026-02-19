@@ -21,7 +21,8 @@ import { generateEmbedding, computeCentroid } from "@/lib/embeddings";
 import { boostInterestsFromTags } from "@/lib/models/interests/operations";
 import { getUserInterestTags } from "@/lib/models/interests/operations";
 import { db } from "@/lib/db/drizzle";
-import { profiles } from "@/lib/models/profiles/schema";
+import { embeddings } from "@/lib/models/embeddings/schema";
+import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
 import { eq, sql, gte, and, inArray } from "drizzle-orm";
 
 function requireAuth(context: GraphQLContext) {
@@ -79,15 +80,12 @@ export const eventResolvers = {
       const user = requireAuth(context);
       const maxResults = limit ?? 10;
 
-      const profile = await db.query.profiles.findFirst({
-        where: eq(profiles.userId, user.id),
-      });
-
       const userTags = await getUserInterestTags(user.id);
+      const userEmbedding = await getStoredEmbedding(user.id, "user");
 
-      // Strategy 1: OpenAI behavioral embedding (centroid of attended events)
-      if (profile?.behaviorEmbedding) {
-        const embeddingStr = `[${profile.behaviorEmbedding.join(",")}]`;
+      // Strategy 1: OpenAI behavioral embedding
+      if (userEmbedding) {
+        const embeddingStr = `[${userEmbedding.join(",")}]`;
         const results = await db
           .select()
           .from(events)
@@ -266,7 +264,13 @@ export const eventResolvers = {
         const validEmbeddings = eventRows.map((r) => r.embedding).filter((e): e is number[] => e !== null && e.length > 0);
         if (validEmbeddings.length === 0) return;
         const centroid = computeCentroid(validEmbeddings);
-        await db.update(profiles).set({ behaviorEmbedding: centroid, updatedAt: new Date() }).where(eq(profiles.userId, user.id));
+        await db
+          .insert(embeddings)
+          .values({ entityId: user.id, entityType: "user", embedding: centroid })
+          .onConflictDoUpdate({
+            target: [embeddings.entityId, embeddings.entityType],
+            set: { embedding: centroid, updatedAt: new Date() },
+          });
 
       })().catch(() => {});
 

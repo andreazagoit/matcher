@@ -312,7 +312,7 @@ export function MembersDataTable({
                                     <div>
                                         <p className="text-xs text-muted-foreground">Joined</p>
                                         <p className="text-sm font-medium">
-                                            {new Date(selectedMember.joinedAt).toLocaleDateString(undefined, {
+                                            {new Date(selectedMember.joinedAt as string).toLocaleDateString(undefined, {
                                                 weekday: "long",
                                                 year: "numeric",
                                                 month: "long",

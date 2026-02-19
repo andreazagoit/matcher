@@ -13,9 +13,6 @@ export * from "../models/tiers/schema";
 export * from "../models/members/schema";
 export * from "../models/posts/schema";
 
-// 4. Profiles
-export * from "../models/profiles/schema";
-
 // 5. Events
 export * from "../models/events/schema";
 

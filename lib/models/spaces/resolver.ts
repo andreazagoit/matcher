@@ -2,7 +2,7 @@ import { db } from "@/lib/db/drizzle";
 import { eq, and, sql } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
-import { profiles } from "@/lib/models/profiles/schema";
+import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
 import { getUserInterestTags } from "@/lib/models/interests/operations";
 import { createSpace, updateSpace, deleteSpace, getSpacesByTags } from "./operations";
 import { GraphQLError } from "graphql";
@@ -56,10 +56,10 @@ export const spaceResolvers = {
             if (!auth.user) throw new GraphQLError("Unauthorized");
             const maxResults = limit ?? 10;
 
-            const profile = await db.query.profiles.findFirst({
-                where: eq(profiles.userId, auth.user.id),
-            });
-            const userTags = await getUserInterestTags(auth.user.id);
+            const [userEmbedding, userTags] = await Promise.all([
+                getStoredEmbedding(auth.user.id, "user"),
+                getUserInterestTags(auth.user.id),
+            ]);
 
             // Exclude spaces user is already a member of
             const myMemberships = await db
@@ -72,8 +72,8 @@ export const spaceResolvers = {
                 results.filter((s) => !mySpaceIds.includes(s.id)).slice(0, maxResults);
 
             // Strategy 1: OpenAI behavioral embedding
-            if (profile?.behaviorEmbedding) {
-                const embeddingStr = `[${profile.behaviorEmbedding.join(",")}]`;
+            if (userEmbedding) {
+                const embeddingStr = `[${userEmbedding.join(",")}]`;
                 const results = await db
                     .select()
                     .from(spaces)

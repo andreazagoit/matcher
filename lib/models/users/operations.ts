@@ -8,6 +8,7 @@ import {
   type UpdateUserInput,
 } from "./validator";
 import { eq } from "drizzle-orm";
+import { GraphQLError } from "graphql";
 
 /**
  * Create a new user record.
@@ -15,13 +16,19 @@ import { eq } from "drizzle-orm";
 export async function createUser(
   input: CreateUserInput
 ): Promise<User> {
-  // Validate input with Zod
   const validatedInput = createUserSchema.parse(input);
 
-  // Create user
+  const existing = await db.query.users.findFirst({
+    where: eq(users.username, validatedInput.username),
+  });
+  if (existing) {
+    throw new GraphQLError("Username already taken", { extensions: { code: "USERNAME_TAKEN" } });
+  }
+
   const [newUser] = await db
     .insert(users)
     .values({
+      username: validatedInput.username,
       givenName: validatedInput.givenName,
       familyName: validatedInput.familyName,
       email: validatedInput.email,
@@ -55,6 +62,13 @@ export async function updateUser(
     updatedAt: new Date(),
   };
 
+  if (validatedInput.username !== undefined) {
+    const taken = await db.query.users.findFirst({ where: eq(users.username, validatedInput.username) });
+    if (taken && taken.id !== id) {
+      throw new GraphQLError("Username already taken", { extensions: { code: "USERNAME_TAKEN" } });
+    }
+    updateData.username = validatedInput.username;
+  }
   if (validatedInput.givenName !== undefined) updateData.givenName = validatedInput.givenName;
   if (validatedInput.familyName !== undefined) updateData.familyName = validatedInput.familyName;
   if (validatedInput.email !== undefined) updateData.email = validatedInput.email;
@@ -75,6 +89,16 @@ export async function updateUser(
 export async function getUserById(id: string): Promise<User | null> {
   const result = await db.query.users.findFirst({
     where: eq(users.id, id),
+  });
+  return result || null;
+}
+
+/**
+ * Retrieve a user by their username.
+ */
+export async function getUserByUsername(username: string): Promise<User | null> {
+  const result = await db.query.users.findFirst({
+    where: eq(users.username, username),
   });
   return result || null;
 }
@@ -105,6 +129,17 @@ export async function deleteUser(id: string): Promise<boolean> {
     .where(eq(users.id, id))
     .returning();
   return !!deleted;
+}
+
+/**
+ * Check if a username is already taken. No auth required (used at sign-up).
+ */
+export async function isUsernameTaken(username: string): Promise<boolean> {
+  const existing = await db.query.users.findFirst({
+    where: eq(users.username, username),
+    columns: { id: true },
+  });
+  return !!existing;
 }
 
 /**

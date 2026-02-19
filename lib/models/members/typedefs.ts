@@ -4,9 +4,9 @@ export const memberTypeDefs = `#graphql
     user: User!
     role: String!
     status: String!
-    joinedAt: String!
+    joinedAt: DateTime!
     subscriptionId: String
-    currentPeriodEnd: String
+    currentPeriodEnd: DateTime
   }
 
   extend type Space {

@@ -33,6 +33,12 @@ export const auth = betterAuth({
   user: {
     modelName: "users",
     additionalFields: {
+      username: {
+        type: "string",
+        required: false,
+        input: true,
+        unique: true,
+      },
       givenName: {
         type: "string",
         required: false,
@@ -58,6 +64,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
   },
 
   session: {
@@ -79,6 +86,7 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 300, // 5 minutes
       disableSignUp: true, // signup handled separately (needs profile fields)
+      overrideDefaultEmailVerification: true, // use OTP instead of magic link
     }),
     expo(),
     nextCookies(),

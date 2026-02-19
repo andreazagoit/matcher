@@ -13,10 +13,10 @@ export const conversationTypeDefs = `#graphql
     status: ConversationStatus!
     source: String
     lastMessage: Message
-    lastMessageAt: String
+    lastMessageAt: DateTime
     unreadCount: Int
-    createdAt: String!
-    updatedAt: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
   }
 
   type Message {
@@ -24,8 +24,8 @@ export const conversationTypeDefs = `#graphql
     conversationId: ID!
     sender: User!
     content: String!
-    readAt: String
-    createdAt: String!
+    readAt: DateTime
+    createdAt: DateTime!
   }
 
   extend type Query {

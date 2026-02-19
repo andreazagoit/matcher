@@ -25,7 +25,7 @@ export const matchTypeDefs = `#graphql
 
   type ProfileStatus {
     hasProfile: Boolean!
-    updatedAt: String
+    updatedAt: DateTime
   }
 
   # ── Queries ────────────────────────────────────────────────────

@@ -1,19 +1,34 @@
 import { db } from "@/lib/db/drizzle";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { posts, type Post } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { users } from "@/lib/models/users/schema";
-import { type Space } from "@/lib/models/spaces/schema";
+import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { GraphQLError } from "graphql";
-
-interface ResolverContext {
-    user?: { id: string } | null;
-}
+import type { GraphQLContext } from "@/lib/graphql/context";
 
 export const postResolvers = {
     Query: {
-        globalFeed: async (_: unknown, { limit = 20, offset = 0 }: { limit?: number; offset?: number }) => {
+        userFeed: async (
+            _: unknown,
+            { limit = 20, offset = 0 }: { limit?: number; offset?: number },
+            { auth }: GraphQLContext
+        ) => {
+            if (!auth.user) throw new GraphQLError("Unauthorized");
+
+            const memberships = await db.query.members.findMany({
+                where: and(
+                    eq(members.userId, auth.user.id),
+                    eq(members.status, "active")
+                ),
+                columns: { spaceId: true },
+            });
+
+            const spaceIds = memberships.map((m) => m.spaceId);
+            if (spaceIds.length === 0) return [];
+
             return db.query.posts.findMany({
+                where: inArray(posts.spaceId, spaceIds),
                 limit,
                 offset,
                 orderBy: (posts, { desc }) => [desc(posts.createdAt)],
@@ -25,6 +40,11 @@ export const postResolvers = {
         author: async (parent: Post) => {
             return db.query.users.findFirst({
                 where: eq(users.id, parent.authorId),
+            });
+        },
+        space: async (parent: Post) => {
+            return db.query.spaces.findFirst({
+                where: eq(spaces.id, parent.spaceId),
             });
         },
     },
@@ -44,12 +64,12 @@ export const postResolvers = {
         createPost: async (
             _: unknown,
             { spaceId, content, mediaUrls }: { spaceId: string, content: string, mediaUrls?: string[] },
-            context: ResolverContext
+            { auth }: GraphQLContext
         ) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
+            if (!auth.user) throw new GraphQLError("Unauthorized");
 
             const membership = await db.query.members.findFirst({
-                where: and(eq(members.spaceId, spaceId), eq(members.userId, context.user.id)),
+                where: and(eq(members.spaceId, spaceId), eq(members.userId, auth.user.id)),
             });
 
             if (!membership || membership.status !== "active") {
@@ -58,7 +78,7 @@ export const postResolvers = {
 
             const [newPost] = await db.insert(posts).values({
                 spaceId,
-                authorId: context.user.id,
+                authorId: auth.user.id,
                 content,
                 mediaUrls: mediaUrls || [],
             }).returning();
@@ -66,15 +86,15 @@ export const postResolvers = {
             return newPost;
         },
 
-        deletePost: async (_: unknown, { postId }: { postId: string }, context: ResolverContext) => {
-            if (!context.user) throw new GraphQLError("Unauthorized");
+        deletePost: async (_: unknown, { postId }: { postId: string }, { auth }: GraphQLContext) => {
+            if (!auth.user) throw new GraphQLError("Unauthorized");
 
             const post = await db.query.posts.findFirst({ where: eq(posts.id, postId) });
             if (!post) throw new GraphQLError("Post not found");
 
-            if (post.authorId !== context.user.id) {
+            if (post.authorId !== auth.user.id) {
                 const membership = await db.query.members.findFirst({
-                    where: and(eq(members.spaceId, post.spaceId), eq(members.userId, context.user.id)),
+                    where: and(eq(members.spaceId, post.spaceId), eq(members.userId, auth.user.id)),
                 });
 
                 if (!membership || membership.role !== "admin") {

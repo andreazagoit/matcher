@@ -107,7 +107,7 @@ export function LocationSelector() {
                 <Button variant="outline" size="sm" className="gap-2 h-9">
                     <MapPin className="h-4 w-4 text-primary" />
                     <span className="hidden sm:inline">
-                        {hasLocation ? `${radius} km` : "Set Location"}
+                        {hasLocation ? `${radius} km` : "Location"}
                     </span>
                 </Button>
             </DialogTrigger>

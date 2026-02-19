@@ -8,6 +8,7 @@ export const userTypeDefs = `#graphql
   """
   type User {
     id: ID!
+    username: String
     givenName: String!
     familyName: String!
     email: String!
@@ -15,9 +16,10 @@ export const userTypeDefs = `#graphql
     gender: Gender
     image: String
     location: Location
-    locationUpdatedAt: String
-    createdAt: String!
-    updatedAt: String!
+    locationUpdatedAt: DateTime
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    interests: [UserInterest!]!
   }
 
   type Location {
@@ -34,6 +36,7 @@ export const userTypeDefs = `#graphql
   }
 
   input UpdateUserInput {
+    username: String
     givenName: String
     familyName: String
     email: String
@@ -48,9 +51,10 @@ export const userTypeDefs = `#graphql
   }
 
   extend type Query {
-    user(id: ID!): User
+    user(username: String!): User
     users: [User!]!
     me: User
+    checkUsername(username: String!): Boolean!
   }
 
   extend type Mutation {

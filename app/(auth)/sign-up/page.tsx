@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,20 +20,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
-import { Loader2Icon, UserPlusIcon } from "lucide-react";
+import { signUpSchema } from "@/lib/models/users/validator";
+import { ArrowLeftIcon, Loader2Icon, LogInIcon, UserPlusIcon } from "lucide-react";
 import Link from "next/link";
-
-type Gender = "" | "man" | "woman" | "non_binary";
+import { useLazyQuery } from "@apollo/client/react";
+import { CHECK_USERNAME } from "@/lib/models/users/gql";
+type FieldErrors = Partial<Record<"username" | "givenName" | "familyName" | "email" | "birthdate" | "gender", string>>;
 
 interface SignupData {
+  username: string;
   givenName: string;
   familyName: string;
   email: string;
   birthdate: string;
-  gender: Gender;
+  gender: "" | "man" | "woman" | "non_binary";
 }
 
 const EMPTY_SIGNUP: SignupData = {
+  username: "",
   givenName: "",
   familyName: "",
   email: "",
@@ -41,33 +46,59 @@ const EMPTY_SIGNUP: SignupData = {
 };
 
 export default function SignUpPage() {
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [signupData, setSignupData] = useState<SignupData>(EMPTY_SIGNUP);
+  const [step, setStep] = useState<"form" | "verify">("form");
+  const [otp, setOtp] = useState("");
+  const [usernameTaken, setUsernameTaken] = useState(false);
+  const usernameDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fail = (message: string) => {
-    setError(message);
-    setLoading(false);
-  };
+  const [checkUsername] = useLazyQuery<{ checkUsername: boolean }>(CHECK_USERNAME, {
+    fetchPolicy: "network-only",
+  });
 
-  const updateSignup = <K extends keyof SignupData>(k: K, v: SignupData[K]) =>
+  // Pre-fill email if redirected from sign-in
+  useEffect(() => {
+    const email = searchParams.get("email");
+    if (email) setSignupData((prev) => ({ ...prev, email }));
+  }, [searchParams]);
+
+  const updateSignup = <K extends keyof SignupData>(k: K, v: SignupData[K]) => {
     setSignupData((prev) => ({ ...prev, [k]: v }));
+    if (fieldErrors[k]) setFieldErrors((prev) => ({ ...prev, [k]: undefined }));
+
+    if (k === "username") {
+      setUsernameTaken(false);
+      if (usernameDebounce.current) clearTimeout(usernameDebounce.current);
+      const val = v as string;
+      if (val.length >= 3) {
+        usernameDebounce.current = setTimeout(async () => {
+          const { data } = await checkUsername({ variables: { username: val } });
+          setUsernameTaken(data?.checkUsername ?? false);
+        }, 400);
+      }
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    setError(null);
+    setSubmitError(null);
+    setFieldErrors({});
 
-    if (
-      !signupData.birthdate ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(signupData.birthdate)
-    ) {
-      fail("Inserisci una data di nascita valida");
-      return;
-    }
-    if (!signupData.gender) {
-      fail("Seleziona il genere");
+    const parsed = signUpSchema.safeParse(signupData);
+    if (!parsed.success) {
+      const errors: FieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0] as keyof SignupData;
+        if (!errors[field]) errors[field] = issue.message;
+      }
+      setFieldErrors(errors);
+      setLoading(false);
       return;
     }
 
@@ -78,6 +109,7 @@ export default function SignUpPage() {
         email: signupData.email,
         password: randomPassword,
         name: `${signupData.givenName} ${signupData.familyName}`,
+        username: signupData.username,
         givenName: signupData.givenName,
         familyName: signupData.familyName,
         birthdate: signupData.birthdate,
@@ -85,16 +117,46 @@ export default function SignUpPage() {
       } as Parameters<typeof authClient.signUp.email>[0]);
 
       if (result?.error) {
-        fail(
-          (result.error as { message?: string }).message ||
-            "Registrazione fallita",
+        setSubmitError(
+          (result.error as { message?: string }).message || "Registrazione fallita",
         );
+        setLoading(false);
         return;
       }
 
-      window.location.href = "/discover";
+      // Account created — now verify email via OTP
+      setStep("verify");
+      setLoading(false);
     } catch (err) {
-      fail(err instanceof Error ? err.message : "Registrazione fallita");
+      setSubmitError(err instanceof Error ? err.message : "Registrazione fallita");
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    setSubmitError(null);
+
+    try {
+      const result = await authClient.emailOtp.verifyEmail({
+        email: signupData.email,
+        otp,
+      });
+
+      if (result?.error) {
+        setSubmitError(
+          (result.error as { message?: string }).message || "Codice non valido",
+        );
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = `/users/${signupData.username}`;
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Verifica fallita");
+      setLoading(false);
     }
   };
 
@@ -111,22 +173,81 @@ export default function SignUpPage() {
           </p>
         </div>
 
-        {error && (
+        {submitError && (
           <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-xl mb-5 text-sm">
-            {error}
+            {submitError}
           </div>
         )}
 
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm rounded-2xl overflow-hidden">
           <CardHeader>
-            <CardTitle>Registrati</CardTitle>
+            <CardTitle>{step === "form" ? "Registrati" : "Verifica email"}</CardTitle>
             <CardDescription>
-              Compila i dati per creare il tuo account
+              {step === "form"
+                ? "Compila i dati per creare il tuo account"
+                : `Abbiamo inviato un codice a ${signupData.email}. Inseriscilo per attivare l'account.`}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
+            {step === "verify" ? (
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="verify-otp">Codice OTP</label>
+                  <input
+                    id="verify-otp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    required
+                    placeholder="000000"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-center text-2xl tracking-[0.5em] font-mono ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Il codice scade tra 5 minuti.
+                  </p>
+                </div>
+
+                <Button type="submit" disabled={loading || otp.length < 6} className="w-full">
+                  {loading ? (
+                    <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <LogInIcon className="w-4 h-4 mr-2" />
+                  )}
+                  Verifica e accedi
+                </Button>
+              </form>
+            ) : (
+            <>
             <form onSubmit={handleSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signup-username">Username</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                  <Input
+                    id="signup-username"
+                    value={signupData.username}
+                    onChange={(e) => updateSignup("username", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                    placeholder="mario_rossi"
+                    className={`pl-7 ${fieldErrors.username || usernameTaken ? "border-destructive" : ""}`}
+                    maxLength={30}
+                    autoComplete="username"
+                  />
+                </div>
+                {fieldErrors.username ? (
+                  <p className="text-xs text-destructive">{fieldErrors.username}</p>
+                ) : usernameTaken ? (
+                  <p className="text-xs text-destructive">Username già in uso</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">3–30 caratteri, solo lettere minuscole, numeri e _</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="signup-givenname">Nome</Label>
@@ -134,9 +255,10 @@ export default function SignUpPage() {
                     id="signup-givenname"
                     value={signupData.givenName}
                     onChange={(e) => updateSignup("givenName", e.target.value)}
-                    required
                     placeholder="Mario"
+                    className={fieldErrors.givenName ? "border-destructive" : ""}
                   />
+                  {fieldErrors.givenName && <p className="text-xs text-destructive">{fieldErrors.givenName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-familyname">Cognome</Label>
@@ -144,9 +266,10 @@ export default function SignUpPage() {
                     id="signup-familyname"
                     value={signupData.familyName}
                     onChange={(e) => updateSignup("familyName", e.target.value)}
-                    required
                     placeholder="Rossi"
+                    className={fieldErrors.familyName ? "border-destructive" : ""}
                   />
+                  {fieldErrors.familyName && <p className="text-xs text-destructive">{fieldErrors.familyName}</p>}
                 </div>
               </div>
 
@@ -157,10 +280,11 @@ export default function SignUpPage() {
                   type="email"
                   value={signupData.email}
                   onChange={(e) => updateSignup("email", e.target.value)}
-                  required
                   placeholder="tu@esempio.com"
                   autoComplete="email"
+                  className={fieldErrors.email ? "border-destructive" : ""}
                 />
+                {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -171,17 +295,17 @@ export default function SignUpPage() {
                     type="date"
                     value={signupData.birthdate}
                     onChange={(e) => updateSignup("birthdate", e.target.value)}
-                    required
-                    className="dark:[color-scheme:dark]"
+                    className={`dark:[color-scheme:dark] ${fieldErrors.birthdate ? "border-destructive" : ""}`}
                   />
+                  {fieldErrors.birthdate && <p className="text-xs text-destructive">{fieldErrors.birthdate}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Genere</Label>
                   <Select
                     value={signupData.gender}
-                    onValueChange={(v) => updateSignup("gender", v as Gender)}
+                    onValueChange={(v) => updateSignup("gender", v as SignupData["gender"])}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className={`w-full ${fieldErrors.gender ? "border-destructive" : ""}`}>
                       <SelectValue placeholder="Seleziona..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -190,10 +314,11 @@ export default function SignUpPage() {
                       <SelectItem value="non_binary">Non binario</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldErrors.gender && <p className="text-xs text-destructive">{fieldErrors.gender}</p>}
                 </div>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button type="submit" disabled={loading || usernameTaken} className="w-full">
                 {loading ? (
                   <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
                 ) : (
@@ -214,8 +339,19 @@ export default function SignUpPage() {
                 </Link>
               </p>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
+
+        <div className="mt-6 text-center">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+              <ArrowLeftIcon className="w-4 h-4" />
+              Indietro
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

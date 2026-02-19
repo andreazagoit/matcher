@@ -34,6 +34,15 @@ export const GET_ALL_SPACES = gql`
   }
 `;
 
+export const GET_RECOMMENDED_SPACES = gql`
+  ${SPACE_FRAGMENT}
+  query GetRecommendedSpaces($limit: Int) {
+    recommendedSpaces(limit: $limit) {
+      ...SpaceFields
+    }
+  }
+`;
+
 export const GET_MY_SPACES = gql`
   ${SPACE_FRAGMENT}
   query GetMySpaces {

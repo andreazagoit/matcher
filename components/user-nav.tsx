@@ -63,9 +63,11 @@ export function UserNav() {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                    <Link href="/account">Profile</Link>
-                </DropdownMenuItem>
+                {(() => { const u = (user as Record<string, unknown>).username as string | undefined; return u ? (
+                    <DropdownMenuItem asChild>
+                        <Link href={`/users/${u}`}>Profile</Link>
+                    </DropdownMenuItem>
+                ) : null; })()}
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
                     Log out
                 </DropdownMenuItem>

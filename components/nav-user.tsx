@@ -21,6 +21,7 @@ export function NavUser({
     user,
 }: {
     user: {
+        username?: string
         name: string
         email: string
         avatar: string
@@ -57,7 +58,7 @@ export function NavUser({
                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                     asChild
                 >
-                    <Link href="/account">
+                    <Link href={user.username ? `/users/${user.username}` : "/"}>
                         <Avatar className="rounded-lg">
                             <AvatarImage src={user.avatar} alt={user.name} />
                             <AvatarFallback className="rounded-lg">

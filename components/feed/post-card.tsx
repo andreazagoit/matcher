@@ -1,6 +1,6 @@
 "use client"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -10,10 +10,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Compass,
     MoreVertical,
     TrashIcon
 } from "lucide-react"
+import Link from "next/link"
 import type { PostFieldsFragment } from "@/lib/graphql/__generated__/graphql"
 
 interface PostCardProps {
@@ -37,6 +37,7 @@ export function PostCard({
         <Card className="overflow-hidden border-none shadow-md hover:shadow-xl transition-all py-0">
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 p-4">
                 <Avatar className="rounded-full ring-1 ring-border">
+                    <AvatarImage src={post.author.image ?? undefined} />
                     <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
                         {post.author.givenName[0]}{post.author.familyName[0]}
                     </AvatarFallback>
@@ -48,8 +49,14 @@ export function PostCard({
                                 {post.author.givenName} {post.author.familyName}
                             </p>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Compass className="h-3 w-3" />
-                                {new Date(post.createdAt).toLocaleDateString(undefined, {
+                                <Link
+                                    href={`/spaces/${post.space.slug}`}
+                                    className="hover:text-foreground transition-colors hover:underline"
+                                >
+                                    {post.space.name}
+                                </Link>
+                                <span>·</span>
+                                {new Date(post.createdAt as string).toLocaleDateString(undefined, {
                                     month: 'short',
                                     day: 'numeric',
                                     year: 'numeric'

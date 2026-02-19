@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { seedUsers } from "./users";
 import { seedSpaces } from "./spaces";
-import { seedProfiles } from "./profiles";
+import { seedProfiles } from "./interests";
 
 async function seed() {
   console.log("🌱 Starting seed...\n");
