@@ -1,6 +1,7 @@
 "use client"
 
 import {
+    Bell,
     Compass,
     GalleryVerticalEnd,
     LayoutDashboard,
@@ -64,6 +65,11 @@ const data = {
             title: "Dashboard",
             url: "/dashboard",
             icon: LayoutDashboard,
+        },
+        {
+            title: "Notifiche",
+            url: "/notifications",
+            icon: Bell,
         },
     ],
     navSecondary: [

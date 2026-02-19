@@ -1,4 +1,5 @@
 import { conversationTypeDefs } from "../models/conversations/typedefs";
+import { notificationTypeDefs } from "../models/notifications/typedefs";
 import { eventTypeDefs } from "../models/events/typedefs";
 import { interestTypeDefs } from "../models/interests/typedefs";
 import { matchTypeDefs } from "../models/matches/typedefs";
@@ -30,4 +31,5 @@ export const typeDefs = [
   tagTypeDefs,
   tierTypeDefs,
   userTypeDefs,
+  notificationTypeDefs,
 ];

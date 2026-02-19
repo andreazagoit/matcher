@@ -10,6 +10,7 @@ import {
 import { SearchForm } from "@/components/search-form"
 import { LocationSelector } from "@/components/location-selector"
 import { Container } from "@/components/container"
+import { NotificationBell } from "@/components/notification-bell"
 import Link from "next/link";
 
 export interface BreadcrumbItem {
@@ -63,6 +64,7 @@ export function Page({
                     <div className="flex items-center gap-2 ml-auto">
                         <LocationSelector />
                         <SearchForm />
+                        <NotificationBell />
                     </div>
                 </Container>
             </header>

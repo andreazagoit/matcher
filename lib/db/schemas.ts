@@ -28,3 +28,6 @@ export * from "../models/impressions/schema";
 
 // 9. Embeddings (64-dim vectors for recommendations)
 export * from "../models/embeddings/schema";
+
+// 10. Notifications
+export * from "../models/notifications/schema";

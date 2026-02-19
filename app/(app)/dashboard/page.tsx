@@ -19,7 +19,9 @@ export default function DashboardPage() {
   const { data: spacesData, loading: spacesLoading, refetch: refetchSpaces } = useQuery<GetMySpacesQuery, GetMySpacesQueryVariables>(GET_MY_SPACES);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const spaces = spacesData?.mySpaces || [];
+  const spaces = (spacesData?.mySpaces || []).filter(
+    (s) => s.myMembership?.role === "owner"
+  );
 
   return (
     <Page
@@ -38,7 +40,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold tracking-tight">My Spaces</h2>
+            <h2 className="text-xl font-bold tracking-tight">Spaces creati</h2>
           </div>
           {spaces.length > 0 && (
             <Button onClick={() => setCreateDialogOpen(true)} size="sm" variant="outline">
@@ -66,11 +68,11 @@ export default function DashboardPage() {
           <Card className="text-center py-12 border-dashed">
             <CardHeader>
               <div className="text-6xl mb-4">🪐</div>
-              <CardTitle className="text-2xl">No spaces yet</CardTitle>
-              <CardDescription className="text-lg">Create your first space to start building your community</CardDescription>
+              <CardTitle className="text-2xl">Nessuno space creato</CardTitle>
+              <CardDescription className="text-lg">Crea il tuo primo space per costruire la tua community</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={() => setCreateDialogOpen(true)} size="lg">Create Your First Space</Button>
+              <Button onClick={() => setCreateDialogOpen(true)} size="lg">Crea il tuo primo Space</Button>
             </CardContent>
           </Card>
         ) : (

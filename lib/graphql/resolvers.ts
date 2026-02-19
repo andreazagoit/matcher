@@ -1,4 +1,5 @@
 import { conversationResolvers } from "../models/conversations/resolver";
+import { notificationResolvers } from "../models/notifications/resolver";
 import { eventResolvers } from "../models/events/resolver";
 import { interestResolvers } from "../models/interests/resolver";
 import { matchResolvers } from "../models/matches/resolver";
@@ -23,6 +24,7 @@ export const resolvers = {
     ...spaceResolvers.Query,
     ...tagResolvers.Query,
     ...userResolvers.Query,
+    ...notificationResolvers.Query,
   },
 
   Mutation: {
@@ -33,6 +35,7 @@ export const resolvers = {
     ...postResolvers.Mutation,
     ...spaceResolvers.Mutation,
     ...userResolvers.Mutation,
+    ...notificationResolvers.Mutation,
   },
 
   // Relationship and specific type resolvers
