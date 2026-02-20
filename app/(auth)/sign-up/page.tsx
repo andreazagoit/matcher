@@ -45,15 +45,15 @@ const EMPTY_SIGNUP: SignupData = {
   gender: "",
 };
 
-export default function SignUpPageWrapper() {
+export default function SignUpPage() {
   return (
     <Suspense>
-      <SignUpPage />
+      <SignUpForm />
     </Suspense>
   );
 }
 
-function SignUpPage() {
+function SignUpForm() {
   const searchParams = useSearchParams();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
