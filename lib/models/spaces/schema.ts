@@ -9,6 +9,7 @@ import {
 import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
 import { relations } from "drizzle-orm";
 import { members } from "@/lib/models/members/schema";
+import { users } from "@/lib/models/users/schema";
 
 const EMBEDDING_DIMENSIONS = 1536;
 
@@ -36,6 +37,15 @@ export const spaces = pgTable(
 
     // Status
     isActive: boolean("is_active").default(true).notNull(),
+
+    // Stripe Connect
+    stripeAccountId: text("stripe_account_id"),
+    stripeAccountEnabled: boolean("stripe_account_enabled").default(false).notNull(),
+
+    // Ownership: one space has exactly one owner.
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
 
     // Tags (shared vocabulary from models/tags/data.ts)
     tags: text("tags").array().default([]),

@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
   index,
   uniqueIndex,
   pgEnum,
@@ -53,6 +54,10 @@ export const events = pgTable(
     maxAttendees: integer("max_attendees"),
     status: eventStatusEnum("status").default("draft").notNull(),
 
+    // Ticketing — null means free event
+    price: integer("price"),
+    currency: text("currency").default("eur"),
+
     // Tags (shared vocabulary from models/tags/data.ts)
     tags: text("tags").array().default([]),
 
@@ -92,6 +97,10 @@ export const eventAttendees = pgTable(
     status: attendeeStatusEnum("status").default("going").notNull(),
     registeredAt: timestamp("registered_at").defaultNow().notNull(),
     attendedAt: timestamp("attended_at"),
+
+    // Stripe payment tracking
+    paymentStatus: text("payment_status", { enum: ["pending", "paid", "refunded"] }),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
   },
   (table) => [
     uniqueIndex("event_attendees_event_user_idx").on(

@@ -107,7 +107,7 @@ const SEED_SPACES = [
 ];
 
 /**
- * Seed all spaces. Requires admin user ID as the creator.
+ * Seed all spaces. Requires admin user ID as the owner.
  */
 export async function seedSpaces(adminUserId: string) {
   console.log(`\n🏠 Seeding ${SEED_SPACES.length} spaces...`);
@@ -116,7 +116,7 @@ export async function seedSpaces(adminUserId: string) {
     try {
       const { space: created } = await createSpace({
         ...space,
-        creatorId: adminUserId,
+        ownerId: adminUserId,
       });
       console.log(`  ✓ ${created.name} (${created.slug})`);
     } catch {

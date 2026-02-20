@@ -78,6 +78,8 @@ export async function createEvent(data: {
   maxAttendees?: number;
   status?: "draft" | "published" | "cancelled" | "completed";
   tags?: string[];
+  price?: number;
+  currency?: string;
   createdBy: string;
 }): Promise<Event> {
   const [event] = await db
@@ -95,6 +97,8 @@ export async function createEvent(data: {
       maxAttendees: data.maxAttendees,
       status: data.status || "published",
       tags: data.tags ?? [],
+      price: data.price ?? null,
+      currency: data.currency ?? "eur",
       createdBy: data.createdBy,
     })
     .returning();
@@ -113,6 +117,8 @@ export async function updateEvent(
     maxAttendees?: number;
     status?: "draft" | "published" | "cancelled" | "completed";
     tags?: string[];
+    price?: number;
+    currency?: string;
   },
 ): Promise<Event> {
   const { coordinates, ...rest } = data;
@@ -129,6 +135,7 @@ export async function updateEvent(
     })
     .where(eq(events.id, id))
     .returning();
+
 
   if (!updated) throw new Error("Event not found");
   return updated;

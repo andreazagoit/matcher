@@ -141,7 +141,7 @@ export const spaceResolvers = {
 
             const result = await createSpace({
                 ...input,
-                creatorId: auth.user.id,
+                ownerId: auth.user.id,
             });
 
             return result.space;
@@ -150,15 +150,14 @@ export const spaceResolvers = {
         updateSpace: async (_: unknown, { id, input }: { id: string; input: UpdateSpaceInput }, { auth }: GraphQLContext) => {
             if (!auth.user) throw new GraphQLError("Unauthorized");
 
-            const memberRecord = await db.query.members.findFirst({
-                where: and(
-                    eq(members.spaceId, id),
-                    eq(members.userId, auth.user.id),
-                    eq(members.role, "admin")
-                )
+            const space = await db.query.spaces.findFirst({
+                where: eq(spaces.id, id),
+                columns: { ownerId: true },
             });
-
-            if (!memberRecord) throw new GraphQLError("Forbidden: Not an admin of this space");
+            if (!space) throw new GraphQLError("Space not found");
+            if (space.ownerId !== auth.user.id) {
+                throw new GraphQLError("Forbidden: Only the owner can update this space");
+            }
 
             return updateSpace(id, input);
         },
@@ -166,15 +165,14 @@ export const spaceResolvers = {
         deleteSpace: async (_: unknown, { id }: { id: string }, { auth }: GraphQLContext) => {
             if (!auth.user) throw new GraphQLError("Unauthorized");
 
-            const memberRecord = await db.query.members.findFirst({
-                where: and(
-                    eq(members.spaceId, id),
-                    eq(members.userId, auth.user.id),
-                    eq(members.role, "admin")
-                )
+            const space = await db.query.spaces.findFirst({
+                where: eq(spaces.id, id),
+                columns: { ownerId: true },
             });
-
-            if (!memberRecord) throw new GraphQLError("Forbidden: Only admins can delete spaces");
+            if (!space) throw new GraphQLError("Space not found");
+            if (space.ownerId !== auth.user.id) {
+                throw new GraphQLError("Forbidden: Only the owner can delete this space");
+            }
 
             return deleteSpace(id);
         },

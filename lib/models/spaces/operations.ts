@@ -27,7 +27,7 @@ export async function createSpace(params: {
   name: string;
   slug?: string;
   description?: string;
-  creatorId: string;
+  ownerId: string;
   visibility?: "public" | "private" | "hidden";
   joinPolicy?: "open" | "apply" | "invite_only";
   image?: string;
@@ -46,13 +46,14 @@ export async function createSpace(params: {
         visibility: params.visibility || "public",
         joinPolicy: params.joinPolicy || "open",
         tags: params.tags ?? [],
+        ownerId: params.ownerId,
       })
       .returning();
 
     await tx.insert(members).values({
       spaceId: space.id,
-      userId: params.creatorId,
-      role: "admin",
+      userId: params.ownerId,
+      role: "owner",
       status: "active",
     });
 

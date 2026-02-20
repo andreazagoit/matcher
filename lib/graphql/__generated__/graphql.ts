@@ -44,12 +44,14 @@ export enum ConversationStatus {
 }
 
 export type CreateEventInput = {
+  currency?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   endsAt?: InputMaybe<Scalars['String']['input']>;
   lat?: InputMaybe<Scalars['Float']['input']>;
   location?: InputMaybe<Scalars['String']['input']>;
   lon?: InputMaybe<Scalars['Float']['input']>;
   maxAttendees?: InputMaybe<Scalars['Int']['input']>;
+  price?: InputMaybe<Scalars['Int']['input']>;
   spaceId: Scalars['ID']['input'];
   startsAt: Scalars['String']['input'];
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -87,13 +89,21 @@ export type Event = {
   coordinates: Maybe<EventCoordinates>;
   createdAt: Scalars['DateTime']['output'];
   createdBy: Scalars['ID']['output'];
+  /** ISO 4217 currency code, e.g. 'eur' */
+  currency: Maybe<Scalars['String']['output']>;
   description: Maybe<Scalars['String']['output']>;
   endsAt: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
+  /** True when the event requires purchasing a ticket */
+  isPaid: Scalars['Boolean']['output'];
   location: Maybe<Scalars['String']['output']>;
   maxAttendees: Maybe<Scalars['Int']['output']>;
   /** Status of the currently authenticated user for this event (null if not authenticated or not RSVP'd) */
   myAttendeeStatus: Maybe<AttendeeStatus>;
+  /** Payment status for the currently authenticated user (null if free event or no purchase) */
+  myPaymentStatus: Maybe<Scalars['String']['output']>;
+  /** Ticket price in cents (null = free event) */
+  price: Maybe<Scalars['Int']['output']>;
   /** The space this event belongs to */
   space: Maybe<Space>;
   spaceId: Scalars['ID']['output'];
@@ -109,6 +119,7 @@ export type EventAttendee = {
   attendedAt: Maybe<Scalars['DateTime']['output']>;
   eventId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
+  paymentStatus: Maybe<Scalars['String']['output']>;
   registeredAt: Scalars['DateTime']['output'];
   status: AttendeeStatus;
   user: Maybe<User>;
@@ -586,6 +597,7 @@ export type Space = {
   myMembership: Maybe<Member>;
   name: Scalars['String']['output'];
   slug: Scalars['String']['output'];
+  stripeAccountEnabled: Scalars['Boolean']['output'];
   tags: Array<Scalars['String']['output']>;
   tiers: Maybe<Array<MembershipTier>>;
   type: Maybe<Scalars['String']['output']>;
@@ -611,12 +623,14 @@ export type TagCategoryEntry = {
 };
 
 export type UpdateEventInput = {
+  currency?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   endsAt?: InputMaybe<Scalars['String']['input']>;
   lat?: InputMaybe<Scalars['Float']['input']>;
   location?: InputMaybe<Scalars['String']['input']>;
   lon?: InputMaybe<Scalars['Float']['input']>;
   maxAttendees?: InputMaybe<Scalars['Int']['input']>;
+  price?: InputMaybe<Scalars['Int']['input']>;
   startsAt?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<EventStatus>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -736,14 +750,14 @@ export type SpaceEventsQueryVariables = Exact<{
 }>;
 
 
-export type SpaceEventsQuery = { spaceEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, createdBy: string, tags: Array<string> }> };
+export type SpaceEventsQuery = { spaceEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, createdBy: string, tags: Array<string>, price: number | null, currency: string | null, isPaid: boolean }> };
 
 export type GetEventQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetEventQuery = { event: { __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, tags: Array<string>, spaceId: string, createdBy: string, createdAt: unknown, coordinates: { __typename: 'EventCoordinates', lat: number, lon: number } | null, space: { __typename: 'Space', id: string, name: string, slug: string, visibility: string } | null } | null };
+export type GetEventQuery = { event: { __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, myPaymentStatus: string | null, tags: Array<string>, spaceId: string, createdBy: string, createdAt: unknown, price: number | null, currency: string | null, isPaid: boolean, coordinates: { __typename: 'EventCoordinates', lat: number, lon: number } | null, space: { __typename: 'Space', id: string, name: string, slug: string, visibility: string, stripeAccountEnabled: boolean } | null } | null };
 
 export type MyUpcomingEventsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -881,24 +895,24 @@ export type DeletePostMutationVariables = Exact<{
 
 export type DeletePostMutation = { deletePost: boolean };
 
-export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null };
+export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean };
 
 export type GetAllSpacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAllSpacesQuery = { spaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null }> };
+export type GetAllSpacesQuery = { spaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean }> };
 
 export type GetRecommendedSpacesQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type GetRecommendedSpacesQuery = { recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null }> };
+export type GetRecommendedSpacesQuery = { recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean }> };
 
 export type GetMySpacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMySpacesQuery = { mySpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', role: string } | null }> };
+export type GetMySpacesQuery = { mySpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean, myMembership: { __typename: 'Member', role: string } | null }> };
 
 export type GetSpaceQueryVariables = Exact<{
   id?: InputMaybe<Scalars['ID']['input']>;
@@ -907,7 +921,7 @@ export type GetSpaceQueryVariables = Exact<{
 }>;
 
 
-export type GetSpaceQuery = { space: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, myMembership: { __typename: 'Member', id: string, role: string, status: string, tier: { __typename: 'MembershipTier', id: string, name: string, price: number, interval: string } | null } | null, tiers: Array<{ __typename: 'MembershipTier', id: string, name: string, description: string | null, price: number, currency: string, interval: string, isActive: boolean, spaceId: string }> | null, members: Array<{ __typename: 'Member', id: string, role: string, status: string, joinedAt: unknown, tier: { __typename: 'MembershipTier', name: string } | null, user: { __typename: 'User', id: string, givenName: string, familyName: string, email: string } }> | null } | null };
+export type GetSpaceQuery = { space: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean, myMembership: { __typename: 'Member', id: string, role: string, status: string, tier: { __typename: 'MembershipTier', id: string, name: string, price: number, interval: string } | null } | null, tiers: Array<{ __typename: 'MembershipTier', id: string, name: string, description: string | null, price: number, currency: string, interval: string, isActive: boolean, spaceId: string }> | null, members: Array<{ __typename: 'Member', id: string, role: string, status: string, joinedAt: unknown, tier: { __typename: 'MembershipTier', name: string } | null, user: { __typename: 'User', id: string, givenName: string, familyName: string, email: string } }> | null } | null };
 
 export type CreateSpaceMutationVariables = Exact<{
   input: CreateSpaceInput;
@@ -922,7 +936,7 @@ export type UpdateSpaceMutationVariables = Exact<{
 }>;
 
 
-export type UpdateSpaceMutation = { updateSpace: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null } };
+export type UpdateSpaceMutation = { updateSpace: { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean } };
 
 export type DeleteSpaceMutationVariables = Exact<{
   id: Scalars['ID']['input'];

@@ -110,7 +110,7 @@ export const memberResolvers = {
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, auth.user.id)),
             });
 
-            if (!requester || requester.role !== "admin") {
+            if (!requester || !["admin", "owner"].includes(requester.role)) {
                 throw new GraphQLError("Forbidden - Admin access required", {
                     extensions: { code: "FORBIDDEN" }
                 });
@@ -154,7 +154,7 @@ export const memberResolvers = {
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, auth.user.id)),
             });
 
-            if (!requester || requester.role !== "admin") {
+            if (!requester || !["admin", "owner"].includes(requester.role)) {
                 throw new GraphQLError("Forbidden");
             }
 
@@ -177,7 +177,7 @@ export const memberResolvers = {
                 where: and(eq(members.spaceId, spaceId), eq(members.userId, auth.user.id)),
             });
 
-            if (!requester || requester.role !== "admin") {
+            if (!requester || !["admin", "owner"].includes(requester.role)) {
                 throw new GraphQLError("Forbidden");
             }
 

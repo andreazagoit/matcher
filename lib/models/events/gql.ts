@@ -18,6 +18,9 @@ export const GET_SPACE_EVENTS = gql`
       attendeeCount
       createdBy
       tags
+      price
+      currency
+      isPaid
     }
   }
 `;
@@ -36,16 +39,55 @@ export const GET_EVENT = gql`
       status
       attendeeCount
       myAttendeeStatus
+      myPaymentStatus
       tags
       spaceId
       createdBy
       createdAt
+      price
+      currency
+      isPaid
       space {
         id
         name
         slug
         visibility
+        stripeAccountEnabled
+        myMembership {
+          role
+        }
       }
+      attendees {
+        id
+        userId
+        status
+        registeredAt
+        paymentStatus
+        user {
+          id
+          givenName
+          familyName
+          username
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_EVENT = gql`
+  mutation UpdateEvent($id: ID!, $input: UpdateEventInput!) {
+    updateEvent(id: $id, input: $input) {
+      id
+      title
+      description
+      location
+      startsAt
+      endsAt
+      maxAttendees
+      status
+      tags
+      price
+      currency
     }
   }
 `;

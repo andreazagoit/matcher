@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, RefreshCwIcon, SaveIcon } from "lucide-react";
+import { AlertCircle, RefreshCwIcon, SaveIcon, ExternalLinkIcon, CheckCircle2Icon, CircleDotIcon } from "lucide-react";
 import { useMutation } from "@apollo/client/react";
 import { UPDATE_SPACE, DELETE_SPACE } from "@/lib/models/spaces/gql";
 import type {
@@ -46,6 +46,7 @@ interface SpaceSettingsViewProps {
         description?: string | null;
         visibility: string;
         joinPolicy: string;
+        stripeAccountEnabled?: boolean | null;
     };
     onUpdate?: () => void;
 }
@@ -57,6 +58,8 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
 
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [connectingStripe, setConnectingStripe] = useState(false);
+    const [stripeError, setStripeError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: space.name,
@@ -101,6 +104,28 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
         } catch (error) {
             console.error("Failed to delete space", error);
             setError("Failed to delete space");
+        }
+    };
+
+    const handleConnectStripe = async () => {
+        setConnectingStripe(true);
+        setStripeError(null);
+        try {
+            const res = await fetch("/api/stripe/connect/onboard", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ spaceId: space.id }),
+            });
+            const json = await res.json();
+            if (json.url) {
+                window.location.href = json.url;
+            } else {
+                setStripeError(json.error ?? "Errore durante la connessione con Stripe");
+            }
+        } catch {
+            setStripeError("Errore di rete. Riprova.");
+        } finally {
+            setConnectingStripe(false);
         }
     };
 
@@ -215,6 +240,67 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
             <Card>
                 <CardContent className="pt-6">
                     <MembershipTiersManager spaceId={space.id} />
+                </CardContent>
+            </Card>
+
+            {/* Stripe Connect */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Pagamenti con Stripe</CardTitle>
+                    <CardDescription>
+                        Connetti un account Stripe per accettare biglietti a pagamento negli eventi di questo space. La piattaforma trattiene il 10% su ogni vendita.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {stripeError && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Errore Stripe</AlertTitle>
+                            <AlertDescription>
+                                {stripeError}{" "}
+                                <a
+                                    href="https://stripe.com/docs/connect"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline underline-offset-2 font-medium"
+                                >
+                                    Scopri come abilitare Connect →
+                                </a>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            {space.stripeAccountEnabled ? (
+                                <>
+                                    <CheckCircle2Icon className="h-5 w-5 text-green-500 shrink-0" />
+                                    <div>
+                                        <p className="font-medium text-sm">Account attivo</p>
+                                        <p className="text-xs text-muted-foreground">Puoi impostare un prezzo agli eventi di questo space.</p>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <CircleDotIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+                                    <div>
+                                        <p className="font-medium text-sm">Non configurato</p>
+                                        <p className="text-xs text-muted-foreground">Completa l&apos;onboarding su Stripe per abilitare i pagamenti.</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <Button
+                            variant={space.stripeAccountEnabled ? "outline" : "default"}
+                            disabled={connectingStripe}
+                            onClick={handleConnectStripe}
+                        >
+                            {connectingStripe
+                                ? <RefreshCwIcon className="h-4 w-4 mr-2 animate-spin" />
+                                : <ExternalLinkIcon className="h-4 w-4 mr-2" />
+                            }
+                            {space.stripeAccountEnabled ? "Gestisci su Stripe" : "Connetti Stripe"}
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 

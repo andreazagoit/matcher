@@ -12,6 +12,7 @@ export const spaceTypeDefs = `#graphql
     isActive: Boolean
     membersCount: Int
     type: String
+    stripeAccountEnabled: Boolean!
   }
 
   input CreateSpaceInput {

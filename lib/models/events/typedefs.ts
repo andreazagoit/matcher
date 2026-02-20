@@ -24,6 +24,14 @@ export const eventTypeDefs = `#graphql
     myAttendeeStatus: AttendeeStatus
     """The space this event belongs to"""
     space: Space
+    """Ticket price in cents (null = free event)"""
+    price: Int
+    """ISO 4217 currency code, e.g. 'eur'"""
+    currency: String
+    """True when the event requires purchasing a ticket"""
+    isPaid: Boolean!
+    """Payment status for the currently authenticated user (null if free event or no purchase)"""
+    myPaymentStatus: String
   }
 
   type EventCoordinates {
@@ -39,6 +47,7 @@ export const eventTypeDefs = `#graphql
     status: AttendeeStatus!
     registeredAt: DateTime!
     attendedAt: DateTime
+    paymentStatus: String
   }
 
   enum EventStatus {
@@ -65,6 +74,8 @@ export const eventTypeDefs = `#graphql
     endsAt: String
     maxAttendees: Int
     tags: [String!]
+    price: Int
+    currency: String
   }
 
   input UpdateEventInput {
@@ -78,6 +89,8 @@ export const eventTypeDefs = `#graphql
     maxAttendees: Int
     tags: [String!]
     status: EventStatus
+    price: Int
+    currency: String
   }
 
   extend type Query {

@@ -174,11 +174,27 @@ export const eventResolvers = {
           endsAt?: string;
           maxAttendees?: number;
           tags?: string[];
+          price?: number;
+          currency?: string;
         };
       },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
+      const space = await db.query.spaces.findFirst({
+        where: eq(spaces.id, input.spaceId),
+        columns: { ownerId: true },
+      });
+      if (!space) {
+        throw new GraphQLError("Space not found", {
+          extensions: { code: "NOT_FOUND" },
+        });
+      }
+      if (space.ownerId !== user.id) {
+        throw new GraphQLError("Only the space owner can create events", {
+          extensions: { code: "FORBIDDEN" },
+        });
+      }
 
       const event = await createEvent({
         spaceId: input.spaceId,
@@ -193,6 +209,8 @@ export const eventResolvers = {
         endsAt: input.endsAt ? new Date(input.endsAt) : undefined,
         maxAttendees: input.maxAttendees,
         tags: input.tags,
+        price: input.price,
+        currency: input.currency,
         createdBy: user.id,
       });
 
@@ -225,6 +243,8 @@ export const eventResolvers = {
           maxAttendees?: number;
           tags?: string[];
           status?: "draft" | "published" | "cancelled" | "completed";
+          price?: number;
+          currency?: string;
         };
       },
       context: GraphQLContext,
@@ -238,9 +258,12 @@ export const eventResolvers = {
           extensions: { code: "NOT_FOUND" },
         });
       }
-
-      if (event.createdBy !== user.id) {
-        throw new GraphQLError("Only the event creator can update this event", {
+      const space = await db.query.spaces.findFirst({
+        where: eq(spaces.id, event.spaceId),
+        columns: { ownerId: true },
+      });
+      if (!space || space.ownerId !== user.id) {
+        throw new GraphQLError("Only the space owner can update this event", {
           extensions: { code: "FORBIDDEN" },
         });
       }
@@ -258,6 +281,8 @@ export const eventResolvers = {
         maxAttendees: input.maxAttendees,
         tags: input.tags,
         status: input.status,
+        price: input.price,
+        currency: input.currency,
       });
     },
 
@@ -274,6 +299,16 @@ export const eventResolvers = {
         throw new GraphQLError("Event not found or access denied", {
           extensions: { code: "NOT_FOUND" },
         });
+      }
+
+      // Paid events must go through the checkout flow, not direct RSVP
+      if (event.price && event.price > 0 && status === "going") {
+        const existingAttendee = await getMyAttendeeStatus(eventId, user.id);
+        if (existingAttendee?.paymentStatus !== "paid") {
+          throw new GraphQLError("Ticket purchase required", {
+            extensions: { code: "PAYMENT_REQUIRED" },
+          });
+        }
       }
 
       const result = await respondToEvent(eventId, user.id, status);
@@ -359,6 +394,20 @@ export const eventResolvers = {
       if (!context.auth.user) return null;
       const row = await getMyAttendeeStatus(event.id, context.auth.user.id);
       return row?.status ?? null;
+    },
+
+    isPaid: (event: { price?: number | null }) => {
+      return typeof event.price === "number" && event.price > 0;
+    },
+
+    myPaymentStatus: async (
+      event: { id: string; price?: number | null },
+      _: unknown,
+      context: GraphQLContext,
+    ) => {
+      if (!context.auth.user || !event.price) return null;
+      const row = await getMyAttendeeStatus(event.id, context.auth.user.id);
+      return row?.paymentStatus ?? null;
     },
 
     /** The space this event belongs to */

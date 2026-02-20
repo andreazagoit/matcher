@@ -18,6 +18,7 @@ export const SPACE_FRAGMENT = gql`
     isActive
     membersCount
     type
+    stripeAccountEnabled
   }
 `;
 
