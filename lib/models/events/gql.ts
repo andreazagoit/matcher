@@ -22,6 +22,34 @@ export const GET_SPACE_EVENTS = gql`
   }
 `;
 
+export const GET_EVENT = gql`
+  query GetEvent($id: ID!) {
+    event(id: $id) {
+      id
+      title
+      description
+      location
+      coordinates { lat lon }
+      startsAt
+      endsAt
+      maxAttendees
+      status
+      attendeeCount
+      myAttendeeStatus
+      tags
+      spaceId
+      createdBy
+      createdAt
+      space {
+        id
+        name
+        slug
+        visibility
+      }
+    }
+  }
+`;
+
 export const GET_MY_UPCOMING_EVENTS = gql`
   query MyUpcomingEvents {
     myUpcomingEvents {
@@ -29,6 +57,7 @@ export const GET_MY_UPCOMING_EVENTS = gql`
       title
       description
       location
+      coordinates { lat lon }
       startsAt
       endsAt
       maxAttendees
@@ -47,6 +76,7 @@ export const GET_RECOMMENDED_EVENTS = gql`
       title
       description
       location
+      coordinates { lat lon }
       startsAt
       endsAt
       maxAttendees

@@ -8,7 +8,6 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { SearchForm } from "@/components/search-form"
-import { LocationSelector } from "@/components/location-selector"
 import { Container } from "@/components/container"
 import { NotificationBell } from "@/components/notification-bell"
 import Link from "next/link";
@@ -24,6 +23,8 @@ interface PageProps {
     children?: ReactNode;
     footer?: ReactNode;
     breadcrumbs?: BreadcrumbItem[];
+    /** Extra controls rendered in the header bar, to the left of the search */
+    headerExtras?: ReactNode;
 }
 
 export function Page({
@@ -31,7 +32,8 @@ export function Page({
     actions,
     children,
     footer,
-    breadcrumbs
+    breadcrumbs,
+    headerExtras,
 }: PageProps) {
     return (
         <div className="flex flex-col min-h-svh animate-in fade-in duration-500">
@@ -62,7 +64,7 @@ export function Page({
                         )}
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
-                        <LocationSelector />
+                        {headerExtras}
                         <SearchForm />
                         <NotificationBell />
                     </div>

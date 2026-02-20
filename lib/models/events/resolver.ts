@@ -1,5 +1,8 @@
 /**
  * Event resolvers — CRUD and attendance management.
+ * Visibility rules:
+ *  - public space → events visible to all authenticated users
+ *  - private/hidden space → events visible only to active members
  */
 
 import { GraphQLError } from "graphql";
@@ -14,8 +17,11 @@ import {
   respondToEvent,
   markEventCompleted,
   getEventById,
+  getAccessibleSpaceIds,
+  getMyAttendeeStatus,
 } from "./operations";
 import { events, eventAttendees } from "./schema";
+import { spaces } from "@/lib/models/spaces/schema";
 import { getUserById } from "@/lib/models/users/operations";
 import { generateEmbedding, computeCentroid } from "@/lib/embeddings";
 import { boostInterestsFromTags } from "@/lib/models/interests/operations";
@@ -36,13 +42,27 @@ function requireAuth(context: GraphQLContext) {
 
 export const eventResolvers = {
   Query: {
+    /**
+     * Get a single event — respects space visibility.
+     * Returns null (not an error) if the event doesn't exist or is inaccessible.
+     */
+    event: async (
+      _: unknown,
+      { id }: { id: string },
+      context: GraphQLContext,
+    ) => {
+      const userId = context.auth.user?.id;
+      return await getEventById(id, userId);
+    },
+
     spaceEvents: async (
       _: unknown,
       { spaceId }: { spaceId: string },
       context: GraphQLContext,
     ) => {
       requireAuth(context);
-      return await getSpaceEvents(spaceId);
+      const userId = context.auth.user!.id;
+      return await getSpaceEvents(spaceId, userId);
     },
 
     myUpcomingEvents: async (
@@ -50,8 +70,8 @@ export const eventResolvers = {
       __: unknown,
       context: GraphQLContext,
     ) => {
-      const user = requireAuth(context);
-      return await getUpcomingEventsForUser(user.id);
+      if (!context.auth.user) return [];
+      return await getUpcomingEventsForUser(context.auth.user.id);
     },
 
     eventAttendees: async (
@@ -69,7 +89,8 @@ export const eventResolvers = {
       context: GraphQLContext,
     ) => {
       requireAuth(context);
-      return await getEventsByTags(tags, matchAll ?? false);
+      const userId = context.auth.user!.id;
+      return await getEventsByTags(tags, matchAll ?? false, userId);
     },
 
     recommendedEvents: async (
@@ -77,11 +98,31 @@ export const eventResolvers = {
       { limit }: { limit?: number },
       context: GraphQLContext,
     ) => {
-      const user = requireAuth(context);
       const maxResults = limit ?? 10;
+      const userId = context.auth.user?.id;
 
-      const userTags = await getUserInterestTags(user.id);
-      const userEmbedding = await getStoredEmbedding(user.id, "user");
+      // Build accessible space filter once
+      const accessibleIds = await getAccessibleSpaceIds(userId);
+      const accessFilter = Array.isArray(accessibleIds) && accessibleIds.length > 0
+        ? inArray(events.spaceId, accessibleIds)
+        : eq(events.spaceId, "00000000-0000-0000-0000-000000000000"); // no results if nothing accessible
+
+      const baseConditions = and(
+        eq(events.status, "published"),
+        gte(events.startsAt, new Date()),
+        accessFilter,
+      );
+
+      if (!userId) {
+        return await db.query.events.findMany({
+          where: baseConditions,
+          orderBy: [sql`${events.startsAt} ASC`],
+          limit: maxResults,
+        });
+      }
+
+      const userTags = await getUserInterestTags(userId);
+      const userEmbedding = await getStoredEmbedding(userId, "user");
 
       // Strategy 1: OpenAI behavioral embedding
       if (userEmbedding) {
@@ -89,16 +130,10 @@ export const eventResolvers = {
         const results = await db
           .select()
           .from(events)
-          .where(
-            and(
-              eq(events.status, "published"),
-              gte(events.startsAt, new Date()),
-              sql`${events.embedding} IS NOT NULL`,
-            ),
-          )
+          .where(and(baseConditions, sql`${events.embedding} IS NOT NULL`))
           .orderBy(sql`${events.embedding} <=> ${embeddingStr}::vector`)
           .limit(maxResults);
-        return results;
+        if (results.length > 0) return results;
       }
 
       // Strategy 2: tag overlap (cold start)
@@ -107,13 +142,7 @@ export const eventResolvers = {
         const results = await db
           .select()
           .from(events)
-          .where(
-            and(
-              eq(events.status, "published"),
-              gte(events.startsAt, new Date()),
-              sql`${events.tags} && ${tagArray}::text[]`,
-            ),
-          )
+          .where(and(baseConditions, sql`${events.tags} && ${tagArray}::text[]`))
           .orderBy(sql`${events.startsAt} ASC`)
           .limit(maxResults);
         if (results.length > 0) return results;
@@ -121,10 +150,7 @@ export const eventResolvers = {
 
       // Strategy 3: chronological fallback
       return await db.query.events.findMany({
-        where: and(
-          eq(events.status, "published"),
-          gte(events.startsAt, new Date()),
-        ),
+        where: baseConditions,
         orderBy: [sql`${events.startsAt} ASC`],
         limit: maxResults,
       });
@@ -178,7 +204,7 @@ export const eventResolvers = {
           .catch(() => {});
       }
 
-        return event;
+      return event;
     },
 
     updateEvent: async (
@@ -204,7 +230,8 @@ export const eventResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const event = await getEventById(id);
+      // Bypass visibility check for the creator (they always have access to their own event)
+      const event = await db.query.events.findFirst({ where: eq(events.id, id) });
 
       if (!event) {
         throw new GraphQLError("Event not found", {
@@ -240,17 +267,22 @@ export const eventResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
+
+      // Check access before allowing RSVP
+      const event = await getEventById(eventId, user.id);
+      if (!event) {
+        throw new GraphQLError("Event not found or access denied", {
+          extensions: { code: "NOT_FOUND" },
+        });
+      }
+
       const result = await respondToEvent(eventId, user.id, status);
 
       // Boost interests from event tags in background
       if (status === "going" || status === "attended") {
-        getEventById(eventId)
-          .then((ev) => {
-            if (ev?.tags?.length) {
-              boostInterestsFromTags(user.id, ev.tags, 0.1);
-            }
-          })
-          .catch(() => {});
+        if (event.tags?.length) {
+          boostInterestsFromTags(user.id, event.tags, 0.1).catch(() => {});
+        }
       }
 
       // Recompute OpenAI behavioral centroid in background
@@ -271,7 +303,6 @@ export const eventResolvers = {
             target: [embeddings.entityId, embeddings.entityType],
             set: { embedding: centroid, updatedAt: new Date() },
           });
-
       })().catch(() => {});
 
       return result;
@@ -283,7 +314,7 @@ export const eventResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const event = await getEventById(eventId);
+      const event = await db.query.events.findFirst({ where: eq(events.id, eventId) });
 
       if (!event) {
         throw new GraphQLError("Event not found", {
@@ -317,6 +348,24 @@ export const eventResolvers = {
       return attendees.filter(
         (a) => a.status === "going" || a.status === "attended",
       ).length;
+    },
+
+    /** Status of the currently authenticated user for this event */
+    myAttendeeStatus: async (
+      event: { id: string },
+      _: unknown,
+      context: GraphQLContext,
+    ) => {
+      if (!context.auth.user) return null;
+      const row = await getMyAttendeeStatus(event.id, context.auth.user.id);
+      return row?.status ?? null;
+    },
+
+    /** The space this event belongs to */
+    space: async (event: { spaceId: string }) => {
+      return await db.query.spaces.findFirst({
+        where: eq(spaces.id, event.spaceId),
+      });
     },
   },
 

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Page } from "@/components/page";
 import { SpaceCard } from "@/components/spaces/space-card";
 import { UserCard } from "@/components/user-card";
-import { CreateSpaceButton } from "../spaces/create-space-button";
+import { LocationSelector } from "@/components/location-selector";
 import { ItemCarousel } from "@/components/item-carousel";
 import type {
     GetAllSpacesQuery,
@@ -69,7 +69,7 @@ export default async function DiscoverPage() {
                     <p className="text-lg text-muted-foreground font-medium">Explore and join communities and clubs</p>
                 </div>
             }
-            actions={<CreateSpaceButton />}
+            headerExtras={<LocationSelector />}
         >
             <div className="space-y-12">
 
@@ -115,11 +115,8 @@ export default async function DiscoverPage() {
                         <CardHeader>
                             <div className="text-6xl mb-4 text-primary">🪐</div>
                             <CardTitle className="text-xl">No spaces yet</CardTitle>
-                            <CardDescription>Create your first space to start building your community</CardDescription>
+                            <CardDescription>No communities available yet. Check back soon!</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <CreateSpaceButton />
-                        </CardContent>
                     </Card>
                 )}
             </div>

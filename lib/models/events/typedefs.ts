@@ -20,6 +20,10 @@ export const eventTypeDefs = `#graphql
     updatedAt: DateTime!
     attendees: [EventAttendee!]!
     attendeeCount: Int!
+    """Status of the currently authenticated user for this event (null if not authenticated or not RSVP'd)"""
+    myAttendeeStatus: AttendeeStatus
+    """The space this event belongs to"""
+    space: Space
   }
 
   type EventCoordinates {
@@ -77,6 +81,11 @@ export const eventTypeDefs = `#graphql
   }
 
   extend type Query {
+    """
+    Get a single event by ID.
+    """
+    event(id: ID!): Event
+
     """
     Get events for a specific space.
     """

@@ -30,11 +30,10 @@ export const userResolvers = {
     user: async (
       _: unknown,
       { username }: { username: string },
-      context: GraphQLContext,
+      _context: GraphQLContext,
     ) => {
-      if (!context.auth.user) {
-        throw new AuthError("Authentication required");
-      }
+      // Public profile lookup by username (used by /users/[username]).
+      // Sensitive fields are still controlled at schema/query level.
       return await getUserByUsername(username);
     },
 

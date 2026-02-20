@@ -2,6 +2,7 @@ import "dotenv/config";
 import { seedUsers } from "./users";
 import { seedSpaces } from "./spaces";
 import { seedProfiles } from "./interests";
+import { seedEvents } from "./events";
 
 async function seed() {
   console.log("🌱 Starting seed...\n");
@@ -13,6 +14,7 @@ async function seed() {
     if (!adminUser) throw new Error("Admin user was not created");
 
     await seedSpaces(adminUser.id);
+    await seedEvents(adminUser.id);
 
     const nonAdminIds = Object.entries(usersByEmail)
       .filter(([email]) => email !== "admin@matcher.local")

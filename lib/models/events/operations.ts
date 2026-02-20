@@ -5,7 +5,65 @@ import {
   type Event,
   type EventAttendee,
 } from "./schema";
-import { eq, and, gte, desc, asc, sql } from "drizzle-orm";
+import { spaces } from "@/lib/models/spaces/schema";
+import { members } from "@/lib/models/members/schema";
+import { eq, and, gte, desc, asc, sql, inArray } from "drizzle-orm";
+
+// ─── Access Control ─────────────────────────────────────────────────
+
+/**
+ * Returns space IDs accessible to a user:
+ *  - all public spaces (visibility = 'public')
+ *  - private/hidden spaces where the user has an active membership
+ */
+export async function getAccessibleSpaceIds(userId?: string): Promise<string[] | "public_only"> {
+  const publicSpaces = await db
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(eq(spaces.visibility, "public"));
+
+  const publicIds = publicSpaces.map((s) => s.id);
+
+  if (!userId) return publicIds.length > 0 ? publicIds : "public_only";
+
+  const memberSpaces = await db
+    .select({ spaceId: members.spaceId })
+    .from(members)
+    .where(and(eq(members.userId, userId), eq(members.status, "active")));
+
+  const memberIds = memberSpaces.map((m) => m.spaceId);
+
+  // Merge + deduplicate
+  const all = Array.from(new Set([...publicIds, ...memberIds]));
+  return all;
+}
+
+/**
+ * Check if a user can access events of a given space.
+ * Public spaces → always yes.
+ * Private/hidden → only active members.
+ */
+export async function canAccessSpace(spaceId: string, userId?: string): Promise<boolean> {
+  const space = await db.query.spaces.findFirst({
+    where: eq(spaces.id, spaceId),
+    columns: { visibility: true },
+  });
+
+  if (!space) return false;
+  if (space.visibility === "public") return true;
+  if (!userId) return false;
+
+  const membership = await db.query.members.findFirst({
+    where: and(
+      eq(members.spaceId, spaceId),
+      eq(members.userId, userId),
+      eq(members.status, "active"),
+    ),
+    columns: { id: true },
+  });
+
+  return !!membership;
+}
 
 // ─── Events CRUD ───────────────────────────────────────────────────
 
@@ -76,14 +134,30 @@ export async function updateEvent(
   return updated;
 }
 
-export async function getEventById(id: string): Promise<Event | null> {
-  const result = await db.query.events.findFirst({
+/**
+ * Fetch a single event. Returns null if the event doesn't exist
+ * or if the user doesn't have access to the parent space.
+ */
+export async function getEventById(id: string, userId?: string): Promise<Event | null> {
+  const event = await db.query.events.findFirst({
     where: eq(events.id, id),
   });
-  return result ?? null;
+
+  if (!event) return null;
+
+  const accessible = await canAccessSpace(event.spaceId, userId);
+  if (!accessible) return null;
+
+  return event;
 }
 
-export async function getSpaceEvents(spaceId: string): Promise<Event[]> {
+/**
+ * Get events for a space (only if the user has access).
+ */
+export async function getSpaceEvents(spaceId: string, userId?: string): Promise<Event[]> {
+  const accessible = await canAccessSpace(spaceId, userId);
+  if (!accessible) return [];
+
   return await db.query.events.findMany({
     where: eq(events.spaceId, spaceId),
     orderBy: [asc(events.startsAt)],
@@ -109,7 +183,7 @@ export async function getUpcomingEventsForUser(
   const eventIds = attendeeRows.map((r) => r.eventId);
   return await db.query.events.findMany({
     where: and(
-      sql`${events.id} IN (${sql.join(eventIds.map((id) => sql`${id}`), sql`, `)})`,
+      inArray(events.id, eventIds),
       gte(events.startsAt, now),
     ),
     orderBy: [asc(events.startsAt)],
@@ -121,11 +195,20 @@ export async function getUpcomingEventsForUser(
 export async function getEventsByTags(
   tags: string[],
   matchAll: boolean = false,
+  userId?: string,
 ): Promise<Event[]> {
   if (tags.length === 0) return [];
 
+  const accessibleIds = await getAccessibleSpaceIds(userId);
+  if (typeof accessibleIds !== "string" && accessibleIds.length === 0) return [];
+
   const tagArray = `{${tags.join(",")}}`;
   const operator = matchAll ? "@>" : "&&";
+
+  const accessFilter =
+    typeof accessibleIds === "string"
+      ? sql`${events.spaceId} IN (SELECT id FROM spaces WHERE visibility = 'public')`
+      : sql`${events.spaceId} IN (${sql.join(accessibleIds.map((id) => sql`${id}`), sql`, `)})`;
 
   return await db
     .select()
@@ -135,6 +218,7 @@ export async function getEventsByTags(
         sql`${events.tags} ${sql.raw(operator)} ${tagArray}::text[]`,
         eq(events.status, "published"),
         gte(events.startsAt, new Date()),
+        accessFilter,
       ),
     )
     .orderBy(asc(events.startsAt));
@@ -169,6 +253,19 @@ export async function getEventAttendees(
     where: eq(eventAttendees.eventId, eventId),
     orderBy: [desc(eventAttendees.registeredAt)],
   });
+}
+
+export async function getMyAttendeeStatus(
+  eventId: string,
+  userId: string,
+): Promise<EventAttendee | null> {
+  const row = await db.query.eventAttendees.findFirst({
+    where: and(
+      eq(eventAttendees.eventId, eventId),
+      eq(eventAttendees.userId, userId),
+    ),
+  });
+  return row ?? null;
 }
 
 export async function markEventCompleted(eventId: string): Promise<Event> {

@@ -92,6 +92,10 @@ export type Event = {
   id: Scalars['ID']['output'];
   location: Maybe<Scalars['String']['output']>;
   maxAttendees: Maybe<Scalars['Int']['output']>;
+  /** Status of the currently authenticated user for this event (null if not authenticated or not RSVP'd) */
+  myAttendeeStatus: Maybe<AttendeeStatus>;
+  /** The space this event belongs to */
+  space: Maybe<Space>;
   spaceId: Scalars['ID']['output'];
   startsAt: Scalars['DateTime']['output'];
   status: EventStatus;
@@ -201,15 +205,18 @@ export type Mutation = {
   createSpace: Space;
   createTier: MembershipTier;
   createUser: User;
+  deleteNotification: Scalars['Boolean']['output'];
   deletePost: Scalars['Boolean']['output'];
   deleteSpace: Scalars['Boolean']['output'];
   deleteUser: Scalars['Boolean']['output'];
   joinSpace: Member;
   leaveSpace: Scalars['Boolean']['output'];
+  markAllNotificationsRead: Scalars['Boolean']['output'];
   /** Mark all messages in a conversation as read. */
   markAsRead: Maybe<Scalars['Boolean']['output']>;
   /** Mark an event as completed. Attendees with status 'going' become 'attended'. */
   markEventCompleted: Event;
+  markNotificationRead: Maybe<Notification>;
   removeMember: Scalars['Boolean']['output'];
   /** Respond to an event (going, interested). */
   respondToEvent: EventAttendee;
@@ -270,6 +277,11 @@ export type MutationCreateUserArgs = {
 };
 
 
+export type MutationDeleteNotificationArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationDeletePostArgs = {
   postId: Scalars['ID']['input'];
 };
@@ -303,6 +315,11 @@ export type MutationMarkAsReadArgs = {
 
 export type MutationMarkEventCompletedArgs = {
   eventId: Scalars['ID']['input'];
+};
+
+
+export type MutationMarkNotificationReadArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -378,6 +395,17 @@ export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
 };
 
+export type Notification = {
+  __typename: 'Notification';
+  createdAt: Scalars['DateTime']['output'];
+  href: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  image: Maybe<Scalars['String']['output']>;
+  read: Scalars['Boolean']['output'];
+  text: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+};
+
 export type Post = {
   __typename: 'Post';
   author: User;
@@ -400,10 +428,13 @@ export type Query = {
   __typename: 'Query';
   /** Get all valid tags as a flat list. */
   allTags: Array<Scalars['String']['output']>;
+  checkUsername: Scalars['Boolean']['output'];
   /** Get a single conversation by ID. */
   conversation: Maybe<Conversation>;
   /** Get active conversations for the authenticated user. */
   conversations: Array<Conversation>;
+  /** Get a single event by ID. */
+  event: Maybe<Event>;
   /** Get attendees for an event. */
   eventAttendees: Array<EventAttendee>;
   /**
@@ -426,6 +457,7 @@ export type Query = {
   mySpaces: Array<Space>;
   /** Get the authenticated user's upcoming events. */
   myUpcomingEvents: Array<Event>;
+  notifications: Array<Notification>;
   /** Get the authenticated user's profile status. */
   profileStatus: ProfileStatus;
   /**
@@ -449,13 +481,24 @@ export type Query = {
   spacesByTags: Array<Space>;
   /** Get tag categories (shared vocabulary for profiles, events, spaces). */
   tagCategories: Array<TagCategoryEntry>;
+  unreadNotificationsCount: Scalars['Int']['output'];
   user: Maybe<User>;
   userFeed: Array<Post>;
   users: Array<User>;
 };
 
 
+export type QueryCheckUsernameArgs = {
+  username: Scalars['String']['input'];
+};
+
+
 export type QueryConversationArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryEventArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -483,6 +526,12 @@ export type QueryFindMatchesArgs = {
 
 export type QueryMessagesArgs = {
   conversationId: Scalars['ID']['input'];
+};
+
+
+export type QueryNotificationsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -689,6 +738,25 @@ export type SpaceEventsQueryVariables = Exact<{
 
 export type SpaceEventsQuery = { spaceEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, createdBy: string, tags: Array<string> }> };
 
+export type GetEventQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type GetEventQuery = { event: { __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, tags: Array<string>, spaceId: string, createdBy: string, createdAt: unknown, coordinates: { __typename: 'EventCoordinates', lat: number, lon: number } | null, space: { __typename: 'Space', id: string, name: string, slug: string, visibility: string } | null } | null };
+
+export type MyUpcomingEventsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MyUpcomingEventsQuery = { myUpcomingEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, tags: Array<string>, spaceId: string, coordinates: { __typename: 'EventCoordinates', lat: number, lon: number } | null }> };
+
+export type RecommendedEventsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type RecommendedEventsQuery = { recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, status: EventStatus, attendeeCount: number, tags: Array<string>, spaceId: string, coordinates: { __typename: 'EventCoordinates', lat: number, lon: number } | null }> };
+
 export type CreateEventMutationVariables = Exact<{
   input: CreateEventInput;
 }>;
@@ -743,6 +811,40 @@ export type RemoveMemberMutationVariables = Exact<{
 
 
 export type RemoveMemberMutation = { removeMember: boolean };
+
+export type NotificationFieldsFragment = { __typename: 'Notification', id: string, type: string, text: string, image: string | null, href: string | null, read: boolean, createdAt: unknown };
+
+export type GetNotificationsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GetNotificationsQuery = { notifications: Array<{ __typename: 'Notification', id: string, type: string, text: string, image: string | null, href: string | null, read: boolean, createdAt: unknown }> };
+
+export type GetUnreadNotificationsCountQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetUnreadNotificationsCountQuery = { unreadNotificationsCount: number };
+
+export type MarkNotificationReadMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type MarkNotificationReadMutation = { markNotificationRead: { __typename: 'Notification', id: string, type: string, text: string, image: string | null, href: string | null, read: boolean, createdAt: unknown } | null };
+
+export type MarkAllNotificationsReadMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MarkAllNotificationsReadMutation = { markAllNotificationsRead: boolean };
+
+export type DeleteNotificationMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteNotificationMutation = { deleteNotification: boolean };
 
 export type PostFieldsFragment = { __typename: 'Post', id: string, content: string, mediaUrls: Array<string> | null, likesCount: number | null, commentsCount: number | null, createdAt: unknown, author: { __typename: 'User', id: string, givenName: string, familyName: string, image: string | null }, space: { __typename: 'Space', id: string, name: string, slug: string } };
 
@@ -881,6 +983,13 @@ export type GetUserQueryVariables = Exact<{
 
 
 export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, givenName: string, familyName: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
+
+export type CheckUsernameQueryVariables = Exact<{
+  username: Scalars['String']['input'];
+}>;
+
+
+export type CheckUsernameQuery = { checkUsername: boolean };
 
 export type UpdateUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import Link from "next/link";
 import { Page } from "@/components/page";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,88 +30,103 @@ import {
 
 type EventItem = NonNullable<RecommendedEventsQuery["recommendedEvents"]>[number];
 
+const TAG_GRADIENTS: Record<string, string> = {
+  trekking: "from-emerald-500 to-teal-700",
+  mountains: "from-slate-500 to-slate-800",
+  cycling: "from-lime-500 to-green-700",
+  running: "from-orange-400 to-red-600",
+  yoga: "from-violet-400 to-purple-700",
+  gym: "from-blue-500 to-indigo-700",
+  cooking: "from-amber-400 to-orange-600",
+  wine: "from-rose-500 to-red-800",
+  restaurants: "from-pink-400 to-rose-600",
+  music: "from-purple-500 to-violet-800",
+  art: "from-fuchsia-400 to-pink-700",
+  coding: "from-cyan-500 to-blue-700",
+  gaming: "from-indigo-400 to-purple-600",
+  parties: "from-yellow-400 to-orange-500",
+  cinema: "from-neutral-500 to-neutral-800",
+  reading: "from-stone-400 to-stone-700",
+  travel: "from-sky-400 to-blue-600",
+};
+
+function getGradient(tags: string[]) {
+  for (const tag of tags) {
+    if (TAG_GRADIENTS[tag]) return TAG_GRADIENTS[tag];
+  }
+  return "from-primary/60 to-primary";
+}
+
 function EventCard({ event, onRespond }: { event: EventItem; onRespond: (id: string, s: AttendeeStatus) => void }) {
   const startDate = new Date(event.startsAt as string);
   const isPast = startDate < new Date();
   const isPublished = event.status === "published";
   const isCompleted = event.status === "completed";
+  const gradient = getGradient(event.tags ?? []);
 
   return (
-    <Card className={isCompleted ? "opacity-60" : "hover:border-primary/40 transition-colors"}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-base leading-snug">{event.title}</CardTitle>
-            {event.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {event.description}
-              </p>
-            )}
-          </div>
-          <Badge
-            variant={isCompleted ? "secondary" : isPublished ? "default" : "outline"}
-            className="shrink-0"
-          >
-            {isCompleted ? "Completato" : isPublished ? "Aperto" : event.status}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <CalendarIcon className="h-3.5 w-3.5" />
-            {startDate.toLocaleDateString("it-IT", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-          {event.location && (
-            <span className="flex items-center gap-1.5">
-              <MapPinIcon className="h-3.5 w-3.5" />
-              {event.location}
+    <div className={`flex flex-col gap-3 group ${isCompleted ? "opacity-60" : ""}`}>
+      {/* Image — aspect-square like SpaceCard */}
+      <Link href={`/events/${event.id}`} className="block">
+        <div className="aspect-square w-full relative bg-muted rounded-xl overflow-hidden ring-1 ring-border/50 group-hover:ring-primary/20 transition-all">
+          <div className={`size-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
+            <span className="text-6xl font-black text-white/20 select-none group-hover:scale-110 transition-transform">
+              {event.title.charAt(0).toUpperCase()}
             </span>
+          </div>
+
+          {/* Date badge — top right */}
+          <div className="absolute top-2 right-2 flex gap-1">
+            <Badge className="bg-white/90 text-black hover:bg-white shadow-sm backdrop-blur-sm h-6 gap-1 font-medium">
+              <CalendarIcon className="h-3 w-3" />
+              {startDate.toLocaleDateString("it-IT", { day: "numeric", month: "short" })}
+            </Badge>
+          </div>
+
+          {/* Time badge — bottom left */}
+          <div className="absolute bottom-2 left-2">
+            <Badge className="bg-black/60 text-white hover:bg-black/70 backdrop-blur-sm h-6 font-mono">
+              {startDate.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
+            </Badge>
+          </div>
+        </div>
+      </Link>
+
+      {/* Content below — same as SpaceCard */}
+      <div className="space-y-1.5 px-1">
+        <h3 className="font-semibold tracking-tight text-lg leading-tight group-hover:text-primary transition-colors line-clamp-1">
+          {event.title}
+        </h3>
+
+        <p className="text-sm text-muted-foreground line-clamp-1">
+          {event.description || (event.location ?? "Nessuna descrizione")}
+        </p>
+
+        <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+          {event.location && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <MapPinIcon className="size-3.5 shrink-0" />
+              <span className="truncate">{event.location}</span>
+            </div>
           )}
-          <span className="flex items-center gap-1.5">
-            <UsersIcon className="h-3.5 w-3.5" />
-            {event.attendeeCount} partecipanti
-            {event.maxAttendees && ` / ${event.maxAttendees}`}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            <UsersIcon className="size-3.5" />
+            <span>{event.attendeeCount}{event.maxAttendees ? `/${event.maxAttendees}` : ""}</span>
+          </div>
         </div>
 
-        {event.tags && event.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {event.tags.map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
+        {isPublished && !isPast && (
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" className="flex-1" onClick={() => onRespond(event.id, AttendeeStatus.Going)}>
+              Partecipo
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onRespond(event.id, AttendeeStatus.Interested)}>
+              Interessato
+            </Button>
           </div>
         )}
-
-        <div className="flex items-center gap-2 pt-1">
-          {isPublished && !isPast && (
-            <>
-              <Button size="sm" onClick={() => onRespond(event.id, AttendeeStatus.Going)}>
-                Partecipo
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onRespond(event.id, AttendeeStatus.Interested)}
-              >
-                Interessato
-              </Button>
-            </>
-          )}
-          <Button size="sm" variant="ghost" asChild className="ml-auto">
-            <Link href={`/spaces/${event.spaceId}`}>Vai allo space</Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -184,7 +198,7 @@ export default function EventsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {events.map((event) => (
             <EventCard key={event.id} event={event} onRespond={handleRespond} />
           ))}
