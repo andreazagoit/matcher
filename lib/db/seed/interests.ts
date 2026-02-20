@@ -1,7 +1,6 @@
 import { db } from "../drizzle";
 import { userInterests } from "../../models/interests/schema";
 import { embeddings } from "../../models/embeddings/schema";
-import { users } from "../../models/users/schema";
 import { ALL_TAGS } from "../../models/tags/data";
 import { generateEmbeddingsBatch } from "../../embeddings";
 

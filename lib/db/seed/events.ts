@@ -1,7 +1,6 @@
 import { db } from "../drizzle";
 import { events } from "../../models/events/schema";
 import { spaces } from "../../models/spaces/schema";
-import { eq } from "drizzle-orm";
 
 interface SeedEvent {
   spaceSlug: string;

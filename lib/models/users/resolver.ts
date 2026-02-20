@@ -6,7 +6,6 @@ import {
   createUser,
   updateUser,
   deleteUser,
-  getUserById,
   getUserByUsername,
   getAllUsers,
   updateUserLocation,
@@ -30,7 +29,6 @@ export const userResolvers = {
     user: async (
       _: unknown,
       { username }: { username: string },
-      _context: GraphQLContext,
     ) => {
       // Public profile lookup by username (used by /users/[username]).
       // Sensitive fields are still controlled at schema/query level.

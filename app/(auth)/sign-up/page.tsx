@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,12 +45,24 @@ const EMPTY_SIGNUP: SignupData = {
   gender: "",
 };
 
-export default function SignUpPage() {
+export default function SignUpPageWrapper() {
+  return (
+    <Suspense>
+      <SignUpPage />
+    </Suspense>
+  );
+}
+
+function SignUpPage() {
   const searchParams = useSearchParams();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [signupData, setSignupData] = useState<SignupData>(EMPTY_SIGNUP);
+  // Pre-fill email from query param (e.g. redirected from sign-in)
+  const [signupData, setSignupData] = useState<SignupData>(() => ({
+    ...EMPTY_SIGNUP,
+    email: searchParams.get("email") ?? "",
+  }));
   const [step, setStep] = useState<"form" | "verify">("form");
   const [otp, setOtp] = useState("");
   const [usernameTaken, setUsernameTaken] = useState(false);
@@ -59,12 +71,6 @@ export default function SignUpPage() {
   const [checkUsername] = useLazyQuery<{ checkUsername: boolean }>(CHECK_USERNAME, {
     fetchPolicy: "network-only",
   });
-
-  // Pre-fill email if redirected from sign-in
-  useEffect(() => {
-    const email = searchParams.get("email");
-    if (email) setSignupData((prev) => ({ ...prev, email }));
-  }, [searchParams]);
 
   const updateSignup = <K extends keyof SignupData>(k: K, v: SignupData[K]) => {
     setSignupData((prev) => ({ ...prev, [k]: v }));

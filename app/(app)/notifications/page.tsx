@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation } from "@apollo/client/react";
 import { Bell, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Page } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -84,9 +85,11 @@ export default function NotificationsPage() {
               onClick={() => n.href && handleClick(n.id, n.href)}
             >
               {n.image ? (
-                <img
+                <Image
                   src={n.image}
                   alt=""
+                  width={40}
+                  height={40}
                   className="h-10 w-10 rounded-full object-cover shrink-0 mt-0.5"
                 />
               ) : (
