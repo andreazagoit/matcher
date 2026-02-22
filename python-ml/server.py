@@ -1,29 +1,29 @@
 """
-FastAPI ML Service — embedding generation and model training.
+FastAPI ML Service — embedding inference only.
 
 Endpoints:
-  POST /embed    — generate a 64-dim embedding from raw entity data (stateless, no DB)
-  POST /train    — train the model from DB interactions
-  GET  /health   — health check + model status
+  POST /embed  — generate a 64-dim embedding from raw entity data (stateless, no DB)
+
+Training is handled offline:
+  1. npm run ml:export   → writes python-ml/training-data/*.json
+  2. npm run ml:train    → python3 train.py  (reads JSON, trains, saves model_weights.pt)
+  3. Restart this server to pick up the new weights.
 """
 
 from __future__ import annotations
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from config import NEGATIVE_SAMPLES
-from data import build_training_triplets
+from config import EMBED_DIM
 from features import build_user_features, build_event_features, build_space_features
-from model import EntityEncoder, train, save_model, load_model
+from model import HetEncoder, load_model
 
 
 # ─── State ─────────────────────────────────────────────────────────────────────
 
-_model: Optional[EntityEncoder] = None
-_is_training: bool = False
+_model: Optional[HetEncoder] = None
 
 
 @asynccontextmanager
@@ -33,39 +33,49 @@ async def lifespan(app: FastAPI):
     if _model:
         print("Loaded existing model weights.")
     else:
-        print("No model weights found. Use POST /train to train the model.")
+        print("No model weights found. Run 'npm run ml:train' to train.")
     yield
 
 
 app = FastAPI(
-    title="Matcher ML Service",
+    title="Matcher ML Service — HGT-lite",
     description="Generates 64-dim embeddings for users, events and spaces.",
     lifespan=lifespan,
 )
 
 
-# ─── Schemas ───────────────────────────────────────────────────────────────────
+# ─── Request / Response schemas ────────────────────────────────────────────────
 
 class UserData(BaseModel):
-    tag_weights: "dict[str, float]" = {}
-    birthdate: Optional[str] = None           # "YYYY-MM-DD"
-    interaction_count: int = 0
+    tag_weights: dict[str, float] = {}
+    birthdate: Optional[str] = None                  # "YYYY-MM-DD"
+    gender: Optional[str] = None                     # "man" | "woman" | "non_binary"
+    relationship_intent: list[str] = []              # ["serious_relationship", ...]
+    smoking: Optional[str] = None                    # "never" | "sometimes" | "regularly"
+    drinking: Optional[str] = None
+    activity_level: Optional[str] = None             # "sedentary" | ... | "very_active"
+    interaction_count: int = 0                       # events attended + spaces joined
+    conversation_count: int = 0                      # active conversations
 
 
 class EventData(BaseModel):
-    tags: "list[str]" = []
-    avg_attendee_age: Optional[float] = None
-    attendee_count: int = 0
+    tags: list[str] = []
+    avg_attendee_age: Optional[float] = None         # real for completed, registered for upcoming
+    attendee_count: int = 0                          # status='attended' (completed) or 'going' (upcoming)
+    days_until_event: Optional[int] = None           # days from today; negative = past
+    max_attendees: Optional[int] = None              # events.max_attendees (None = no cap)
+    is_paid: bool = False                            # True if price > 0
 
 
 class SpaceData(BaseModel):
-    tags: "list[str]" = []
+    tags: list[str] = []
     avg_member_age: Optional[float] = None
     member_count: int = 0
+    event_count: int = 0                             # published/completed events in this space
 
 
 class EmbedRequest(BaseModel):
-    entity_type: str                          # "user" | "event" | "space"
+    entity_type: str                                 # "user" | "event" | "space"
     user: Optional[UserData] = None
     event: Optional[EventData] = None
     space: Optional[SpaceData] = None
@@ -73,102 +83,73 @@ class EmbedRequest(BaseModel):
 
 class EmbedResponse(BaseModel):
     entity_type: str
-    embedding: "list[float]"                  # always 64-dim
-    model_used: str                           # "ml" or "untrained"
+    embedding: list[float]                           # always 64-dim
+    model_used: str                                  # "hgt" | "untrained"
 
 
-# ─── Endpoints ─────────────────────────────────────────────────────────────────
+# ─── Helpers ───────────────────────────────────────────────────────────────────
 
-@app.get("/health")
-def health():
-    return {
-        "status": "ok",
-        "model_loaded": _model is not None,
-        "is_training": _is_training,
-    }
+def _build_features(req: EmbedRequest) -> tuple[str, list[float]]:
+    if req.entity_type == "user":
+        if not req.user:
+            raise HTTPException(400, "user data required for entity_type=user")
+        return "user", build_user_features(
+            birthdate=req.user.birthdate,
+            tag_weights=req.user.tag_weights,
+            gender=req.user.gender,
+            relationship_intent=req.user.relationship_intent,
+            smoking=req.user.smoking,
+            drinking=req.user.drinking,
+            activity_level=req.user.activity_level,
+            interaction_count=req.user.interaction_count,
+            conversation_count=req.user.conversation_count,
+        )
 
+    if req.entity_type == "event":
+        if not req.event:
+            raise HTTPException(400, "event data required for entity_type=event")
+        return "event", build_event_features(
+            tags=req.event.tags,
+            avg_attendee_age=req.event.avg_attendee_age,
+            attendee_count=req.event.attendee_count,
+            days_until_event=req.event.days_until_event,
+            max_attendees=req.event.max_attendees,
+            is_paid=req.event.is_paid,
+        )
+
+    if req.entity_type == "space":
+        if not req.space:
+            raise HTTPException(400, "space data required for entity_type=space")
+        return "space", build_space_features(
+            tags=req.space.tags,
+            avg_member_age=req.space.avg_member_age,
+            member_count=req.space.member_count,
+            event_count=req.space.event_count,
+        )
+
+    raise HTTPException(400, "entity_type must be 'user', 'event', or 'space'")
+
+
+# ─── Endpoint ──────────────────────────────────────────────────────────────────
 
 @app.post("/embed", response_model=EmbedResponse)
 def embed(req: EmbedRequest):
     """
-    Generate a 64-dim embedding from raw entity data.
+    Generate a 64-dim L2-normalised embedding from raw entity data.
     No DB access — pure computation.
 
     Next.js flow:
-      1. Collect entity data (before saving to DB)
-      2. Call POST /embed
+      1. Collect entity data
+      2. POST /embed
       3. Save entity + embedding to DB in a single transaction
     """
-    if req.entity_type == "user":
-        if not req.user:
-            raise HTTPException(status_code=400, detail="user data required for entity_type=user")
-        features = build_user_features(
-            birthdate=req.user.birthdate,
-            tag_weights=req.user.tag_weights,
-            interaction_count=req.user.interaction_count,
-        )
-    elif req.entity_type == "event":
-        if not req.event:
-            raise HTTPException(status_code=400, detail="event data required for entity_type=event")
-        features = build_event_features(
-            tags=req.event.tags,
-            avg_attendee_age=req.event.avg_attendee_age,
-            attendee_count=req.event.attendee_count,
-        )
-    elif req.entity_type == "space":
-        if not req.space:
-            raise HTTPException(status_code=400, detail="space data required for entity_type=space")
-        features = build_space_features(
-            tags=req.space.tags,
-            avg_member_age=req.space.avg_member_age,
-            member_count=req.space.member_count,
-        )
-    else:
-        raise HTTPException(status_code=400, detail="entity_type must be user, event, or space")
+    entity_type, features = _build_features(req)
 
     if _model is not None:
-        embedding = _model.encode(features).cpu().tolist()
-        model_used = "ml"
+        embedding  = _model.encode(entity_type, features).cpu().tolist()
+        model_used = "hgt"
     else:
-        # Untrained model: return the raw feature vector padded/truncated to 64-dim
-        # This is a deterministic fallback so Next.js can still store something
-        from config import EMBED_DIM
-        embedding = (features + [0.0] * EMBED_DIM)[:EMBED_DIM]
+        embedding  = (features + [0.0] * EMBED_DIM)[:EMBED_DIM]
         model_used = "untrained"
 
-    return EmbedResponse(
-        entity_type=req.entity_type,
-        embedding=embedding,
-        model_used=model_used,
-    )
-
-
-@app.post("/train")
-async def trigger_training(background_tasks: BackgroundTasks):
-    """Train the model from DB interactions. Runs in background."""
-    global _is_training
-    if _is_training:
-        raise HTTPException(status_code=409, detail="Training already in progress.")
-    background_tasks.add_task(_run_training)
-    return {"status": "training_started"}
-
-
-async def _run_training():
-    global _model, _is_training
-    _is_training = True
-    try:
-        print("Building training triplets from DB...")
-        loop = asyncio.get_event_loop()
-        triplets = await loop.run_in_executor(
-            None,
-            lambda: build_training_triplets(negative_samples=NEGATIVE_SAMPLES),
-        )
-        print(f"Training on {len(triplets)} triplets...")
-        model = await loop.run_in_executor(None, lambda: train(triplets))
-        save_model(model)
-        _model = model
-        print("Training complete.")
-    except Exception as e:
-        print(f"Training failed: {e}")
-    finally:
-        _is_training = False
+    return EmbedResponse(entity_type=entity_type, embedding=embedding, model_used=model_used)

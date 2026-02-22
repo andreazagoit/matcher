@@ -15,6 +15,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/match
 
 # ─── Model ─────────────────────────────────────────────────────────────────────
 EMBED_DIM = 64
+HIDDEN_DIM = 128
 LEARNING_RATE = 0.001
 EPOCHS = 50
 BATCH_SIZE = 256
@@ -40,22 +41,60 @@ TAG_VOCAB: list[str] = [
 TAG_TO_IDX: dict[str, int] = {tag: i for i, tag in enumerate(TAG_VOCAB)}
 NUM_TAGS = len(TAG_VOCAB)  # 40
 
-# ─── Entity types ──────────────────────────────────────────────────────────────
+# ─── Profile enum vocabularies ────────────────────────────────────────────────
+# Must stay in sync with lib/models/users/schema.ts pgEnums
+
+GENDER_VOCAB = ["man", "woman", "non_binary"]
+REL_INTENT_VOCAB = ["serious_relationship", "casual_dating", "friendship", "chat"]
+SMOKING_VOCAB = ["never", "sometimes", "regularly"]
+DRINKING_VOCAB = ["never", "sometimes", "regularly"]
+ACTIVITY_VOCAB = ["sedentary", "light", "moderate", "active", "very_active"]
+
+GENDER_TO_IDX: dict[str, int]       = {v: i for i, v in enumerate(GENDER_VOCAB)}
+REL_INTENT_TO_IDX: dict[str, int]   = {v: i for i, v in enumerate(REL_INTENT_VOCAB)}
+SMOKING_TO_IDX: dict[str, int]      = {v: i for i, v in enumerate(SMOKING_VOCAB)}
+DRINKING_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(DRINKING_VOCAB)}
+ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB)}
+
+# ─── Feature vector layouts ────────────────────────────────────────────────────
+#
+# User (USER_DIM = 61):
+#   [0:40]  tag weights            (NUM_TAGS)
+#   [40]    age norm               (1)
+#   [41:44] gender one-hot         (3)
+#   [44:48] rel_intent multi-hot   (4)
+#   [48:51] smoking one-hot        (3)
+#   [51:54] drinking one-hot       (3)
+#   [54:59] activity one-hot       (5)
+#   [59]    interaction count norm (1) — events attended + spaces joined
+#   [60]    conversation count norm(1) — active conversations
+#
+# Event (EVENT_DIM = 45):
+#   [0:40]  tags multi-hot         (NUM_TAGS)
+#   [40]    avg attendee age norm  (1)
+#   [41]    attendee count norm    (1)
+#   [42]    days until event norm  (1)
+#   [43]    capacity fill rate     (1) — attendee_count / max_attendees, 0.5 if unbounded
+#   [44]    is_paid                (1) — 1.0 if price > 0, else 0.0
+#
+# Space (SPACE_DIM = 43):
+#   [0:40]  tags multi-hot         (NUM_TAGS)
+#   [40]    avg member age norm    (1)
+#   [41]    member count norm      (1)
+#   [42]    event count norm       (1) — published/completed events in this space
+
+USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 2  # 61
+EVENT_DIM = NUM_TAGS + 5   # 45
+SPACE_DIM = NUM_TAGS + 3   # 43
+
+# Entity types
 ENTITY_TYPES = ["user", "event", "space"]
 ENTITY_TYPE_TO_IDX: dict[str, int] = {e: i for i, e in enumerate(ENTITY_TYPES)}
-NUM_ENTITY_TYPES = len(ENTITY_TYPES)  # 3
-
-# ─── Feature vector layout ─────────────────────────────────────────────────────
-# [0:40]   tag weights/flags (NUM_TAGS)
-# [40]     age normalized 0-1
-# [41:44]  entity_type one-hot (NUM_ENTITY_TYPES)
-# [44]     popularity normalized 0-1
-# total = 45
-FEATURE_DIM = NUM_TAGS + 1 + NUM_ENTITY_TYPES + 1  # 45
 
 # Age normalization range
 AGE_MIN = 18.0
 AGE_MAX = 65.0
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
-MODEL_WEIGHTS_PATH = "model_weights.pt"
+MODEL_WEIGHTS_PATH  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_weights.pt")
+TRAINING_DATA_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "training-data")
