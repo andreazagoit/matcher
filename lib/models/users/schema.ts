@@ -19,11 +19,11 @@ import { sql } from "drizzle-orm";
 export const genderEnum = pgEnum("gender", ["man", "woman", "non_binary"]);
 
 export const sexualOrientationEnum = pgEnum("sexual_orientation", [
-  "straight", "gay", "lesbian", "bisexual", "pansexual", "asexual", "other",
+  "straight", "gay", "lesbian", "bisexual", "pansexual", "asexual", "queer", "other",
 ]);
 
 export const relationshipIntentEnum = pgEnum("relationship_intent", [
-  "friendship", "dating", "serious_relationship", "open_to_both",
+  "serious_relationship", "casual_dating", "friendship", "chat",
 ]);
 
 export const relationshipStyleEnum = pgEnum("relationship_style", [
@@ -85,13 +85,13 @@ export const users = pgTable(
     // ==========================================
     // PROFILE — ORIENTATION & IDENTITY
     // ==========================================
-    sexualOrientation: sexualOrientationEnum("sexual_orientation"),
+    sexualOrientation: text("sexual_orientation").array().default(sql`'{}'::text[]`).notNull(),
     heightCm: integer("height_cm"),
 
     // ==========================================
     // PROFILE — RELATIONAL INTENT
     // ==========================================
-    relationshipIntent: relationshipIntentEnum("relationship_intent"),
+    relationshipIntent: text("relationship_intent").array().default(sql`'{}'::text[]`).notNull(),
     relationshipStyle: relationshipStyleEnum("relationship_style"),
     hasChildren: hasChildrenEnum("has_children"),
     wantsChildren: wantsChildrenEnum("wants_children"),

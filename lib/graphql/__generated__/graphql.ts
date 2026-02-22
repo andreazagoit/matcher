@@ -678,13 +678,6 @@ export type QueryUserFeedArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export enum RelationshipIntent {
-  Dating = 'dating',
-  Friendship = 'friendship',
-  OpenToBoth = 'open_to_both',
-  SeriousRelationship = 'serious_relationship'
-}
-
 export enum RelationshipStyle {
   EthicalNonMonogamous = 'ethical_non_monogamous',
   Monogamous = 'monogamous',
@@ -701,16 +694,6 @@ export enum Religion {
   None = 'none',
   Other = 'other',
   Spiritual = 'spiritual'
-}
-
-export enum SexualOrientation {
-  Asexual = 'asexual',
-  Bisexual = 'bisexual',
-  Gay = 'gay',
-  Lesbian = 'lesbian',
-  Other = 'other',
-  Pansexual = 'pansexual',
-  Straight = 'straight'
 }
 
 export enum Smoking {
@@ -809,10 +792,10 @@ export type UpdateUserInput = {
   jobTitle?: InputMaybe<Scalars['String']['input']>;
   languages?: InputMaybe<Array<Scalars['String']['input']>>;
   name?: InputMaybe<Scalars['String']['input']>;
-  relationshipIntent?: InputMaybe<RelationshipIntent>;
+  relationshipIntent?: InputMaybe<Array<Scalars['String']['input']>>;
   relationshipStyle?: InputMaybe<RelationshipStyle>;
   religion?: InputMaybe<Religion>;
-  sexualOrientation?: InputMaybe<SexualOrientation>;
+  sexualOrientation?: InputMaybe<Array<Scalars['String']['input']>>;
   smoking?: InputMaybe<Smoking>;
   username?: InputMaybe<Scalars['String']['input']>;
   wantsChildren?: InputMaybe<WantsChildren>;
@@ -841,10 +824,10 @@ export type User = {
   locationUpdatedAt: Maybe<Scalars['DateTime']['output']>;
   name: Scalars['String']['output'];
   profileItems: Array<ProfileItem>;
-  relationshipIntent: Maybe<RelationshipIntent>;
+  relationshipIntent: Array<Scalars['String']['output']>;
   relationshipStyle: Maybe<RelationshipStyle>;
   religion: Maybe<Religion>;
-  sexualOrientation: Maybe<SexualOrientation>;
+  sexualOrientation: Array<Scalars['String']['output']>;
   smoking: Maybe<Smoking>;
   updatedAt: Scalars['DateTime']['output'];
   username: Maybe<Scalars['String']['output']>;
@@ -1213,26 +1196,26 @@ export type ArchiveTierMutationVariables = Exact<{
 
 export type ArchiveTierMutation = { archiveTier: boolean };
 
-export type UserFieldsFragment = { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: SexualOrientation | null, heightCm: number | null, relationshipIntent: RelationshipIntent | null, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null };
+export type UserFieldsFragment = { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null };
 
 export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMeQuery = { me: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: SexualOrientation | null, heightCm: number | null, relationshipIntent: RelationshipIntent | null, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null } | null };
+export type GetMeQuery = { me: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null } | null };
 
 export type GetUserQueryVariables = Exact<{
   username: Scalars['String']['input'];
 }>;
 
 
-export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: SexualOrientation | null, heightCm: number | null, relationshipIntent: RelationshipIntent | null, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, profileItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
+export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, profileItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
 
 export type GetUserWithCardsQueryVariables = Exact<{
   username: Scalars['String']['input'];
 }>;
 
 
-export type GetUserWithCardsQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: SexualOrientation | null, heightCm: number | null, relationshipIntent: RelationshipIntent | null, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
+export type GetUserWithCardsQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
 
 export type CheckUsernameQueryVariables = Exact<{
   username: Scalars['String']['input'];
@@ -1247,4 +1230,4 @@ export type UpdateUserMutationVariables = Exact<{
 }>;
 
 
-export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: SexualOrientation | null, heightCm: number | null, relationshipIntent: RelationshipIntent | null, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
+export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, hometown: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };

@@ -45,11 +45,11 @@ export const updateUserSchema = z.object({
   gender: z.enum(genderEnum.enumValues).optional(),
 
   // Orientation & identity
-  sexualOrientation: z.enum(sexualOrientationEnum.enumValues).optional(),
+  sexualOrientation: z.array(z.enum(sexualOrientationEnum.enumValues)).optional(),
   heightCm: z.number().int().min(100).max(250).optional(),
 
   // Relational intent
-  relationshipIntent: z.enum(relationshipIntentEnum.enumValues).optional(),
+  relationshipIntent: z.array(z.enum(relationshipIntentEnum.enumValues)).optional(),
   relationshipStyle: z.enum(relationshipStyleEnum.enumValues).optional(),
   hasChildren: z.enum(hasChildrenEnum.enumValues).optional(),
   wantsChildren: z.enum(wantsChildrenEnum.enumValues).optional(),
@@ -68,5 +68,33 @@ export const updateUserSchema = z.object({
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
 });
 
+/**
+ * Represents all data collected across the multi-step sign-up form.
+ * heightCm is a string because HTML inputs always return strings;
+ * the page converts it to number before calling the API.
+ */
+export const signupFormSchema = z.object({
+  name: z.string(),
+  birthdate: z.string(),
+  gender: z.enum(genderEnum.enumValues).optional(),
+  sexualOrientation: z.array(z.enum(sexualOrientationEnum.enumValues)).default([]),
+  relationshipIntent: z.array(z.enum(relationshipIntentEnum.enumValues)).default([]),
+  relationshipStyle: z.enum(relationshipStyleEnum.enumValues).optional(),
+  hasChildren: z.enum(hasChildrenEnum.enumValues).optional(),
+  wantsChildren: z.enum(wantsChildrenEnum.enumValues).optional(),
+  smoking: z.enum(smokingEnum.enumValues).optional(),
+  drinking: z.enum(drinkingEnum.enumValues).optional(),
+  activityLevel: z.enum(activityLevelEnum.enumValues).optional(),
+  religion: z.enum(religionEnum.enumValues).optional(),
+  heightCm: z.string().optional(),
+  jobTitle: z.string().max(100).optional(),
+  educationLevel: z.enum(educationLevelEnum.enumValues).optional(),
+  languages: z.array(z.enum(SUPPORTED_LANGUAGES)).default([]),
+  ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
+  username: usernameSchema,
+  email: z.string().email(),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type SignupFormData = z.infer<typeof signupFormSchema>;

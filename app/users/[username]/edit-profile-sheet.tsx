@@ -62,15 +62,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     );
 }
 
+// Single-select fields (stored as single value in DB)
 type EnumKey =
-    | "gender" | "sexualOrientation" | "relationshipIntent" | "relationshipStyle"
+    | "gender" | "relationshipStyle"
     | "hasChildren" | "wantsChildren" | "religion" | "smoking" | "drinking" | "activityLevel"
     | "educationLevel" | "ethnicity";
 
 const ENUM_VALUES: Record<EnumKey, readonly string[]> = {
     gender:             genderEnum.enumValues,
-    sexualOrientation:  sexualOrientationEnum.enumValues,
-    relationshipIntent: relationshipIntentEnum.enumValues,
     relationshipStyle:  relationshipStyleEnum.enumValues,
     hasChildren:        hasChildrenEnum.enumValues,
     wantsChildren:      wantsChildrenEnum.enumValues,
@@ -99,10 +98,14 @@ export function EditProfileSheet({ user, interests }: Props) {
     const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
         new Set(user.languages ?? [])
     );
+    const [selectedOrientations, setSelectedOrientations] = useState<Set<string>>(
+        new Set(user.sexualOrientation ?? [])
+    );
+    const [selectedIntents, setSelectedIntents] = useState<Set<string>>(
+        new Set(user.relationshipIntent ?? [])
+    );
     const [enumFields, setEnumFields] = useState<Record<EnumKey, string | null>>({
         gender:             user.gender ?? null,
-        sexualOrientation:  user.sexualOrientation ?? null,
-        relationshipIntent: user.relationshipIntent ?? null,
         relationshipStyle:  user.relationshipStyle ?? null,
         hasChildren:        user.hasChildren ?? null,
         wantsChildren:      user.wantsChildren ?? null,
@@ -121,23 +124,19 @@ export function EditProfileSheet({ user, interests }: Props) {
     const [updateInterests, { loading: savingInterests }] = useMutation(UPDATE_MY_INTERESTS);
     const saving = savingUser || savingInterests;
 
-    function toggleLanguage(lang: string) {
-        setSelectedLanguages((prev) => {
+    function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) {
+        setter((prev) => {
             const next = new Set(prev);
-            if (next.has(lang)) next.delete(lang);
-            else next.add(lang);
+            if (next.has(value)) next.delete(value);
+            else next.add(value);
             return next;
         });
     }
 
-    function toggleTag(tag: string) {
-        setSelectedTags((prev) => {
-            const next = new Set(prev);
-            if (next.has(tag)) next.delete(tag);
-            else next.add(tag);
-            return next;
-        });
-    }
+    function toggleLanguage(lang: string) { toggleSet(setSelectedLanguages, lang); }
+    function toggleOrientation(v: string) { toggleSet(setSelectedOrientations, v); }
+    function toggleIntent(v: string) { toggleSet(setSelectedIntents, v); }
+    function toggleTag(tag: string) { toggleSet(setSelectedTags, tag); }
 
     function setEnum(key: EnumKey, value: string) {
         setEnumFields((prev) => ({ ...prev, [key]: value === "__clear__" ? null : value }));
@@ -153,6 +152,8 @@ export function EditProfileSheet({ user, interests }: Props) {
                         birthdate: birthdate || undefined,
                         heightCm: height ? parseInt(height, 10) : undefined,
                         jobTitle: jobTitle.trim() || undefined,
+                        sexualOrientation: Array.from(selectedOrientations),
+                        relationshipIntent: Array.from(selectedIntents),
                         languages: Array.from(selectedLanguages),
                         ...Object.fromEntries(
                             (Object.keys(enumFields) as EnumKey[])
@@ -232,7 +233,39 @@ export function EditProfileSheet({ user, interests }: Props) {
                                 />
                             </Field>
 
-                            {/* All enum selects */}
+                            {/* Orientamento sessuale (multi) */}
+                            <Field label={tEnums("sexualOrientationLabel" as Parameters<typeof tEnums>[0])}>
+                                <div className="flex flex-wrap gap-2">
+                                    {sexualOrientationEnum.enumValues.map((v) => {
+                                        const active = selectedOrientations.has(v);
+                                        return (
+                                            <button key={v} type="button" onClick={() => toggleOrientation(v)}
+                                                className={["inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                                                    active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                                                {tEnums(`sexualOrientation.${v}` as Parameters<typeof tEnums>[0])}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Field>
+
+                            {/* Cosa cerco (multi) */}
+                            <Field label={tEnums("relationshipIntentLabel" as Parameters<typeof tEnums>[0])}>
+                                <div className="flex flex-wrap gap-2">
+                                    {relationshipIntentEnum.enumValues.map((v) => {
+                                        const active = selectedIntents.has(v);
+                                        return (
+                                            <button key={v} type="button" onClick={() => toggleIntent(v)}
+                                                className={["inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                                                    active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                                                {tEnums(`relationshipIntent.${v}` as Parameters<typeof tEnums>[0])}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Field>
+
+                            {/* All single-select enums */}
                             {(Object.keys(ENUM_VALUES) as EnumKey[]).map((key) => (
                                 <Field key={key} label={tEnums(`${key}Label` as Parameters<typeof tEnums>[0])}>
                                     <Select

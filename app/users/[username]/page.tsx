@@ -122,7 +122,7 @@ export default async function UserProfilePage({
     const chips: ChipEntry[] = [
         ...(age !== null ? [{ icon: Cake, label: String(age) }] : []),
         ...(user.gender ? [{ icon: User, label: tEnums(`gender.${user.gender}` as Parameters<typeof tEnums>[0]) }] : []),
-        ...(user.sexualOrientation ? [{ icon: Heart, label: tEnums(`sexualOrientation.${user.sexualOrientation}` as Parameters<typeof tEnums>[0]) }] : []),
+        ...(user.sexualOrientation?.length ? [{ icon: Heart, label: user.sexualOrientation.map((o: string) => tEnums(`sexualOrientation.${o}` as Parameters<typeof tEnums>[0])).join(", ") }] : []),
         ...(user.heightCm ? [{ icon: Ruler, label: `${user.heightCm} cm` }] : []),
         ...(user.hasChildren ? [{ icon: Baby, label: tEnums(`hasChildren.${user.hasChildren}` as Parameters<typeof tEnums>[0]) }] : []),
         ...(user.wantsChildren ? [{ icon: Sprout, label: tEnums(`wantsChildren.${user.wantsChildren}` as Parameters<typeof tEnums>[0]) }] : []),
@@ -139,7 +139,7 @@ export default async function UserProfilePage({
         ...(user.religion ? [{ icon: BookOpen, value: tEnums(`religion.${user.religion}` as Parameters<typeof tEnums>[0]) }] : []),
         ...(user.languages?.length ? [{ icon: Languages, value: user.languages.map((l: string) => tEnums(`language.${l}` as Parameters<typeof tEnums>[0])).join(", ") }] : []),
         ...(user.ethnicity ? [{ icon: Globe, value: tEnums(`ethnicity.${user.ethnicity}` as Parameters<typeof tEnums>[0]) }] : []),
-        ...(user.relationshipIntent ? [{ icon: Search, value: tEnums(`relationshipIntent.${user.relationshipIntent}` as Parameters<typeof tEnums>[0]) }] : []),
+        ...(user.relationshipIntent?.length ? [{ icon: Search, value: user.relationshipIntent.map((i: string) => tEnums(`relationshipIntent.${i}` as Parameters<typeof tEnums>[0])).join(", ") }] : []),
         ...(user.relationshipStyle ? [{ icon: Users, value: tEnums(`relationshipStyle.${user.relationshipStyle}` as Parameters<typeof tEnums>[0]) }] : []),
     ];
 

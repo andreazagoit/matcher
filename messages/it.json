@@ -25,13 +25,14 @@
       "bisexual": "Bisessuale",
       "pansexual": "Pansessuale",
       "asexual": "Asessuale",
+      "queer": "Queer",
       "other": "Altro"
     },
     "relationshipIntent": {
-      "friendship": "Amicizia",
-      "dating": "Frequentarsi",
       "serious_relationship": "Relazione seria",
-      "open_to_both": "Aperto a tutto"
+      "casual_dating": "Frequentarsi",
+      "friendship": "Amicizia",
+      "chat": "Solo chiacchierare"
     },
     "relationshipStyle": {
       "monogamous": "Monogamia",

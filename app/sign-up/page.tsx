@@ -13,42 +13,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth-client";
-import { signUpSchema } from "@/lib/models/users/validator";
+import { signUpSchema, signupFormSchema, type SignupFormData, SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
+import {
+  genderEnum, sexualOrientationEnum, relationshipIntentEnum, relationshipStyleEnum,
+  hasChildrenEnum, wantsChildrenEnum, smokingEnum, drinkingEnum, activityLevelEnum,
+  religionEnum, educationLevelEnum, ethnicityEnum,
+} from "@/lib/models/users/schema";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, UserPlusIcon } from "lucide-react";
 import Link from "next/link";
 import { useLazyQuery } from "@apollo/client/react";
 import { CHECK_USERNAME } from "@/lib/models/users/gql";
 
-type Step = "identity" | "intent" | "about" | "lifestyle" | "account" | "verify";
-const STEPS: Step[] = ["identity", "intent", "about", "lifestyle", "account", "verify"];
+type Step = "identity" | "intent" | "about" | "background" | "lifestyle" | "account" | "verify";
+const STEPS: Step[] = ["identity", "intent", "about", "background", "lifestyle", "account", "verify"];
 
 type FieldErrors = Partial<Record<"name" | "birthdate" | "gender" | "username" | "email", string>>;
 
-interface SignupData {
-  name: string;
-  birthdate: string;
-  gender: "" | "man" | "woman" | "non_binary";
-  relationshipIntent: "" | "friendship" | "dating" | "serious_relationship" | "open_to_both";
-  relationshipStyle: "" | "monogamous" | "ethical_non_monogamous" | "open" | "other";
-  sexualOrientation: "" | "straight" | "gay" | "lesbian" | "bisexual" | "pansexual" | "asexual" | "other";
-  hasChildren: "" | "no" | "yes";
-  wantsChildren: "" | "yes" | "no" | "open";
-  smoking: "" | "never" | "sometimes" | "regularly";
-  drinking: "" | "never" | "sometimes" | "regularly";
-  activityLevel: "" | "sedentary" | "light" | "moderate" | "active" | "very_active";
-  religion: "" | "none" | "christian" | "muslim" | "jewish" | "buddhist" | "hindu" | "spiritual" | "other";
-  heightCm: string;
-  username: string;
-  email: string;
-}
-
-const EMPTY: SignupData = {
-  name: "", birthdate: "", gender: "",
-  relationshipIntent: "", relationshipStyle: "",
-  sexualOrientation: "", hasChildren: "", wantsChildren: "",
-  smoking: "", drinking: "", activityLevel: "", religion: "", heightCm: "",
-  username: "", email: "",
+const EMPTY: SignupFormData = {
+  name: "", birthdate: "", username: "", email: "",
+  sexualOrientation: [], relationshipIntent: [], languages: [],
 };
 
 export default function SignUpPage() {
@@ -78,8 +63,9 @@ function StepIndicator({ current }: { current: Step }) {
 }
 
 function SignUpForm() {
+  const tEnums = useTranslations("enums");
   const searchParams = useSearchParams();
-  const [data, setData] = useState<SignupData>({ ...EMPTY, email: searchParams.get("email") ?? "" });
+  const [data, setData] = useState<SignupFormData>({ ...EMPTY, email: searchParams.get("email") ?? "" });
   const [step, setStep] = useState<Step>("identity");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -90,7 +76,14 @@ function SignUpForm() {
 
   const [checkUsername] = useLazyQuery<{ checkUsername: boolean }>(CHECK_USERNAME, { fetchPolicy: "network-only" });
 
-  const set = <K extends keyof SignupData>(k: K, v: SignupData[K]) => {
+  const toggle = (k: "sexualOrientation" | "relationshipIntent" | "languages", v: string) => {
+    setData((prev) => {
+      const arr = prev[k] as string[];
+      return { ...prev, [k]: arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v] };
+    });
+  };
+
+  const set = <K extends keyof SignupFormData>(k: K, v: SignupFormData[K]) => {
     setData((prev) => ({ ...prev, [k]: v }));
     if (k in fieldErrors) setFieldErrors((prev) => ({ ...prev, [k]: undefined }));
     if (k === "username") {
@@ -147,8 +140,8 @@ function SignUpForm() {
         username: data.username,
         birthdate: data.birthdate,
         gender: data.gender,
-        ...(data.sexualOrientation && { sexualOrientation: data.sexualOrientation }),
-        ...(data.relationshipIntent && { relationshipIntent: data.relationshipIntent }),
+        ...(data.sexualOrientation.length && { sexualOrientation: data.sexualOrientation }),
+        ...(data.relationshipIntent.length && { relationshipIntent: data.relationshipIntent }),
         ...(data.relationshipStyle && { relationshipStyle: data.relationshipStyle }),
         ...(data.hasChildren && { hasChildren: data.hasChildren }),
         ...(data.wantsChildren && { wantsChildren: data.wantsChildren }),
@@ -157,6 +150,10 @@ function SignUpForm() {
         ...(data.activityLevel && { activityLevel: data.activityLevel }),
         ...(data.religion && { religion: data.religion }),
         ...(data.heightCm && { heightCm: parseInt(data.heightCm) }),
+        ...(data.jobTitle && { jobTitle: data.jobTitle }),
+        ...(data.educationLevel && { educationLevel: data.educationLevel }),
+        ...(data.ethnicity && { ethnicity: data.ethnicity }),
+        ...(data.languages.length && { languages: data.languages }),
       } as Parameters<typeof authClient.signUp.email>[0]);
 
       if (result?.error) {
@@ -226,6 +223,7 @@ function SignUpForm() {
             {step === "identity" && <><CardTitle>Chi sei</CardTitle><CardDescription>Qualche informazione di base su di te</CardDescription></>}
             {step === "intent" && <><CardTitle>Cosa cerchi</CardTitle><CardDescription>Puoi cambiarlo in qualsiasi momento</CardDescription></>}
             {step === "about" && <><CardTitle>Su di te</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
+            {step === "background" && <><CardTitle>Background</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
             {step === "lifestyle" && <><CardTitle>Stile di vita</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
             {step === "account" && <><CardTitle>Crea il tuo account</CardTitle><CardDescription>Ti invieremo un codice di verifica all&apos;email</CardDescription></>}
             {step === "verify" && <><CardTitle>Verifica email</CardTitle><CardDescription>Abbiamo inviato un codice a {data.email}</CardDescription></>}
@@ -247,12 +245,12 @@ function SignUpForm() {
                 </div>
                 <div className="space-y-2">
                   <Label>Genere</Label>
-                  <Select value={data.gender} onValueChange={(v) => set("gender", v as SignupData["gender"])}>
+                  <Select value={data.gender ?? ""} onValueChange={(v) => set("gender", v as SignupFormData["gender"])}>
                     <SelectTrigger className={fieldErrors.gender ? "border-destructive" : ""}><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="man">Uomo</SelectItem>
-                      <SelectItem value="woman">Donna</SelectItem>
-                      <SelectItem value="non_binary">Non binario</SelectItem>
+                      {genderEnum.enumValues.map((v) => (
+                        <SelectItem key={v} value={v}>{tEnums(`gender.${v}` as Parameters<typeof tEnums>[0])}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {fieldErrors.gender && <p className="text-xs text-destructive">{fieldErrors.gender}</p>}
@@ -269,26 +267,28 @@ function SignUpForm() {
             {step === "intent" && (
               <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Tipo di relazione</Label>
-                  <Select value={data.relationshipIntent} onValueChange={(v) => set("relationshipIntent", v as SignupData["relationshipIntent"])}>
-                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="friendship">Amicizia</SelectItem>
-                      <SelectItem value="dating">Frequentarsi</SelectItem>
-                      <SelectItem value="serious_relationship">Relazione seria</SelectItem>
-                      <SelectItem value="open_to_both">Aperto a tutto</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Cosa cerchi? <span className="text-muted-foreground font-normal">(puoi scegliere più opzioni)</span></Label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {relationshipIntentEnum.enumValues.map((v: string) => {
+                      const active = (data.relationshipIntent as string[]).includes(v);
+                      return (
+                        <button key={v} type="button" onClick={() => toggle("relationshipIntent", v)}
+                          className={["inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                            active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                          {tEnums(`relationshipIntent.${v}` as Parameters<typeof tEnums>[0])}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Struttura relazionale</Label>
-                  <Select value={data.relationshipStyle} onValueChange={(v) => set("relationshipStyle", v as SignupData["relationshipStyle"])}>
+                  <Select value={data.relationshipStyle ?? ""} onValueChange={(v) => set("relationshipStyle", v as SignupFormData["relationshipStyle"])}>
                     <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="monogamous">Monogamia</SelectItem>
-                      <SelectItem value="ethical_non_monogamous">Non monogamia etica</SelectItem>
-                      <SelectItem value="open">Relazione aperta</SelectItem>
-                      <SelectItem value="other">Altro</SelectItem>
+                      {relationshipStyleEnum.enumValues.map((v) => (
+                        <SelectItem key={v} value={v}>{tEnums(`relationshipStyle.${v}` as Parameters<typeof tEnums>[0])}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -303,39 +303,40 @@ function SignUpForm() {
             {step === "about" && (
               <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Orientamento sessuale</Label>
-                  <Select value={data.sexualOrientation} onValueChange={(v) => set("sexualOrientation", v as SignupData["sexualOrientation"])}>
-                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="straight">Eterosessuale</SelectItem>
-                      <SelectItem value="gay">Gay</SelectItem>
-                      <SelectItem value="lesbian">Lesbica</SelectItem>
-                      <SelectItem value="bisexual">Bisessuale</SelectItem>
-                      <SelectItem value="pansexual">Pansessuale</SelectItem>
-                      <SelectItem value="asexual">Asessuale</SelectItem>
-                      <SelectItem value="other">Altro</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Orientamento sessuale <span className="text-muted-foreground font-normal">(puoi scegliere più opzioni)</span></Label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {sexualOrientationEnum.enumValues.map((v: string) => {
+                      const active = (data.sexualOrientation as string[]).includes(v);
+                      return (
+                        <button key={v} type="button" onClick={() => toggle("sexualOrientation", v)}
+                          className={["inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                            active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                          {tEnums(`sexualOrientation.${v}` as Parameters<typeof tEnums>[0])}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Hai figli?</Label>
-                    <Select value={data.hasChildren} onValueChange={(v) => set("hasChildren", v as SignupData["hasChildren"])}>
+                    <Label>{tEnums("hasChildrenLabel" as Parameters<typeof tEnums>[0])}</Label>
+                    <Select value={data.hasChildren ?? ""} onValueChange={(v) => set("hasChildren", v as SignupFormData["hasChildren"])}>
                       <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="yes">Sì</SelectItem>
+                        {hasChildrenEnum.enumValues.map((v) => (
+                          <SelectItem key={v} value={v}>{tEnums(`hasChildren.${v}` as Parameters<typeof tEnums>[0])}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Vuoi figli?</Label>
-                    <Select value={data.wantsChildren} onValueChange={(v) => set("wantsChildren", v as SignupData["wantsChildren"])}>
+                    <Label>{tEnums("wantsChildrenLabel" as Parameters<typeof tEnums>[0])}</Label>
+                    <Select value={data.wantsChildren ?? ""} onValueChange={(v) => set("wantsChildren", v as SignupFormData["wantsChildren"])}>
                       <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="yes">Sì</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="open">Forse</SelectItem>
+                        {wantsChildrenEnum.enumValues.map((v) => (
+                          <SelectItem key={v} value={v}>{tEnums(`wantsChildren.${v}` as Parameters<typeof tEnums>[0])}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -347,13 +348,64 @@ function SignUpForm() {
               </form>
             )}
 
-            {/* ── Step 4: Lifestyle ── */}
+            {/* ── Step 4: Background ── */}
+            {step === "background" && (
+              <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="jobTitle">Professione</Label>
+                  <Input id="jobTitle" value={data.jobTitle ?? ""} onChange={(e) => set("jobTitle", e.target.value || undefined)} placeholder="es. Designer, Ingegnere…" />
+                </div>
+                <div className="space-y-2">
+                  <Label>{tEnums("educationLevelLabel" as Parameters<typeof tEnums>[0])}</Label>
+                  <Select value={data.educationLevel ?? ""} onValueChange={(v) => set("educationLevel", v as SignupFormData["educationLevel"])}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      {educationLevelEnum.enumValues.map((v) => (
+                        <SelectItem key={v} value={v}>{tEnums(`educationLevel.${v}` as Parameters<typeof tEnums>[0])}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{tEnums("ethnicityLabel" as Parameters<typeof tEnums>[0])}</Label>
+                  <Select value={data.ethnicity ?? ""} onValueChange={(v) => set("ethnicity", v as SignupFormData["ethnicity"])}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      {ethnicityEnum.enumValues.map((v) => (
+                        <SelectItem key={v} value={v}>{tEnums(`ethnicity.${v}` as Parameters<typeof tEnums>[0])}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{tEnums("languagesLabel" as Parameters<typeof tEnums>[0])} <span className="text-muted-foreground font-normal">(puoi scegliere più opzioni)</span></Label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {SUPPORTED_LANGUAGES.map((v: string) => {
+                      const active = (data.languages as string[]).includes(v);
+                      return (
+                        <button key={v} type="button" onClick={() => toggle("languages", v)}
+                          className={["inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                            active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                          {tEnums(`language.${v}` as Parameters<typeof tEnums>[0])}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <BackButton />
+                  <Button type="submit" className="flex-1 gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 5: Lifestyle ── */}
             {step === "lifestyle" && (
               <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Fumo</Label>
-                    <Select value={data.smoking} onValueChange={(v) => set("smoking", v as SignupData["smoking"])}>
+                    <Select value={data.smoking ?? ""} onValueChange={(v) => set("smoking", v as SignupFormData["smoking"])}>
                       <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="never">Mai</SelectItem>
@@ -364,7 +416,7 @@ function SignUpForm() {
                   </div>
                   <div className="space-y-2">
                     <Label>Alcol</Label>
-                    <Select value={data.drinking} onValueChange={(v) => set("drinking", v as SignupData["drinking"])}>
+                    <Select value={data.drinking ?? ""} onValueChange={(v) => set("drinking", v as SignupFormData["drinking"])}>
                       <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="never">Mai</SelectItem>
@@ -376,7 +428,7 @@ function SignUpForm() {
                 </div>
                 <div className="space-y-2">
                   <Label>Attività fisica</Label>
-                  <Select value={data.activityLevel} onValueChange={(v) => set("activityLevel", v as SignupData["activityLevel"])}>
+                  <Select value={data.activityLevel ?? ""} onValueChange={(v) => set("activityLevel", v as SignupFormData["activityLevel"])}>
                     <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="sedentary">Sedentario</SelectItem>
@@ -390,7 +442,7 @@ function SignUpForm() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Religione</Label>
-                    <Select value={data.religion} onValueChange={(v) => set("religion", v as SignupData["religion"])}>
+                    <Select value={data.religion ?? ""} onValueChange={(v) => set("religion", v as SignupFormData["religion"])}>
                       <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nessuna</SelectItem>
@@ -406,7 +458,7 @@ function SignUpForm() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="height">Altezza (cm)</Label>
-                    <Input id="height" type="number" min={100} max={250} value={data.heightCm} onChange={(e) => set("heightCm", e.target.value)} placeholder="175" />
+                    <Input id="height" type="number" min={100} max={250} value={data.heightCm ?? ""} onChange={(e) => set("heightCm", e.target.value)} placeholder="175" />
                   </div>
                 </div>
                 <div className="flex gap-2">

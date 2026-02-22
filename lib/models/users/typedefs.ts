@@ -22,11 +22,11 @@ export const userTypeDefs = `#graphql
     profileItems: [ProfileItem!]!
 
     # Orientation & identity
-    sexualOrientation: SexualOrientation
+    sexualOrientation: [String!]!
     heightCm: Int
 
     # Relational intent
-    relationshipIntent: RelationshipIntent
+    relationshipIntent: [String!]!
     relationshipStyle: RelationshipStyle
     hasChildren: HasChildren
     wantsChildren: WantsChildren
@@ -65,11 +65,11 @@ export const userTypeDefs = `#graphql
     gender: Gender
 
     # Orientation & identity
-    sexualOrientation: SexualOrientation
+    sexualOrientation: [String!]
     heightCm: Int
 
     # Relational intent
-    relationshipIntent: RelationshipIntent
+    relationshipIntent: [String!]
     relationshipStyle: RelationshipStyle
     hasChildren: HasChildren
     wantsChildren: WantsChildren
@@ -92,23 +92,6 @@ export const userTypeDefs = `#graphql
     man
     woman
     non_binary
-  }
-
-  enum SexualOrientation {
-    straight
-    gay
-    lesbian
-    bisexual
-    pansexual
-    asexual
-    other
-  }
-
-  enum RelationshipIntent {
-    friendship
-    dating
-    serious_relationship
-    open_to_both
   }
 
   enum RelationshipStyle {
