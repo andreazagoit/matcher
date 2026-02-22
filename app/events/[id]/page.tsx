@@ -657,7 +657,7 @@ function ManageTab({
     status: string;
     registeredAt: string;
     paymentStatus: string | null;
-    user: { id: string; givenName: string; familyName: string; username?: string } | null;
+    user: { id: string; name: string; username?: string } | null;
   }[] = event.attendees ?? [];
 
   const going = attendees.filter((a) => a.status === "going").length;
@@ -748,7 +748,7 @@ function ManageTab({
                   <tr key={a.id} className={i < attendees.length - 1 ? "border-b" : ""}>
                     <td className="px-4 py-3">
                       <div className="font-medium">
-                        {a.user ? `${a.user.givenName} ${a.user.familyName}` : a.userId}
+                        {a.user ? a.user.name : a.userId}
                       </div>
                       {a.user?.username && (
                         <div className="text-xs text-muted-foreground">@{a.user.username}</div>

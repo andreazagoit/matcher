@@ -5,8 +5,6 @@ import { Badge } from "@/components/ui/badge";
 interface UserCardUser {
     id?: string;
     name?: string;
-    givenName?: string;
-    familyName?: string;
     email?: string;
     image?: string | null;
     gender?: string | null;
@@ -19,11 +17,8 @@ interface UserCardProps {
 }
 
 export function UserCard({ user, compatibility }: UserCardProps) {
-    const name = user.name
-        || `${user.givenName ?? ""} ${user.familyName ?? ""}`.trim()
-        || user.email
-        || "Unknown User";
-    const initials = (user.givenName?.[0] || "") + (user.familyName?.[0] || "");
+    const name = user.name || user.email || "Unknown User";
+    const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
     return (
         <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">

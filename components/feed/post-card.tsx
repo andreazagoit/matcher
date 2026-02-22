@@ -39,14 +39,14 @@ export function PostCard({
                 <Avatar className="rounded-full ring-1 ring-border">
                     <AvatarImage src={post.author.image ?? undefined} />
                     <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
-                        {post.author.givenName[0]}{post.author.familyName[0]}
+                        {post.author.name?.[0]?.toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-bold text-base truncate">
-                                {post.author.givenName} {post.author.familyName}
+                                {post.author.name}
                             </p>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Link

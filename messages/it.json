@@ -1,0 +1,207 @@
+{
+  "enums": {
+    "genderLabel": "Genere",
+    "sexualOrientationLabel": "Orientamento sessuale",
+    "relationshipIntentLabel": "Cosa cerco",
+    "relationshipStyleLabel": "Stile di relazione",
+    "hasChildrenLabel": "Figli",
+    "wantsChildrenLabel": "Vuole figli",
+    "religionLabel": "Religione",
+    "smokingLabel": "Fumo",
+    "drinkingLabel": "Alcol",
+    "activityLevelLabel": "Attività fisica",
+    "educationLevelLabel": "Istruzione",
+    "ethnicityLabel": "Etnia",
+    "languagesLabel": "Lingue parlate",
+    "gender": {
+      "man": "Uomo",
+      "woman": "Donna",
+      "non_binary": "Non binario"
+    },
+    "sexualOrientation": {
+      "straight": "Eterosessuale",
+      "gay": "Gay",
+      "lesbian": "Lesbica",
+      "bisexual": "Bisessuale",
+      "pansexual": "Pansessuale",
+      "asexual": "Asessuale",
+      "other": "Altro"
+    },
+    "relationshipIntent": {
+      "friendship": "Amicizia",
+      "dating": "Frequentarsi",
+      "serious_relationship": "Relazione seria",
+      "open_to_both": "Aperto a tutto"
+    },
+    "relationshipStyle": {
+      "monogamous": "Monogamia",
+      "ethical_non_monogamous": "Non monogamia etica",
+      "open": "Relazione aperta",
+      "other": "Altro"
+    },
+    "hasChildren": {
+      "no": "Senza figli",
+      "yes": "Con figli"
+    },
+    "wantsChildren": {
+      "yes": "Vuole figli",
+      "no": "Non vuole figli",
+      "open": "Forse figli"
+    },
+    "smoking": {
+      "never": "Non fumatore",
+      "sometimes": "Fuma occasionalmente",
+      "regularly": "Fumatore"
+    },
+    "drinking": {
+      "never": "Non beve alcolici",
+      "sometimes": "Beve occasionalmente",
+      "regularly": "Beve regolarmente"
+    },
+    "activityLevel": {
+      "sedentary": "Stile di vita sedentario",
+      "light": "Poco attivo",
+      "moderate": "Moderatamente attivo",
+      "active": "Abbastanza attivo",
+      "very_active": "Molto attivo"
+    },
+    "educationLevel": {
+      "middle_school": "Scuola media",
+      "high_school": "Scuola superiore",
+      "bachelor": "Laurea triennale",
+      "master": "Laurea magistrale",
+      "phd": "Dottorato",
+      "vocational": "Formazione professionale",
+      "other": "Altro"
+    },
+    "ethnicity": {
+      "white_caucasian": "Bianca/caucasica",
+      "hispanic_latino": "Ispanica/latina",
+      "black_african": "Nera/africana",
+      "east_asian": "Asiatica orientale",
+      "south_asian": "Asiatica meridionale",
+      "middle_eastern": "Medio orientale",
+      "pacific_islander": "Isolano del Pacifico",
+      "indigenous": "Indigena",
+      "mixed": "Mista",
+      "other": "Altra"
+    },
+    "language": {
+      "italian": "Italiano",
+      "english": "Inglese",
+      "french": "Francese",
+      "spanish": "Spagnolo",
+      "german": "Tedesco",
+      "portuguese": "Portoghese",
+      "arabic": "Arabo",
+      "chinese": "Cinese",
+      "japanese": "Giapponese",
+      "russian": "Russo",
+      "hindi": "Hindi",
+      "turkish": "Turco",
+      "other": "Altra"
+    },
+    "religion": {
+      "none": "Nessuna religione",
+      "christian": "Cristiana",
+      "muslim": "Islamica",
+      "jewish": "Ebraica",
+      "buddhist": "Buddhista",
+      "hindu": "Induista",
+      "spiritual": "Spirituale",
+      "other": "Altra"
+    }
+  },
+  "tags": {
+    "trekking": "Trekking",
+    "camping": "Campeggio",
+    "climbing": "Arrampicata",
+    "cycling": "Ciclismo",
+    "beach": "Mare",
+    "mountains": "Montagna",
+    "gardening": "Giardinaggio",
+    "cinema": "Cinema",
+    "theater": "Teatro",
+    "live_music": "Musica dal vivo",
+    "museums": "Musei",
+    "reading": "Lettura",
+    "photography": "Fotografia",
+    "art": "Arte",
+    "cooking": "Cucina",
+    "restaurants": "Ristoranti",
+    "wine": "Vino",
+    "craft_beer": "Birra artigianale",
+    "street_food": "Street food",
+    "coffee": "Caffè",
+    "running": "Running",
+    "gym": "Palestra",
+    "yoga": "Yoga",
+    "swimming": "Nuoto",
+    "football": "Calcio",
+    "tennis": "Tennis",
+    "padel": "Padel",
+    "basketball": "Basket",
+    "music": "Musica",
+    "drawing": "Disegno",
+    "writing": "Scrittura",
+    "diy": "Fai da te",
+    "gaming": "Gaming",
+    "coding": "Programmazione",
+    "travel": "Viaggi",
+    "volunteering": "Volontariato",
+    "languages": "Lingue",
+    "pets": "Animali",
+    "parties": "Feste",
+    "board_games": "Giochi da tavolo"
+  },
+  "tagCategories": {
+    "outdoor": "Outdoor",
+    "culture": "Cultura",
+    "food": "Cibo & Bevande",
+    "sports": "Sport",
+    "creative": "Creatività",
+    "social": "Sociale"
+  },
+  "prompts": {
+    "controversial_opinion": "La mia opinione più controversa è...",
+    "best_quality": "La cosa che apprezzo di più in me è...",
+    "i_am_always": "Sono sempre...",
+    "surprising_fact": "Una cosa che ti sorprenderebbe sapere di me è...",
+    "love_language": "Il mio love language è...",
+    "core_value": "Il valore più importante nella mia vita è...",
+    "sunday_plan": "Il mio Sunday plan perfetto è...",
+    "cant_live_without": "Non riesco a vivere senza...",
+    "recent_discovery": "L'ultima cosa che mi ha appassionato è...",
+    "life_goal": "Il mio prossimo grande obiettivo è...",
+    "obsessed_with": "Ultimamente sono ossessionato/a da...",
+    "my_routine": "Il mio rituale quotidiano irrinunciabile è...",
+    "win_me_over": "Il modo migliore per conquistarmi è...",
+    "looking_for": "Sto cercando qualcuno che...",
+    "relationship_green_flag": "La mia green flag più grande è...",
+    "perfect_first_date": "Il mio primo appuntamento ideale è...",
+    "communication_style": "In una relazione, per me è fondamentale...",
+    "dealbreaker": "La cosa che non riesco a tollerare è...",
+    "dinner_with_anyone": "Se potessi cenare con chiunque al mondo, sarebbe...",
+    "hidden_talent": "Il mio talento nascosto è...",
+    "two_truths_lie": "Due verità e una bugia su di me...",
+    "bucket_list": "Una cosa nella mia bucket list è...",
+    "alter_ego": "Il mio alter ego si chiama...",
+    "unpopular_take": "La mia hot take che nessuno condivide è...",
+    "most_spontaneous": "La cosa più spontanea che ho fatto è...",
+    "innocent_red_flag": "La mia red flag più innocua è...",
+    "guilty_pleasure": "Il mio guilty pleasure è...",
+    "worst_habit": "Il mio peggior vizio confessabile è...",
+    "emoji_story": "La mia vita in tre emoji è...",
+    "what_friends_say": "I miei amici mi descriverebbero come..."
+  },
+  "profile": {
+    "memberSince": "Su Matcher da {date}",
+    "noContent": "Nessun contenuto nel profilo ancora.",
+    "sections": {
+      "lookingFor": "Cosa cerco",
+      "aboutMe": "Su di me",
+      "lifestyle": "Stile di vita",
+      "interests": "Interessi"
+    }
+  }
+}

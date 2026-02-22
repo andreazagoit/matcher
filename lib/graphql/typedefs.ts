@@ -5,6 +5,7 @@ import { interestTypeDefs } from "../models/interests/typedefs";
 import { matchTypeDefs } from "../models/matches/typedefs";
 import { memberTypeDefs } from "../models/members/typedefs";
 import { postTypeDefs } from "../models/posts/typedefs";
+import { profileItemTypeDefs } from "../models/profileitems/typedefs";
 import { spaceTypeDefs } from "../models/spaces/typedefs";
 import { tagTypeDefs } from "../models/tags/typedefs";
 import { tierTypeDefs } from "../models/tiers/typedefs";
@@ -27,6 +28,7 @@ export const typeDefs = [
   matchTypeDefs,
   memberTypeDefs,
   postTypeDefs,
+  profileItemTypeDefs,
   spaceTypeDefs,
   tagTypeDefs,
   tierTypeDefs,

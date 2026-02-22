@@ -7,6 +7,8 @@ import { AuthProvider } from "@/components/auth-provider";
 import { usePathname } from "next/navigation";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { NextIntlClientProvider } from "next-intl";
+import itMessages from "@/messages/it.json";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -33,29 +35,31 @@ export default function RootLayout({
   );
 
   return (
-    <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning>
+    <html lang="it" className={`${inter.variable} dark`} suppressHydrationWarning>
       <head>
         <title>Matcher</title>
         <meta name="description" content="Friendship matching platform" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>
-          <ApolloWrapper>
-            {isAuthRoute ? (
-              <div className="min-h-screen flex flex-col">{children}</div>
-            ) : (
-              <SidebarProvider>
-                <AppSidebar />
-                <SidebarInset>
-                  <div className="md:hidden sticky top-0 z-20 border-b bg-background/95 backdrop-blur px-2 py-2">
-                    <SidebarTrigger />
-                  </div>
-                  {children}
-                </SidebarInset>
-              </SidebarProvider>
-            )}
-          </ApolloWrapper>
-        </AuthProvider>
+        <NextIntlClientProvider locale="it" messages={itMessages}>
+          <AuthProvider>
+            <ApolloWrapper>
+              {isAuthRoute ? (
+                <div className="min-h-screen flex flex-col">{children}</div>
+              ) : (
+                <SidebarProvider>
+                  <AppSidebar />
+                  <SidebarInset>
+                    <div className="md:hidden sticky top-0 z-20 border-b bg-background/95 backdrop-blur px-2 py-2">
+                      <SidebarTrigger />
+                    </div>
+                    {children}
+                  </SidebarInset>
+                </SidebarProvider>
+              )}
+            </ApolloWrapper>
+          </AuthProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

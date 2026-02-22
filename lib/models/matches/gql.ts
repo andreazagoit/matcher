@@ -6,8 +6,6 @@ export const GET_FIND_MATCHES = gql`
       user {
         id
         name
-        givenName
-        familyName
         image
         gender
         birthdate

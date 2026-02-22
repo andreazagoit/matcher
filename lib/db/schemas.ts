@@ -29,5 +29,8 @@ export * from "../models/impressions/schema";
 // 9. Embeddings (64-dim vectors for recommendations)
 export * from "../models/embeddings/schema";
 
-// 10. Notifications
+// 10. Profile Items
+export * from "../models/profileitems/schema";
+
+// 11. Notifications
 export * from "../models/notifications/schema";

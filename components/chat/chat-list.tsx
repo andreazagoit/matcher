@@ -9,8 +9,7 @@ import { Loader2 } from "lucide-react";
 
 interface Participant {
     id: string;
-    givenName: string;
-    familyName: string;
+    name: string;
     image?: string;
 }
 
@@ -60,13 +59,12 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                             <Avatar>
                                 <AvatarImage src={conv.otherUser.image} />
                                 <AvatarFallback>
-                                    {conv.otherUser.givenName[0]}
-                                    {conv.otherUser.familyName[0]}
+                                    {conv.otherUser.name?.[0]?.toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="grid gap-1 flex-1">
                                 <div className="font-semibold flex justify-between">
-                                    <span>{conv.otherUser.givenName} {conv.otherUser.familyName}</span>
+                                    <span>{conv.otherUser.name}</span>
                                     {conv.unreadCount > 0 && (
                                         <span className="flex h-2 w-2 rounded-full bg-primary" />
                                     )}

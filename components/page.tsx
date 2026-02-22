@@ -18,7 +18,7 @@ export interface BreadcrumbItem {
 }
 
 interface PageProps {
-    header: ReactNode;
+    header?: ReactNode;
     actions?: ReactNode;
     children?: ReactNode;
     footer?: ReactNode;
@@ -74,9 +74,11 @@ export function Page({
             <div className="flex-1 py-8 space-y-8">
                 <Container>
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                            {header}
-                        </div>
+                        {header && (
+                            <div className="flex-1 min-w-0">
+                                {header}
+                            </div>
+                        )}
                         {actions && (
                             <div className="shrink-0">
                                 {actions}

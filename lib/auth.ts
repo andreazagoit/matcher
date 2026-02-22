@@ -39,22 +39,62 @@ export const auth = betterAuth({
         input: true,
         unique: true,
       },
-      givenName: {
-        type: "string",
-        required: false,
-        input: true,
-      },
-      familyName: {
-        type: "string",
-        required: false,
-        input: true,
-      },
       birthdate: {
         type: "string",
         required: false,
         input: true,
       },
       gender: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      sexualOrientation: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      heightCm: {
+        type: "number",
+        required: false,
+        input: true,
+      },
+      relationshipIntent: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      relationshipStyle: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      hasChildren: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      wantsChildren: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      smoking: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      drinking: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      activityLevel: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      religion: {
         type: "string",
         required: false,
         input: true,
@@ -81,7 +121,13 @@ export const auth = betterAuth({
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
-        await sendOTPEmail(email, otp, type);
+        try {
+          await sendOTPEmail(email, otp, type);
+          console.log(`[OTP] Email sent to ${email} (type: ${type})`);
+        } catch (err) {
+          console.error(`[OTP] Failed to send email to ${email}:`, err);
+          throw err;
+        }
       },
       otpLength: 6,
       expiresIn: 300, // 5 minutes

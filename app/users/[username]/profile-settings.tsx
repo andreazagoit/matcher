@@ -5,15 +5,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
+import { useTranslations } from "next-intl";
 import type { User } from "@/lib/graphql/__generated__/graphql";
 
-type UserInfo = Pick<User, "username" | "givenName" | "familyName" | "email" | "birthdate" | "gender">;
-
-const GENDER_LABEL: Record<string, string> = {
-    man: "Man",
-    woman: "Woman",
-    non_binary: "Non-binary",
-};
+type UserInfo = Pick<User, "username" | "name" | "email" | "birthdate" | "gender">;
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
     return (
@@ -25,8 +20,10 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 }
 
 export function ProfileSettings({ initialUser }: { initialUser: UserInfo }) {
+    const tEnums = useTranslations("enums");
+
     const birthdate = initialUser.birthdate
-        ? new Date(initialUser.birthdate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        ? new Date(initialUser.birthdate).toLocaleDateString("it-IT", { year: "numeric", month: "long", day: "numeric" })
         : null;
 
     return (
@@ -35,17 +32,19 @@ export function ProfileSettings({ initialUser }: { initialUser: UserInfo }) {
 
             <Card className="border-none shadow-sm bg-muted/30">
                 <CardHeader>
-                    <CardTitle className="text-base">Personal Information</CardTitle>
-                    <CardDescription>Your account details as registered.</CardDescription>
+                    <CardTitle className="text-base">Informazioni personali</CardTitle>
+                    <CardDescription>I tuoi dati di account.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <InfoRow label="Username" value={initialUser.username ? `@${initialUser.username}` : null} />
                         <InfoRow label="Email" value={initialUser.email} />
-                        <InfoRow label="Given Name" value={initialUser.givenName} />
-                        <InfoRow label="Family Name" value={initialUser.familyName} />
-                        <InfoRow label="Birth Date" value={birthdate} />
-                        <InfoRow label="Gender" value={initialUser.gender ? GENDER_LABEL[initialUser.gender] ?? initialUser.gender : null} />
+                        <InfoRow label="Nome" value={initialUser.name} />
+                        <InfoRow label="Data di nascita" value={birthdate} />
+                        <InfoRow
+                            label="Genere"
+                            value={initialUser.gender ? tEnums(`gender.${initialUser.gender}`) : null}
+                        />
                     </div>
                 </CardContent>
             </Card>
@@ -54,8 +53,8 @@ export function ProfileSettings({ initialUser }: { initialUser: UserInfo }) {
 
             <Card className="border-none shadow-sm bg-muted/30">
                 <CardHeader>
-                    <CardTitle className="text-base">Session</CardTitle>
-                    <CardDescription>Log out from your account on this device.</CardDescription>
+                    <CardTitle className="text-base">Sessione</CardTitle>
+                    <CardDescription>Disconnettiti dal tuo account su questo dispositivo.</CardDescription>
                 </CardHeader>
                 <CardFooter className="py-4">
                     <Button
@@ -65,7 +64,7 @@ export function ProfileSettings({ initialUser }: { initialUser: UserInfo }) {
                         }
                     >
                         <LogOut className="w-4 h-4 mr-2" />
-                        Log out
+                        Disconnetti
                     </Button>
                 </CardFooter>
             </Card>

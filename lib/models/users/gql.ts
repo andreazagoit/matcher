@@ -8,14 +8,28 @@ export const USER_FRAGMENT = gql`
   fragment UserFields on User {
     id
     username
-    givenName
-    familyName
+    name
     email
     birthdate
     gender
     image
     createdAt
     updatedAt
+    sexualOrientation
+    heightCm
+    relationshipIntent
+    relationshipStyle
+    hasChildren
+    wantsChildren
+    religion
+    smoking
+    drinking
+    activityLevel
+    jobTitle
+    educationLevel
+    hometown
+    languages
+    ethnicity
   }
 `;
 
@@ -35,6 +49,26 @@ export const GET_ME = gql`
 export const GET_USER = gql`
   ${USER_FRAGMENT}
   query GetUser($username: String!) {
+    user(username: $username) {
+      ...UserFields
+      interests {
+        tag
+        weight
+      }
+      profileItems {
+        id
+        type
+        promptKey
+        content
+        displayOrder
+      }
+    }
+  }
+`;
+
+export const GET_USER_WITH_CARDS = gql`
+  ${USER_FRAGMENT}
+  query GetUserWithCards($username: String!) {
     user(username: $username) {
       ...UserFields
       interests {

@@ -92,8 +92,7 @@ export const GET_SPACE = gql`
         }
         user {
           id
-          givenName
-          familyName
+          name
           email
         }
       }

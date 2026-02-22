@@ -252,12 +252,12 @@ export function MembersDataTable({
                             <div className="flex items-center gap-4">
                                 <Avatar className="h-16 w-16">
                                     <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
-                                        {selectedMember.user.givenName[0]}{selectedMember.user.familyName[0]}
+                                        {selectedMember.user.name?.[0]?.toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
                                     <h3 className="text-xl font-semibold">
-                                        {selectedMember.user.givenName} {selectedMember.user.familyName}
+                                        {selectedMember.user.name}
                                     </h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         {selectedMember.role === "admin" && (
@@ -384,7 +384,7 @@ export function MembersDataTable({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Confirm Role Change</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to change {selectedMember?.user.givenName}&apos;s role from{" "}
+                            Are you sure you want to change {selectedMember?.user.name}&apos;s role from{" "}
                             <strong className="text-foreground">{selectedMember?.role}</strong> to{" "}
                             <strong className="text-foreground">{pendingRole}</strong>?
                             {pendingRole === "admin" && (

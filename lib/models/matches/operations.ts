@@ -26,8 +26,6 @@ export interface MatchResult {
   user: {
     id: string;
     name: string;
-    givenName: string | null;
-    familyName: string | null;
     image: string | null;
     gender: string | null;
     birthdate: string | null;
@@ -179,8 +177,6 @@ export async function findMatches(
       user: {
         id: users.id,
         name: users.name,
-        givenName: users.givenName,
-        familyName: users.familyName,
         image: users.image,
         gender: users.gender,
         birthdate: users.birthdate,

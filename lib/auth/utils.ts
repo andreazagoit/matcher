@@ -4,8 +4,7 @@ import { headers } from "next/headers";
 export interface AuthContext {
     user: {
         id: string;
-        givenName: string;
-        familyName: string;
+        name: string;
         email: string;
         birthdate: string;
         gender: string | null;
@@ -33,8 +32,7 @@ export async function getAuthContext(): Promise<AuthContext> {
     return {
         user: {
             id: u.id,
-            givenName: (u as Record<string, unknown>).givenName as string || "",
-            familyName: (u as Record<string, unknown>).familyName as string || "",
+            name: u.name || "",
             email: u.email || "",
             birthdate: (u as Record<string, unknown>).birthdate as string || "",
             gender: (u as Record<string, unknown>).gender as string | null || null,

@@ -19,8 +19,6 @@ const DEFAULT_RADIUS = 50;
 interface MatchUser {
     id: string;
     name: string;
-    givenName: string;
-    familyName: string;
     image: string | null;
     gender: string | null;
     birthdate: string;

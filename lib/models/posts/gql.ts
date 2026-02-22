@@ -14,8 +14,7 @@ export const POST_FRAGMENT = gql`
     createdAt
     author {
       id
-      givenName
-      familyName
+      name
       image
     }
     space {

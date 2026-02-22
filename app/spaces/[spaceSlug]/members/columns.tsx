@@ -49,7 +49,7 @@ export const columns: ColumnDef<Member>[] = [
     },
     {
         id: "user",
-        accessorFn: (row) => `${row.user.givenName} ${row.user.familyName} ${row.user.email}`,
+        accessorFn: (row) => `${row.user.name} ${row.user.email}`,
         header: ({ column }) => {
             return (
                 <Button
@@ -68,11 +68,11 @@ export const columns: ColumnDef<Member>[] = [
                 <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
                         <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                            {member.user.givenName[0]}{member.user.familyName[0]}
+                            {member.user.name?.[0]?.toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div>
-                        <p className="font-medium text-sm">{member.user.givenName} {member.user.familyName}</p>
+                        <p className="font-medium text-sm">{member.user.name}</p>
                         <p className="text-xs text-muted-foreground">{member.user.email}</p>
                     </div>
                 </div>

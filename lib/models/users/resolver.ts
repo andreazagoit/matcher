@@ -16,6 +16,8 @@ import type { GraphQLContext } from "@/lib/graphql/context";
 import { embedUser } from "@/lib/models/embeddings/operations";
 import { getUserInterests } from "@/lib/models/interests/operations";
 import type { UserInterest } from "@/lib/models/interests/schema";
+import { getProfileItems } from "@/lib/models/profileitems/operations";
+import type { ProfileItem } from "@/lib/models/profileitems/schema";
 
 class AuthError extends Error {
   constructor(message: string, public code: string = "UNAUTHENTICATED") {
@@ -130,6 +132,9 @@ export const userResolvers = {
     },
     interests: (parent: { id: string }): Promise<UserInterest[]> => {
       return getUserInterests(parent.id);
+    },
+    profileItems: (parent: { id: string }): Promise<ProfileItem[]> => {
+      return getProfileItems(parent.id);
     },
   },
 };

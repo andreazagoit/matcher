@@ -65,8 +65,7 @@ export const GET_EVENT = gql`
         paymentStatus
         user {
           id
-          givenName
-          familyName
+          name
           username
         }
       }

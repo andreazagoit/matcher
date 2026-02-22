@@ -3,6 +3,7 @@ import { seedUsers } from "./users";
 import { seedSpaces } from "./spaces";
 import { seedProfiles } from "./interests";
 import { seedEvents } from "./events";
+import { seedProfileCards } from "./profileitems";
 
 async function seed() {
   console.log("🌱 Starting seed...\n");
@@ -21,6 +22,7 @@ async function seed() {
       .map(([, user]) => user.id);
 
     await seedProfiles(nonAdminIds);
+    await seedProfileCards(nonAdminIds);
 
     console.log("\n✅ Seed completed successfully!");
   } catch (error) {

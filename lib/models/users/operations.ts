@@ -29,8 +29,7 @@ export async function createUser(
     .insert(users)
     .values({
       username: validatedInput.username,
-      givenName: validatedInput.givenName,
-      familyName: validatedInput.familyName,
+      name: validatedInput.name,
       email: validatedInput.email,
       birthdate: validatedInput.birthdate,
       ...(validatedInput.gender && { gender: validatedInput.gender }),
@@ -69,11 +68,26 @@ export async function updateUser(
     }
     updateData.username = validatedInput.username;
   }
-  if (validatedInput.givenName !== undefined) updateData.givenName = validatedInput.givenName;
-  if (validatedInput.familyName !== undefined) updateData.familyName = validatedInput.familyName;
+  if (validatedInput.name !== undefined) updateData.name = validatedInput.name;
   if (validatedInput.email !== undefined) updateData.email = validatedInput.email;
   if (validatedInput.birthdate !== undefined) updateData.birthdate = validatedInput.birthdate;
   if (validatedInput.gender !== undefined) updateData.gender = validatedInput.gender;
+
+  // Orientation & identity
+  if (validatedInput.sexualOrientation !== undefined) updateData.sexualOrientation = validatedInput.sexualOrientation;
+  if (validatedInput.heightCm !== undefined) updateData.heightCm = validatedInput.heightCm;
+
+  // Relational intent
+  if (validatedInput.relationshipIntent !== undefined) updateData.relationshipIntent = validatedInput.relationshipIntent;
+  if (validatedInput.relationshipStyle !== undefined) updateData.relationshipStyle = validatedInput.relationshipStyle;
+  if (validatedInput.hasChildren !== undefined) updateData.hasChildren = validatedInput.hasChildren;
+  if (validatedInput.wantsChildren !== undefined) updateData.wantsChildren = validatedInput.wantsChildren;
+
+  // Lifestyle
+  if (validatedInput.religion !== undefined) updateData.religion = validatedInput.religion;
+  if (validatedInput.smoking !== undefined) updateData.smoking = validatedInput.smoking;
+  if (validatedInput.drinking !== undefined) updateData.drinking = validatedInput.drinking;
+  if (validatedInput.activityLevel !== undefined) updateData.activityLevel = validatedInput.activityLevel;
   const [updatedUser] = await db
     .update(users)
     .set(updateData)

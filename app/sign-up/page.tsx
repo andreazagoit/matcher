@@ -3,13 +3,7 @@
 import { useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,117 +15,160 @@ import {
 } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
 import { signUpSchema } from "@/lib/models/users/validator";
-import { ArrowLeftIcon, Loader2Icon, LogInIcon, UserPlusIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, UserPlusIcon } from "lucide-react";
 import Link from "next/link";
 import { useLazyQuery } from "@apollo/client/react";
 import { CHECK_USERNAME } from "@/lib/models/users/gql";
-type FieldErrors = Partial<Record<"username" | "givenName" | "familyName" | "email" | "birthdate" | "gender", string>>;
+
+type Step = "identity" | "intent" | "about" | "lifestyle" | "account" | "verify";
+const STEPS: Step[] = ["identity", "intent", "about", "lifestyle", "account", "verify"];
+
+type FieldErrors = Partial<Record<"name" | "birthdate" | "gender" | "username" | "email", string>>;
 
 interface SignupData {
-  username: string;
-  givenName: string;
-  familyName: string;
-  email: string;
+  name: string;
   birthdate: string;
   gender: "" | "man" | "woman" | "non_binary";
+  relationshipIntent: "" | "friendship" | "dating" | "serious_relationship" | "open_to_both";
+  relationshipStyle: "" | "monogamous" | "ethical_non_monogamous" | "open" | "other";
+  sexualOrientation: "" | "straight" | "gay" | "lesbian" | "bisexual" | "pansexual" | "asexual" | "other";
+  hasChildren: "" | "no" | "yes";
+  wantsChildren: "" | "yes" | "no" | "open";
+  smoking: "" | "never" | "sometimes" | "regularly";
+  drinking: "" | "never" | "sometimes" | "regularly";
+  activityLevel: "" | "sedentary" | "light" | "moderate" | "active" | "very_active";
+  religion: "" | "none" | "christian" | "muslim" | "jewish" | "buddhist" | "hindu" | "spiritual" | "other";
+  heightCm: string;
+  username: string;
+  email: string;
 }
 
-const EMPTY_SIGNUP: SignupData = {
-  username: "",
-  givenName: "",
-  familyName: "",
-  email: "",
-  birthdate: "",
-  gender: "",
+const EMPTY: SignupData = {
+  name: "", birthdate: "", gender: "",
+  relationshipIntent: "", relationshipStyle: "",
+  sexualOrientation: "", hasChildren: "", wantsChildren: "",
+  smoking: "", drinking: "", activityLevel: "", religion: "", heightCm: "",
+  username: "", email: "",
 };
 
 export default function SignUpPage() {
+  return <Suspense><SignUpForm /></Suspense>;
+}
+
+function StepIndicator({ current }: { current: Step }) {
+  const idx = STEPS.indexOf(current);
   return (
-    <Suspense>
-      <SignUpForm />
-    </Suspense>
+    <div className="flex items-center justify-center gap-1.5 mb-6">
+      {STEPS.map((s, i) => (
+        <div key={s} className="flex items-center gap-1.5">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-colors ${
+            i < idx ? "bg-primary text-primary-foreground"
+            : i === idx ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+            : "bg-muted text-muted-foreground"
+          }`}>
+            {i < idx ? "✓" : i + 1}
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className={`h-px w-4 transition-colors ${i < idx ? "bg-primary" : "bg-muted"}`} />
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
 function SignUpForm() {
   const searchParams = useSearchParams();
+  const [data, setData] = useState<SignupData>({ ...EMPTY, email: searchParams.get("email") ?? "" });
+  const [step, setStep] = useState<Step>("identity");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // Pre-fill email from query param (e.g. redirected from sign-in)
-  const [signupData, setSignupData] = useState<SignupData>(() => ({
-    ...EMPTY_SIGNUP,
-    email: searchParams.get("email") ?? "",
-  }));
-  const [step, setStep] = useState<"form" | "verify">("form");
   const [otp, setOtp] = useState("");
   const [usernameTaken, setUsernameTaken] = useState(false);
   const usernameDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [checkUsername] = useLazyQuery<{ checkUsername: boolean }>(CHECK_USERNAME, {
-    fetchPolicy: "network-only",
-  });
+  const [checkUsername] = useLazyQuery<{ checkUsername: boolean }>(CHECK_USERNAME, { fetchPolicy: "network-only" });
 
-  const updateSignup = <K extends keyof SignupData>(k: K, v: SignupData[K]) => {
-    setSignupData((prev) => ({ ...prev, [k]: v }));
-    if (fieldErrors[k]) setFieldErrors((prev) => ({ ...prev, [k]: undefined }));
-
+  const set = <K extends keyof SignupData>(k: K, v: SignupData[K]) => {
+    setData((prev) => ({ ...prev, [k]: v }));
+    if (k in fieldErrors) setFieldErrors((prev) => ({ ...prev, [k]: undefined }));
     if (k === "username") {
       setUsernameTaken(false);
       if (usernameDebounce.current) clearTimeout(usernameDebounce.current);
       const val = v as string;
       if (val.length >= 3) {
         usernameDebounce.current = setTimeout(async () => {
-          const { data } = await checkUsername({ variables: { username: val } });
-          setUsernameTaken(data?.checkUsername ?? false);
+          const { data: d } = await checkUsername({ variables: { username: val } });
+          setUsernameTaken(d?.checkUsername ?? false);
         }, 400);
       }
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    setLoading(true);
-    setSubmitError(null);
-    setFieldErrors({});
+  const next = () => setStep(STEPS[STEPS.indexOf(step) + 1]);
+  const back = () => { setStep(STEPS[STEPS.indexOf(step) - 1]); setSubmitError(null); };
 
-    const parsed = signUpSchema.safeParse(signupData);
+  const handleIdentityNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    const partial = signUpSchema.pick({ name: true, birthdate: true, gender: true });
+    const parsed = partial.safeParse({ name: data.name, birthdate: data.birthdate, gender: data.gender });
     if (!parsed.success) {
       const errors: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as keyof SignupData;
-        if (!errors[field]) errors[field] = issue.message;
-      }
+      for (const issue of parsed.error.issues) errors[issue.path[0] as keyof FieldErrors] ??= issue.message;
       setFieldErrors(errors);
-      setLoading(false);
       return;
     }
+    setFieldErrors({});
+    next();
+  };
 
+  // Step 5: crea account → better-auth invia OTP automaticamente
+  const handleAccountNext = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || usernameTaken) return;
+    setSubmitError(null);
+    const partial = signUpSchema.pick({ email: true, username: true });
+    const parsed = partial.safeParse({ email: data.email, username: data.username });
+    if (!parsed.success) {
+      const errors: FieldErrors = {};
+      for (const issue of parsed.error.issues) errors[issue.path[0] as keyof FieldErrors] ??= issue.message;
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+    setLoading(true);
     try {
       const randomPassword = crypto.randomUUID() + "!Aa1";
-
       const result = await authClient.signUp.email({
-        email: signupData.email,
+        email: data.email,
         password: randomPassword,
-        name: `${signupData.givenName} ${signupData.familyName}`,
-        username: signupData.username,
-        givenName: signupData.givenName,
-        familyName: signupData.familyName,
-        birthdate: signupData.birthdate,
-        gender: signupData.gender,
+        name: data.name,
+        username: data.username,
+        birthdate: data.birthdate,
+        gender: data.gender,
+        ...(data.sexualOrientation && { sexualOrientation: data.sexualOrientation }),
+        ...(data.relationshipIntent && { relationshipIntent: data.relationshipIntent }),
+        ...(data.relationshipStyle && { relationshipStyle: data.relationshipStyle }),
+        ...(data.hasChildren && { hasChildren: data.hasChildren }),
+        ...(data.wantsChildren && { wantsChildren: data.wantsChildren }),
+        ...(data.smoking && { smoking: data.smoking }),
+        ...(data.drinking && { drinking: data.drinking }),
+        ...(data.activityLevel && { activityLevel: data.activityLevel }),
+        ...(data.religion && { religion: data.religion }),
+        ...(data.heightCm && { heightCm: parseInt(data.heightCm) }),
       } as Parameters<typeof authClient.signUp.email>[0]);
 
       if (result?.error) {
-        setSubmitError(
-          (result.error as { message?: string }).message || "Registrazione fallita",
-        );
+        const message = (result.error as { message?: string }).message ?? "";
+        if (message.toLowerCase().includes("username")) setFieldErrors({ username: message });
+        else if (message.toLowerCase().includes("email")) setFieldErrors({ email: message });
+        else setSubmitError(message || "Registrazione fallita");
         setLoading(false);
         return;
       }
-
-      // Account created — now verify email via OTP
-      setStep("verify");
+      // Account creato — better-auth ha già inviato l'OTP di verifica
+      next();
       setLoading(false);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Registrazione fallita");
@@ -139,32 +176,31 @@ function SignUpForm() {
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  // Step 6: verifica OTP
+  const handleVerifyAndCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
     setSubmitError(null);
-
     try {
-      const result = await authClient.emailOtp.verifyEmail({
-        email: signupData.email,
-        otp,
-      });
-
+      const result = await authClient.emailOtp.verifyEmail({ email: data.email, otp });
       if (result?.error) {
-        setSubmitError(
-          (result.error as { message?: string }).message || "Codice non valido",
-        );
+        setSubmitError((result.error as { message?: string }).message || "Codice non valido");
         setLoading(false);
         return;
       }
-
-      window.location.href = `/users/${signupData.username}`;
+      window.location.href = `/users/${data.username}`;
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Verifica fallita");
       setLoading(false);
     }
   };
+
+  const BackButton = () => (
+    <Button type="button" variant="outline" onClick={back} className="gap-2">
+      <ArrowLeftIcon className="w-4 h-4" />
+    </Button>
+  );
 
   return (
     <div className="flex-1 flex items-center justify-center py-12 px-4">
@@ -173,11 +209,11 @@ function SignUpForm() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4">
             <span className="text-xl font-bold text-primary-foreground">M</span>
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Matcher</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Crea un nuovo account
-          </p>
+          <h1 className="text-xl font-semibold">Matcher</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">Crea un nuovo account</p>
         </div>
+
+        <StepIndicator current={step} />
 
         {submitError && (
           <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-xl mb-5 text-sm">
@@ -187,21 +223,238 @@ function SignUpForm() {
 
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm rounded-2xl overflow-hidden">
           <CardHeader>
-            <CardTitle>{step === "form" ? "Registrati" : "Verifica email"}</CardTitle>
-            <CardDescription>
-              {step === "form"
-                ? "Compila i dati per creare il tuo account"
-                : `Abbiamo inviato un codice a ${signupData.email}. Inseriscilo per attivare l'account.`}
-            </CardDescription>
+            {step === "identity" && <><CardTitle>Chi sei</CardTitle><CardDescription>Qualche informazione di base su di te</CardDescription></>}
+            {step === "intent" && <><CardTitle>Cosa cerchi</CardTitle><CardDescription>Puoi cambiarlo in qualsiasi momento</CardDescription></>}
+            {step === "about" && <><CardTitle>Su di te</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
+            {step === "lifestyle" && <><CardTitle>Stile di vita</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
+            {step === "account" && <><CardTitle>Crea il tuo account</CardTitle><CardDescription>Ti invieremo un codice di verifica all&apos;email</CardDescription></>}
+            {step === "verify" && <><CardTitle>Verifica email</CardTitle><CardDescription>Abbiamo inviato un codice a {data.email}</CardDescription></>}
           </CardHeader>
 
           <CardContent>
-            {step === "verify" ? (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
+            {/* ── Step 1: Identity ── */}
+            {step === "identity" && (
+              <form onSubmit={handleIdentityNext} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="verify-otp">Codice OTP</label>
+                  <Label htmlFor="name">Nome</Label>
+                  <Input id="name" value={data.name} onChange={(e) => set("name", e.target.value)} placeholder="Mario" autoFocus className={fieldErrors.name ? "border-destructive" : ""} />
+                  {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="birthdate">Data di nascita</Label>
+                  <Input id="birthdate" type="date" value={data.birthdate} onChange={(e) => set("birthdate", e.target.value)} className={`dark:[color-scheme:dark] ${fieldErrors.birthdate ? "border-destructive" : ""}`} />
+                  {fieldErrors.birthdate && <p className="text-xs text-destructive">{fieldErrors.birthdate}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Genere</Label>
+                  <Select value={data.gender} onValueChange={(v) => set("gender", v as SignupData["gender"])}>
+                    <SelectTrigger className={fieldErrors.gender ? "border-destructive" : ""}><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="man">Uomo</SelectItem>
+                      <SelectItem value="woman">Donna</SelectItem>
+                      <SelectItem value="non_binary">Non binario</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldErrors.gender && <p className="text-xs text-destructive">{fieldErrors.gender}</p>}
+                </div>
+                <Button type="submit" className="w-full gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>
+                <div className="pt-4 border-t text-center text-sm text-muted-foreground">
+                  Hai già un account?{" "}
+                  <Link href="/sign-in" className="text-primary hover:underline font-medium">Accedi</Link>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 2: Intent ── */}
+            {step === "intent" && (
+              <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Tipo di relazione</Label>
+                  <Select value={data.relationshipIntent} onValueChange={(v) => set("relationshipIntent", v as SignupData["relationshipIntent"])}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="friendship">Amicizia</SelectItem>
+                      <SelectItem value="dating">Frequentarsi</SelectItem>
+                      <SelectItem value="serious_relationship">Relazione seria</SelectItem>
+                      <SelectItem value="open_to_both">Aperto a tutto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Struttura relazionale</Label>
+                  <Select value={data.relationshipStyle} onValueChange={(v) => set("relationshipStyle", v as SignupData["relationshipStyle"])}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monogamous">Monogamia</SelectItem>
+                      <SelectItem value="ethical_non_monogamous">Non monogamia etica</SelectItem>
+                      <SelectItem value="open">Relazione aperta</SelectItem>
+                      <SelectItem value="other">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <BackButton />
+                  <Button type="submit" className="flex-1 gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 3: About ── */}
+            {step === "about" && (
+              <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Orientamento sessuale</Label>
+                  <Select value={data.sexualOrientation} onValueChange={(v) => set("sexualOrientation", v as SignupData["sexualOrientation"])}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="straight">Eterosessuale</SelectItem>
+                      <SelectItem value="gay">Gay</SelectItem>
+                      <SelectItem value="lesbian">Lesbica</SelectItem>
+                      <SelectItem value="bisexual">Bisessuale</SelectItem>
+                      <SelectItem value="pansexual">Pansessuale</SelectItem>
+                      <SelectItem value="asexual">Asessuale</SelectItem>
+                      <SelectItem value="other">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Hai figli?</Label>
+                    <Select value={data.hasChildren} onValueChange={(v) => set("hasChildren", v as SignupData["hasChildren"])}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Sì</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Vuoi figli?</Label>
+                    <Select value={data.wantsChildren} onValueChange={(v) => set("wantsChildren", v as SignupData["wantsChildren"])}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Sì</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="open">Forse</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <BackButton />
+                  <Button type="submit" className="flex-1 gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 4: Lifestyle ── */}
+            {step === "lifestyle" && (
+              <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Fumo</Label>
+                    <Select value={data.smoking} onValueChange={(v) => set("smoking", v as SignupData["smoking"])}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Mai</SelectItem>
+                        <SelectItem value="sometimes">A volte</SelectItem>
+                        <SelectItem value="regularly">Spesso</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Alcol</Label>
+                    <Select value={data.drinking} onValueChange={(v) => set("drinking", v as SignupData["drinking"])}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Mai</SelectItem>
+                        <SelectItem value="sometimes">A volte</SelectItem>
+                        <SelectItem value="regularly">Spesso</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Attività fisica</Label>
+                  <Select value={data.activityLevel} onValueChange={(v) => set("activityLevel", v as SignupData["activityLevel"])}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sedentary">Sedentario</SelectItem>
+                      <SelectItem value="light">Leggera</SelectItem>
+                      <SelectItem value="moderate">Moderata</SelectItem>
+                      <SelectItem value="active">Attivo</SelectItem>
+                      <SelectItem value="very_active">Molto attivo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Religione</Label>
+                    <Select value={data.religion} onValueChange={(v) => set("religion", v as SignupData["religion"])}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nessuna</SelectItem>
+                        <SelectItem value="christian">Cristiana</SelectItem>
+                        <SelectItem value="muslim">Islamica</SelectItem>
+                        <SelectItem value="jewish">Ebraica</SelectItem>
+                        <SelectItem value="buddhist">Buddhista</SelectItem>
+                        <SelectItem value="hindu">Induista</SelectItem>
+                        <SelectItem value="spiritual">Spirituale</SelectItem>
+                        <SelectItem value="other">Altra</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Altezza (cm)</Label>
+                    <Input id="height" type="number" min={100} max={250} value={data.heightCm} onChange={(e) => set("heightCm", e.target.value)} placeholder="175" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <BackButton />
+                  <Button type="submit" className="flex-1 gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 5: Account ── */}
+            {step === "account" && (
+              <form onSubmit={handleAccountNext} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={data.email} onChange={(e) => set("email", e.target.value)} placeholder="tu@esempio.com" autoComplete="email" autoFocus className={fieldErrors.email ? "border-destructive" : ""} />
+                  {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                    <Input id="username" value={data.username} onChange={(e) => set("username", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} placeholder="mario_rossi" className={`pl-7 ${fieldErrors.username || usernameTaken ? "border-destructive" : ""}`} maxLength={30} autoComplete="username" />
+                  </div>
+                  {fieldErrors.username ? (
+                    <p className="text-xs text-destructive">{fieldErrors.username}</p>
+                  ) : usernameTaken ? (
+                    <p className="text-xs text-destructive">Username già in uso</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">3–30 caratteri, solo lettere minuscole, numeri e _</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <BackButton />
+                  <Button type="submit" disabled={loading || usernameTaken} className="flex-1 gap-2">
+                    {loading ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <ArrowRightIcon className="w-4 h-4" />}
+                    Invia codice
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 6: Verify ── */}
+            {step === "verify" && (
+              <form onSubmit={handleVerifyAndCreate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Codice OTP</Label>
                   <input
-                    id="verify-otp"
+                    id="otp"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -214,138 +467,18 @@ function SignUpForm() {
                     autoFocus
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-center text-2xl tracking-[0.5em] font-mono ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Il codice scade tra 5 minuti.
-                  </p>
+                  <p className="text-xs text-muted-foreground">Il codice scade tra 5 minuti.</p>
                 </div>
-
-                <Button type="submit" disabled={loading || otp.length < 6} className="w-full">
-                  {loading ? (
-                    <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <LogInIcon className="w-4 h-4 mr-2" />
-                  )}
-                  Verifica e accedi
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => { back(); setOtp(""); }}>
+                    <ArrowLeftIcon className="w-4 h-4" />
+                  </Button>
+                  <Button type="submit" disabled={loading || otp.length < 6} className="flex-1 gap-2">
+                    {loading ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <UserPlusIcon className="w-4 h-4" />}
+                    Verifica e crea account
+                  </Button>
+                </div>
               </form>
-            ) : (
-            <>
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="signup-username">Username</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
-                  <Input
-                    id="signup-username"
-                    value={signupData.username}
-                    onChange={(e) => updateSignup("username", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                    placeholder="mario_rossi"
-                    className={`pl-7 ${fieldErrors.username || usernameTaken ? "border-destructive" : ""}`}
-                    maxLength={30}
-                    autoComplete="username"
-                  />
-                </div>
-                {fieldErrors.username ? (
-                  <p className="text-xs text-destructive">{fieldErrors.username}</p>
-                ) : usernameTaken ? (
-                  <p className="text-xs text-destructive">Username già in uso</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">3–30 caratteri, solo lettere minuscole, numeri e _</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-givenname">Nome</Label>
-                  <Input
-                    id="signup-givenname"
-                    value={signupData.givenName}
-                    onChange={(e) => updateSignup("givenName", e.target.value)}
-                    placeholder="Mario"
-                    className={fieldErrors.givenName ? "border-destructive" : ""}
-                  />
-                  {fieldErrors.givenName && <p className="text-xs text-destructive">{fieldErrors.givenName}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-familyname">Cognome</Label>
-                  <Input
-                    id="signup-familyname"
-                    value={signupData.familyName}
-                    onChange={(e) => updateSignup("familyName", e.target.value)}
-                    placeholder="Rossi"
-                    className={fieldErrors.familyName ? "border-destructive" : ""}
-                  />
-                  {fieldErrors.familyName && <p className="text-xs text-destructive">{fieldErrors.familyName}</p>}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="signup-email">Email</Label>
-                <Input
-                  id="signup-email"
-                  type="email"
-                  value={signupData.email}
-                  onChange={(e) => updateSignup("email", e.target.value)}
-                  placeholder="tu@esempio.com"
-                  autoComplete="email"
-                  className={fieldErrors.email ? "border-destructive" : ""}
-                />
-                {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-birthdate">Data di nascita</Label>
-                  <Input
-                    id="signup-birthdate"
-                    type="date"
-                    value={signupData.birthdate}
-                    onChange={(e) => updateSignup("birthdate", e.target.value)}
-                    className={`dark:[color-scheme:dark] ${fieldErrors.birthdate ? "border-destructive" : ""}`}
-                  />
-                  {fieldErrors.birthdate && <p className="text-xs text-destructive">{fieldErrors.birthdate}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Genere</Label>
-                  <Select
-                    value={signupData.gender}
-                    onValueChange={(v) => updateSignup("gender", v as SignupData["gender"])}
-                  >
-                    <SelectTrigger className={`w-full ${fieldErrors.gender ? "border-destructive" : ""}`}>
-                      <SelectValue placeholder="Seleziona..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="man">Uomo</SelectItem>
-                      <SelectItem value="woman">Donna</SelectItem>
-                      <SelectItem value="non_binary">Non binario</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldErrors.gender && <p className="text-xs text-destructive">{fieldErrors.gender}</p>}
-                </div>
-              </div>
-
-              <Button type="submit" disabled={loading || usernameTaken} className="w-full">
-                {loading ? (
-                  <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <UserPlusIcon className="w-4 h-4 mr-2" />
-                )}
-                Crea account
-              </Button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t text-center">
-              <p className="text-sm text-muted-foreground">
-                Hai già un account?{" "}
-                <Link
-                  href="/sign-in"
-                  className="text-primary hover:underline font-medium"
-                >
-                  Accedi
-                </Link>
-              </p>
-            </div>
-            </>
             )}
           </CardContent>
         </Card>

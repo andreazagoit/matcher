@@ -14,8 +14,7 @@ import { useSession } from "@/lib/auth-client";
 
 interface Participant {
     id: string;
-    givenName: string;
-    familyName: string;
+    name: string;
     image?: string;
 }
 
@@ -85,10 +84,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={conversation?.otherUser?.image} />
-                        <AvatarFallback>{conversation?.otherUser?.givenName[0]}</AvatarFallback>
+                        <AvatarFallback>{conversation?.otherUser?.name?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="font-semibold">
-                        {conversation?.otherUser?.givenName} {conversation?.otherUser?.familyName}
+                        {conversation?.otherUser?.name}
                     </div>
                 </div>
             </div>
