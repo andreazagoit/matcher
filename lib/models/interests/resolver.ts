@@ -5,6 +5,7 @@ import { isValidTag } from "@/lib/models/tags/data";
 import { embedUser } from "@/lib/models/embeddings/operations";
 import { db } from "@/lib/db/drizzle";
 import { users } from "@/lib/models/users/schema";
+import { userInterests } from "@/lib/models/interests/schema";
 import { eq } from "drizzle-orm";
 
 function requireAuth(context: GraphQLContext) {
@@ -46,9 +47,20 @@ export const interestResolvers = {
       // Regenerate embedding in background with updated interests
       (async () => {
         const userData = await db.query.users.findFirst({ where: eq(users.id, user.id) });
+        const allInterests = await db.query.userInterests.findMany({
+          where: eq(userInterests.userId, user.id),
+        });
         await embedUser(user.id, {
-          tags,
+          tags: allInterests.map((i) => ({ tag: i.tag, weight: i.weight })),
           birthdate: userData?.birthdate ?? null,
+          gender: userData?.gender ?? null,
+          relationshipIntent: userData?.relationshipIntent ?? null,
+          jobTitle: userData?.jobTitle ?? null,
+          educationLevel: userData?.educationLevel ?? null,
+          smoking: userData?.smoking ?? null,
+          drinking: userData?.drinking ?? null,
+          activityLevel: userData?.activityLevel ?? null,
+          religion: userData?.religion ?? null,
         });
       })().catch(() => {});
 

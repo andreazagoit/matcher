@@ -88,8 +88,16 @@ export const userResolvers = {
       (async () => {
         const interests = await getUserInterests(id);
         await embedUser(id, {
-          tags: interests.map((i) => i.tag),
+          tags: interests.map((i) => ({ tag: i.tag, weight: i.weight })),
           birthdate: updatedUser.birthdate ?? null,
+          gender: updatedUser.gender ?? null,
+          relationshipIntent: updatedUser.relationshipIntent ?? null,
+          jobTitle: updatedUser.jobTitle ?? null,
+          educationLevel: updatedUser.educationLevel ?? null,
+          smoking: updatedUser.smoking ?? null,
+          drinking: updatedUser.drinking ?? null,
+          activityLevel: updatedUser.activityLevel ?? null,
+          religion: updatedUser.religion ?? null,
         });
       })().catch(() => {});
 

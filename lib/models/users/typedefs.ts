@@ -40,7 +40,7 @@ export const userTypeDefs = `#graphql
     # Identity & background
     jobTitle: String
     educationLevel: EducationLevel
-    hometown: String
+    schoolName: String
     languages: [String!]!
     ethnicity: Ethnicity
   }
@@ -83,7 +83,7 @@ export const userTypeDefs = `#graphql
     # Identity & background
     jobTitle: String
     educationLevel: EducationLevel
-    hometown: String
+    schoolName: String
     languages: [String!]
     ethnicity: Ethnicity
   }

@@ -6,6 +6,15 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db/drizzle";
 import * as schema from "./db/schemas";
 import { sendOTPEmail } from "./email";
+import { userInterests } from "./models/interests/schema";
+
+/**
+ * Temporary in-memory bridge: stores initial interests between
+ * user.create.before (where we strip them) and user.create.after
+ * (where we insert them into userInterests).
+ * Keyed by email; entries are cleaned up immediately after use.
+ */
+const pendingInterests = new Map<string, string[]>();
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
@@ -98,6 +107,39 @@ export const auth = betterAuth({
         type: "string",
         required: false,
         input: true,
+      },
+      // Transient field: accepted from client but stripped before DB write.
+      // Interests are inserted into userInterests via databaseHooks below.
+      initialInterests: {
+        type: "string[]",
+        required: false,
+        input: true,
+      },
+    },
+  },
+
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (userData) => {
+          const data = userData as Record<string, unknown>;
+          const tags = data.initialInterests as string[] | undefined;
+          if (tags?.length && data.email) {
+            pendingInterests.set(data.email as string, tags);
+          }
+          // Strip initialInterests so it never reaches the DB
+          const { initialInterests: _omit, ...rest } = data;
+          return { data: rest as typeof userData };
+        },
+        after: async (user) => {
+          const tags = pendingInterests.get(user.email);
+          if (!tags?.length) return;
+          pendingInterests.delete(user.email);
+          await db
+            .insert(userInterests)
+            .values(tags.map((tag) => ({ userId: user.id, tag })))
+            .onConflictDoNothing();
+        },
       },
     },
   },

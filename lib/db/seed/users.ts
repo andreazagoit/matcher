@@ -14,7 +14,7 @@ export const SEED_USERS: Omit<NewUser, "id" | "emailVerified" | "createdAt" | "u
     relationshipIntent: ["serious_relationship"], relationshipStyle: "monogamous",
     hasChildren: "no", wantsChildren: "yes",
     smoking: "never", drinking: "sometimes", activityLevel: "active", religion: "none",
-    jobTitle: "Ingegnere software", educationLevel: "master",
+    jobTitle: "Ingegnere software", educationLevel: "master", schoolName: "Politecnico di Milano",
     languages: ["italian", "english"],
   },
   {
@@ -23,7 +23,7 @@ export const SEED_USERS: Omit<NewUser, "id" | "emailVerified" | "createdAt" | "u
     relationshipIntent: ["serious_relationship", "casual_dating"], relationshipStyle: "ethical_non_monogamous",
     hasChildren: "no", wantsChildren: "open",
     smoking: "sometimes", drinking: "sometimes", activityLevel: "moderate", religion: "spiritual",
-    jobTitle: "Grafica freelance", educationLevel: "bachelor",
+    jobTitle: "Grafica freelance", educationLevel: "bachelor", schoolName: "NABA Milano",
     languages: ["italian", "english", "french"],
   },
   {
@@ -32,7 +32,7 @@ export const SEED_USERS: Omit<NewUser, "id" | "emailVerified" | "createdAt" | "u
     relationshipIntent: ["casual_dating"], relationshipStyle: "open",
     hasChildren: "no", wantsChildren: "no",
     smoking: "never", drinking: "regularly", activityLevel: "light", religion: "none",
-    jobTitle: "Architetto", educationLevel: "master",
+    jobTitle: "Architetto", educationLevel: "master", schoolName: "Politecnico di Torino",
     languages: ["italian", "english", "spanish"],
   },
   {
@@ -41,7 +41,7 @@ export const SEED_USERS: Omit<NewUser, "id" | "emailVerified" | "createdAt" | "u
     relationshipIntent: ["serious_relationship"], relationshipStyle: "monogamous",
     hasChildren: "no", wantsChildren: "yes",
     smoking: "never", drinking: "sometimes", activityLevel: "very_active", religion: "christian",
-    jobTitle: "Medico", educationLevel: "phd",
+    jobTitle: "Medico", educationLevel: "phd", schoolName: "Università degli Studi di Bologna",
     languages: ["italian", "english"],
   },
   {

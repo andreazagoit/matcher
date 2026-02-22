@@ -135,7 +135,13 @@ export default async function UserProfilePage({
     type RowEntry = { icon: LucideIcon; value: string };
     const rows: RowEntry[] = [
         ...(user.jobTitle ? [{ icon: Briefcase, value: user.jobTitle }] : []),
-        ...(user.educationLevel ? [{ icon: GraduationCap, value: tEnums(`educationLevel.${user.educationLevel}` as Parameters<typeof tEnums>[0]) }] : []),
+        ...(user.educationLevel ? [{
+            icon: GraduationCap,
+            value: [
+                tEnums(`educationLevel.${user.educationLevel}` as Parameters<typeof tEnums>[0]),
+                user.schoolName,
+            ].filter(Boolean).join(" · "),
+        }] : user.schoolName ? [{ icon: GraduationCap, value: user.schoolName }] : []),
         ...(user.religion ? [{ icon: BookOpen, value: tEnums(`religion.${user.religion}` as Parameters<typeof tEnums>[0]) }] : []),
         ...(user.languages?.length ? [{ icon: Languages, value: user.languages.map((l: string) => tEnums(`language.${l}` as Parameters<typeof tEnums>[0])).join(", ") }] : []),
         ...(user.ethnicity ? [{ icon: Globe, value: tEnums(`ethnicity.${user.ethnicity}` as Parameters<typeof tEnums>[0]) }] : []),
@@ -158,19 +164,15 @@ export default async function UserProfilePage({
                         <AvatarImage src={user.image ?? undefined} alt={user.name ?? ""} />
                         <AvatarFallback className="rounded-2xl text-lg font-bold">{initials}</AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <div className="flex items-baseline gap-2 flex-wrap">
                             <h1 className="text-2xl font-bold tracking-tight truncate">{user.name}</h1>
                         </div>
                         {user.username && (
                             <p className="text-xs text-muted-foreground font-mono mt-0.5">@{user.username}</p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                            {tProfile("memberSince", {
-                                date: new Date(user.createdAt as string).toLocaleDateString("it-IT", { month: "long", year: "numeric" }),
-                            })}
-                        </p>
                     </div>
+                    {isOwnProfile && <EditProfileSheet user={user} />}
                 </div>
 
                 {/* ── Info card (caratteristiche) ──────────────────────────── */}
@@ -190,21 +192,9 @@ export default async function UserProfilePage({
                                         <Chip icon={chip.icon} label={chip.label} />
                                     </span>
                                 ))}
-                                {isOwnProfile && (
-                                    <span className="ml-auto">
-                                        <EditProfileSheet user={user} interests={user.interests} />
-                                    </span>
-                                )}
                             </div>
                         )}
 
-                        {/* Edit button when no chips yet */}
-                        {chips.length === 0 && isOwnProfile && (
-                            <div className="flex items-center justify-between px-4 py-3 border-b">
-                                <p className="text-xs text-muted-foreground">Completa il tuo profilo</p>
-                                <EditProfileSheet user={user} interests={user.interests} />
-                            </div>
-                        )}
 
                         {/* Hinge-style rows */}
                         {rows.length > 0 && (

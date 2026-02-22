@@ -27,7 +27,7 @@ export const USER_FRAGMENT = gql`
     activityLevel
     jobTitle
     educationLevel
-    hometown
+    schoolName
     languages
     ethnicity
   }

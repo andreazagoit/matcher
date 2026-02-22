@@ -109,7 +109,7 @@ export const users = pgTable(
     // ==========================================
     jobTitle: text("job_title"),
     educationLevel: educationLevelEnum("education_level"),
-    hometown: text("hometown"),
+    schoolName: text("school_name"),
     languages: text("languages").array().default(sql`'{}'::text[]`).notNull(),
     ethnicity: ethnicityEnum("ethnicity"),
 

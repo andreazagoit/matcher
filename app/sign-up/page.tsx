@@ -25,15 +25,16 @@ import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, UserPlusIcon } from "lucide
 import Link from "next/link";
 import { useLazyQuery } from "@apollo/client/react";
 import { CHECK_USERNAME } from "@/lib/models/users/gql";
+import { TAG_CATEGORIES } from "@/lib/models/tags/data";
 
-type Step = "identity" | "intent" | "about" | "background" | "lifestyle" | "account" | "verify";
-const STEPS: Step[] = ["identity", "intent", "about", "background", "lifestyle", "account", "verify"];
+type Step = "identity" | "intent" | "about" | "background" | "lifestyle" | "interests" | "account" | "verify";
+const STEPS: Step[] = ["identity", "intent", "about", "background", "lifestyle", "interests", "account", "verify"];
 
 type FieldErrors = Partial<Record<"name" | "birthdate" | "gender" | "username" | "email", string>>;
 
 const EMPTY: SignupFormData = {
   name: "", birthdate: "", username: "", email: "",
-  sexualOrientation: [], relationshipIntent: [], languages: [],
+  sexualOrientation: [], relationshipIntent: [], languages: [], initialInterests: [],
 };
 
 export default function SignUpPage() {
@@ -76,7 +77,7 @@ function SignUpForm() {
 
   const [checkUsername] = useLazyQuery<{ checkUsername: boolean }>(CHECK_USERNAME, { fetchPolicy: "network-only" });
 
-  const toggle = (k: "sexualOrientation" | "relationshipIntent" | "languages", v: string) => {
+  const toggle = (k: "sexualOrientation" | "relationshipIntent" | "languages" | "initialInterests", v: string) => {
     setData((prev) => {
       const arr = prev[k] as string[];
       return { ...prev, [k]: arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v] };
@@ -152,8 +153,10 @@ function SignUpForm() {
         ...(data.heightCm && { heightCm: parseInt(data.heightCm) }),
         ...(data.jobTitle && { jobTitle: data.jobTitle }),
         ...(data.educationLevel && { educationLevel: data.educationLevel }),
+        ...(data.schoolName && { schoolName: data.schoolName }),
         ...(data.ethnicity && { ethnicity: data.ethnicity }),
         ...(data.languages.length && { languages: data.languages }),
+        ...(data.initialInterests.length && { initialInterests: data.initialInterests }),
       } as Parameters<typeof authClient.signUp.email>[0]);
 
       if (result?.error) {
@@ -225,6 +228,7 @@ function SignUpForm() {
             {step === "about" && <><CardTitle>Su di te</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
             {step === "background" && <><CardTitle>Background</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
             {step === "lifestyle" && <><CardTitle>Stile di vita</CardTitle><CardDescription>Tutti i campi sono opzionali</CardDescription></>}
+            {step === "interests" && <><CardTitle>Interessi</CardTitle><CardDescription>Seleziona ciò che ti appassiona — ci aiuta a trovare persone simili a te</CardDescription></>}
             {step === "account" && <><CardTitle>Crea il tuo account</CardTitle><CardDescription>Ti invieremo un codice di verifica all&apos;email</CardDescription></>}
             {step === "verify" && <><CardTitle>Verifica email</CardTitle><CardDescription>Abbiamo inviato un codice a {data.email}</CardDescription></>}
           </CardHeader>
@@ -367,6 +371,10 @@ function SignUpForm() {
                   </Select>
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="schoolName">Scuola / Università</Label>
+                  <Input id="schoolName" value={data.schoolName ?? ""} onChange={(e) => set("schoolName", e.target.value || undefined)} placeholder="es. Politecnico di Milano" />
+                </div>
+                <div className="space-y-2">
                   <Label>{tEnums("ethnicityLabel" as Parameters<typeof tEnums>[0])}</Label>
                   <Select value={data.ethnicity ?? ""} onValueChange={(v) => set("ethnicity", v as SignupFormData["ethnicity"])}>
                     <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
@@ -468,7 +476,36 @@ function SignUpForm() {
               </form>
             )}
 
-            {/* ── Step 5: Account ── */}
+            {/* ── Step 6: Interests ── */}
+            {step === "interests" && (
+              <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-5">
+                {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
+                  <div key={category} className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      {category}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag: string) => {
+                        const active = (data.initialInterests as string[]).includes(tag);
+                        return (
+                          <button key={tag} type="button" onClick={() => toggle("initialInterests", tag)}
+                            className={["inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                              active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-2">
+                  <BackButton />
+                  <Button type="submit" className="flex-1 gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Step 7: Account ── */}
             {step === "account" && (
               <form onSubmit={handleAccountNext} className="space-y-4">
                 <div className="space-y-2">

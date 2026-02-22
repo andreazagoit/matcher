@@ -5,7 +5,9 @@ import { useMutation } from "@apollo/client/react";
 import { useTranslations } from "next-intl";
 import { Pencil, Loader2 } from "lucide-react";
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +17,7 @@ import {
 } from "@/components/ui/select";
 
 import { UPDATE_USER } from "@/lib/models/users/gql";
-import { UPDATE_MY_INTERESTS } from "@/lib/models/interests/gql";
-import { TAG_CATEGORIES } from "@/lib/models/tags/data";
+
 import {
     genderEnum,
     sexualOrientationEnum,
@@ -32,7 +33,7 @@ import {
     ethnicityEnum,
 } from "@/lib/models/users/schema";
 import { SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
-import type { User, UserInterest } from "@/lib/graphql/__generated__/graphql";
+import type { User } from "@/lib/graphql/__generated__/graphql";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,12 +44,11 @@ export type EditableUser = Pick<
     | "relationshipIntent" | "relationshipStyle"
     | "hasChildren" | "wantsChildren"
     | "religion" | "smoking" | "drinking" | "activityLevel"
-    | "jobTitle" | "educationLevel" | "languages" | "ethnicity"
+    | "jobTitle" | "educationLevel" | "schoolName" | "languages" | "ethnicity"
 >;
 
 type Props = {
     user: EditableUser;
-    interests: UserInterest[];
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ const ENUM_VALUES: Record<EnumKey, readonly string[]> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function EditProfileSheet({ user, interests }: Props) {
+export function EditProfileSheet({ user }: Props) {
     const tEnums = useTranslations("enums");
     const tTags = useTranslations("tags");
     const tTagCats = useTranslations("tagCategories");
@@ -91,10 +91,9 @@ export function EditProfileSheet({ user, interests }: Props) {
     const [open, setOpen] = useState(false);
 
     // Form state
-    const [name, setName] = useState(user.name ?? "");
-    const [birthdate, setBirthdate] = useState(user.birthdate ?? "");
     const [height, setHeight] = useState(user.heightCm?.toString() ?? "");
     const [jobTitle, setJobTitle] = useState(user.jobTitle ?? "");
+    const [schoolName, setSchoolName] = useState(user.schoolName ?? "");
     const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
         new Set(user.languages ?? [])
     );
@@ -116,13 +115,7 @@ export function EditProfileSheet({ user, interests }: Props) {
         educationLevel:     user.educationLevel ?? null,
         ethnicity:          user.ethnicity ?? null,
     });
-    const [selectedTags, setSelectedTags] = useState<Set<string>>(
-        new Set(interests.map((i) => i.tag))
-    );
-
-    const [updateUser, { loading: savingUser }] = useMutation(UPDATE_USER);
-    const [updateInterests, { loading: savingInterests }] = useMutation(UPDATE_MY_INTERESTS);
-    const saving = savingUser || savingInterests;
+    const [updateUser, { loading: saving }] = useMutation(UPDATE_USER);
 
     function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) {
         setter((prev) => {
@@ -136,102 +129,72 @@ export function EditProfileSheet({ user, interests }: Props) {
     function toggleLanguage(lang: string) { toggleSet(setSelectedLanguages, lang); }
     function toggleOrientation(v: string) { toggleSet(setSelectedOrientations, v); }
     function toggleIntent(v: string) { toggleSet(setSelectedIntents, v); }
-    function toggleTag(tag: string) { toggleSet(setSelectedTags, tag); }
-
     function setEnum(key: EnumKey, value: string) {
         setEnumFields((prev) => ({ ...prev, [key]: value === "__clear__" ? null : value }));
     }
 
     async function handleSave() {
-        await Promise.all([
-            updateUser({
-                variables: {
-                    id: user.id,
-                    input: {
-                        name: name.trim() || undefined,
-                        birthdate: birthdate || undefined,
-                        heightCm: height ? parseInt(height, 10) : undefined,
-                        jobTitle: jobTitle.trim() || undefined,
-                        sexualOrientation: Array.from(selectedOrientations),
-                        relationshipIntent: Array.from(selectedIntents),
-                        languages: Array.from(selectedLanguages),
-                        ...Object.fromEntries(
-                            (Object.keys(enumFields) as EnumKey[])
-                                .map((k) => [k, enumFields[k] ?? undefined])
-                        ),
-                    },
+        await updateUser({
+            variables: {
+                id: user.id,
+                input: {
+                    heightCm: height ? parseInt(height, 10) : undefined,
+                    jobTitle: jobTitle.trim() || undefined,
+                    schoolName: schoolName.trim() || undefined,
+                    sexualOrientation: Array.from(selectedOrientations),
+                    relationshipIntent: Array.from(selectedIntents),
+                    languages: Array.from(selectedLanguages),
+                    ...Object.fromEntries(
+                        (Object.keys(enumFields) as EnumKey[])
+                            .map((k) => [k, enumFields[k] ?? undefined])
+                    ),
                 },
-            }),
-            updateInterests({
-                variables: { tags: Array.from(selectedTags) },
-            }),
-        ]);
+            },
+        });
         setOpen(false);
         // Reload to reflect server changes
         window.location.reload();
     }
 
     return (
-        <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7">
                     <Pencil className="w-3.5 h-3.5" />
                 </Button>
-            </SheetTrigger>
+            </DialogTrigger>
 
-            <SheetContent className="w-full sm:max-w-md overflow-y-auto flex flex-col gap-0 p-0">
-                <SheetHeader className="px-6 py-5 border-b">
-                    <SheetTitle>Modifica profilo</SheetTitle>
-                </SheetHeader>
+            <DialogContent className="max-w-lg w-full flex flex-col gap-0 p-0 max-h-[90vh]">
+                <DialogHeader className="px-6 py-5 border-b shrink-0">
+                    <DialogTitle>Modifica profilo</DialogTitle>
+                </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-7">
-
-                    {/* ── Info base ──────────────────────────────────────── */}
-                    <section className="space-y-4">
-                        <h3 className="text-sm font-semibold">Informazioni</h3>
-                        <div className="grid grid-cols-1 gap-4">
-                            <Field label="Nome">
-                                <Input
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="Il tuo nome"
-                                />
-                            </Field>
-                            <Field label="Data di nascita">
-                                <Input
-                                    type="date"
-                                    value={birthdate}
-                                    onChange={(e) => setBirthdate(e.target.value)}
-                                />
-                            </Field>
-                            <Field label="Professione">
-                                <Input
-                                    value={jobTitle}
-                                    onChange={(e) => setJobTitle(e.target.value)}
-                                    placeholder="es. Ingegnere software"
-                                />
-                            </Field>
-                        </div>
-                    </section>
-
-                    <Separator />
 
                     {/* ── Caratteristiche ────────────────────────────────── */}
                     <section className="space-y-4">
                         <h3 className="text-sm font-semibold">Caratteristiche</h3>
                         <div className="grid grid-cols-1 gap-4">
 
-                            {/* Height (numeric) */}
-                            <Field label="Altezza (cm)">
-                                <Input
-                                    type="number"
-                                    min={100}
-                                    max={250}
-                                    value={height}
-                                    onChange={(e) => setHeight(e.target.value)}
-                                    placeholder="es. 175"
-                                />
-                            </Field>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field label="Professione">
+                                    <Input
+                                        value={jobTitle}
+                                        onChange={(e) => setJobTitle(e.target.value)}
+                                        placeholder="es. Designer"
+                                    />
+                                </Field>
+                                <Field label="Altezza (cm)">
+                                    <Input
+                                        type="number"
+                                        min={100}
+                                        max={250}
+                                        value={height}
+                                        onChange={(e) => setHeight(e.target.value)}
+                                        placeholder="es. 175"
+                                    />
+                                </Field>
+                            </div>
 
                             {/* Orientamento sessuale (multi) */}
                             <Field label={tEnums("sexualOrientationLabel" as Parameters<typeof tEnums>[0])}>
@@ -289,6 +252,14 @@ export function EditProfileSheet({ user, interests }: Props) {
                                 </Field>
                             ))}
 
+                            <Field label="Scuola / Università">
+                                <Input
+                                    value={schoolName}
+                                    onChange={(e) => setSchoolName(e.target.value)}
+                                    placeholder="es. Politecnico di Milano"
+                                />
+                            </Field>
+
                         </div>
                     </section>
 
@@ -324,50 +295,9 @@ export function EditProfileSheet({ user, interests }: Props) {
                         </div>
                     </section>
 
-                    <Separator />
-
-                    {/* ── Interessi ──────────────────────────────────────── */}
-                    <section className="space-y-4">
-                        <h3 className="text-sm font-semibold">
-                            Interessi
-                            <span className="ml-2 text-xs font-normal text-muted-foreground">
-                                {selectedTags.size} selezionati
-                            </span>
-                        </h3>
-                        <div className="space-y-4">
-                            {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
-                                <div key={category} className="space-y-2">
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                                        {tTagCats(category as Parameters<typeof tTagCats>[0])}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {tags.map((tag) => {
-                                            const active = selectedTags.has(tag);
-                                            return (
-                                                <button
-                                                    key={tag}
-                                                    type="button"
-                                                    onClick={() => toggleTag(tag)}
-                                                    className={[
-                                                        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                                                        active
-                                                            ? "bg-foreground text-background border-foreground"
-                                                            : "text-muted-foreground hover:border-foreground/40",
-                                                    ].join(" ")}
-                                                >
-                                                    {tTags(tag as Parameters<typeof tTags>[0])}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-
                 </div>
 
-                <SheetFooter className="px-6 py-4 border-t">
+                <DialogFooter className="px-6 py-4 border-t shrink-0">
                     <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
                         Annulla
                     </Button>
@@ -375,8 +305,8 @@ export function EditProfileSheet({ user, interests }: Props) {
                         {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                         Salva
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

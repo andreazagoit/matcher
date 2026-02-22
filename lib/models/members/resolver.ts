@@ -90,8 +90,16 @@ export const memberResolvers = {
                     const interests = await getUserInterests(userId);
                     const userData = await db.query.users.findFirst({ where: eq(users.id, userId) });
                     await embedUser(userId, {
-                        tags: interests.map((i) => i.tag),
+                        tags: interests.map((i) => ({ tag: i.tag, weight: i.weight })),
                         birthdate: userData?.birthdate ?? null,
+                        gender: userData?.gender ?? null,
+                        relationshipIntent: userData?.relationshipIntent ?? null,
+                        jobTitle: userData?.jobTitle ?? null,
+                        educationLevel: userData?.educationLevel ?? null,
+                        smoking: userData?.smoking ?? null,
+                        drinking: userData?.drinking ?? null,
+                        activityLevel: userData?.activityLevel ?? null,
+                        religion: userData?.religion ?? null,
                     });
                 })().catch(() => {});
             }

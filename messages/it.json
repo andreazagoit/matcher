@@ -10,7 +10,8 @@
     "smokingLabel": "Fumo",
     "drinkingLabel": "Alcol",
     "activityLevelLabel": "Attività fisica",
-    "educationLevelLabel": "Istruzione",
+    "educationLevelLabel": "Livello istruzione",
+    "schoolNameLabel": "Scuola / Università",
     "ethnicityLabel": "Etnia",
     "languagesLabel": "Lingue parlate",
     "gender": {

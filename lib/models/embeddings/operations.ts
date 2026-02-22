@@ -18,8 +18,16 @@ import { eq, and } from "drizzle-orm";
 // ─── Input types ───────────────────────────────────────────────────────────────
 
 export interface UserEmbedInput {
-  tags: string[];
+  tags: { tag: string; weight: number }[];
   birthdate?: string | null; // "YYYY-MM-DD"
+  gender?: string | null;
+  relationshipIntent?: string[] | null;
+  jobTitle?: string | null;
+  educationLevel?: string | null;
+  smoking?: string | null;
+  drinking?: string | null;
+  activityLevel?: string | null;
+  religion?: string | null;
 }
 
 export interface EventEmbedInput {
@@ -36,13 +44,35 @@ export interface SpaceEmbedInput {
 
 // ─── Text builders ─────────────────────────────────────────────────────────────
 
-function buildUserText({ tags, birthdate }: UserEmbedInput): string {
+function buildUserText({
+  tags, birthdate, gender, relationshipIntent,
+  jobTitle, educationLevel, smoking, drinking, activityLevel, religion,
+}: UserEmbedInput): string {
   const parts: string[] = [];
-  if (tags.length > 0) parts.push(`Interests: ${tags.join(", ")}`);
+
   if (birthdate) {
     const age = new Date().getFullYear() - new Date(birthdate).getFullYear();
     parts.push(`Age: ${age}`);
   }
+  if (gender)              parts.push(`Gender: ${gender}`);
+  if (jobTitle)            parts.push(`Job: ${jobTitle}`);
+  if (educationLevel)      parts.push(`Education: ${educationLevel}`);
+  if (relationshipIntent?.length) parts.push(`Looking for: ${relationshipIntent.join(", ")}`);
+  if (smoking)             parts.push(`Smoking: ${smoking}`);
+  if (drinking)            parts.push(`Drinking: ${drinking}`);
+  if (activityLevel)       parts.push(`Activity: ${activityLevel}`);
+  if (religion)            parts.push(`Religion: ${religion}`);
+
+  // Weighted interests: high-weight tags repeated to increase their influence
+  // weight >= 0.8 → mentioned 3×, >= 0.5 → 2×, < 0.5 → 1×
+  if (tags.length > 0) {
+    const weighted = tags.flatMap(({ tag, weight }) => {
+      const reps = weight >= 0.8 ? 3 : weight >= 0.5 ? 2 : 1;
+      return Array(reps).fill(tag);
+    });
+    parts.push(`Interests: ${weighted.join(", ")}`);
+  }
+
   return parts.join(". ");
 }
 

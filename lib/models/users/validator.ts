@@ -63,7 +63,7 @@ export const updateUserSchema = z.object({
   // Identity & background
   jobTitle: z.string().max(100).optional(),
   educationLevel: z.enum(educationLevelEnum.enumValues).optional(),
-  hometown: z.string().max(100).optional(),
+  schoolName: z.string().max(150).optional(),
   languages: z.array(z.enum(SUPPORTED_LANGUAGES)).optional(),
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
 });
@@ -89,8 +89,10 @@ export const signupFormSchema = z.object({
   heightCm: z.string().optional(),
   jobTitle: z.string().max(100).optional(),
   educationLevel: z.enum(educationLevelEnum.enumValues).optional(),
+  schoolName: z.string().max(150).optional(),
   languages: z.array(z.enum(SUPPORTED_LANGUAGES)).default([]),
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
+  initialInterests: z.array(z.string()).default([]),
   username: usernameSchema,
   email: z.string().email(),
 });
