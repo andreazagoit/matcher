@@ -38,7 +38,8 @@ export const matchResolvers = {
         maxDistance: args.maxDistance ?? 50,
         limit: args.limit ?? 8,
         offset: args.offset ?? 0,
-        candidatePool: 200,
+        // Keep "daily shuffle" only when caller does not request pagination.
+        candidatePool: typeof args.offset === "number" ? undefined : 200,
         gender: args.gender,
         minAge: args.minAge,
         maxAge: args.maxAge,

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import { useMutation } from "@apollo/client/react";
+import { UPDATE_LOCATION } from "@/lib/models/users/gql";
 
 /**
  * Location Selector
@@ -26,6 +28,7 @@ export function LocationSelector() {
     const [lng, setLng] = useState<number | null>(null);
     const [isLocating, setIsLocating] = useState(false);
     const [open, setOpen] = useState(false);
+    const [updateLocation] = useMutation(UPDATE_LOCATION);
 
     // Initial load from cookies
     useEffect(() => {
@@ -87,8 +90,16 @@ export function LocationSelector() {
                 const maxAge = 60 * 60 * 24 * 365; // 1 year
                 document.cookie = `matcher_lat=${newLat}; path=/; max-age=${maxAge}`;
                 document.cookie = `matcher_lng=${newLng}; path=/; max-age=${maxAge}`;
-
-                toast.success("Position updated!");
+                
+                // Persist location server-side so matching can use PostGIS distance.
+                updateLocation({
+                    variables: { lat: newLat, lon: newLng },
+                })
+                    .then(() => toast.success("Position updated!"))
+                    .catch(() => {
+                        // Keep local cookies even if server update fails (e.g. guest user).
+                        toast.warning("Posizione salvata localmente, ma non sul profilo.");
+                    });
             },
             (error) => {
                 toast.error(

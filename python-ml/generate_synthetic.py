@@ -15,7 +15,7 @@ from __future__ import annotations
 N_USERS        = 10_000
 N_EVENTS       = 1_000
 N_SPACES       = 500
-N_INTERACTIONS = 100_000   # positive pairs (split ~60% event, 25% space, 15% user)
+N_INTERACTIONS = 100_000   # positive pairs (split ~70% event, 30% space)
 # └─────────────────────────────────────────────────────────────────────────────
 
 import argparse
@@ -136,6 +136,102 @@ PERSONAS = [
 REL_INTENTS = ["serious_relationship", "casual_dating", "friendship", "chat"]
 GENDERS     = ["man", "woman", "non_binary"]
 
+SPACE_ARCHETYPES: list[dict] = [
+    {"name": "nerd_hub", "cluster": 4, "tag_pool": ["gaming", "coding", "board_games", "reading", "coffee"]},
+    {"name": "board_games_society", "cluster": 5, "tag_pool": ["board_games", "parties", "coffee", "reading", "gaming"]},
+    {"name": "indie_gaming_club", "cluster": 4, "tag_pool": ["gaming", "coding", "music", "parties", "coffee"]},
+    {"name": "tech_founders_circle", "cluster": 4, "tag_pool": ["coding", "languages", "coffee", "travel", "reading"]},
+    {"name": "ai_builders_lab", "cluster": 4, "tag_pool": ["coding", "reading", "diy", "coffee", "gaming"]},
+    {"name": "cinephile_collective", "cluster": 1, "tag_pool": ["cinema", "theater", "reading", "coffee", "museums"]},
+    {"name": "book_cafe_club", "cluster": 1, "tag_pool": ["reading", "writing", "coffee", "theater", "museums"]},
+    {"name": "street_photo_crew", "cluster": 1, "tag_pool": ["photography", "art", "travel", "coffee", "museums"]},
+    {"name": "modern_art_collective", "cluster": 1, "tag_pool": ["art", "museums", "drawing", "photography", "theater"]},
+    {"name": "live_music_tribe", "cluster": 4, "tag_pool": ["music", "live_music", "parties", "coffee", "art"]},
+    {"name": "foodie_circle", "cluster": 2, "tag_pool": ["restaurants", "street_food", "cooking", "coffee", "travel"]},
+    {"name": "wine_tasting_society", "cluster": 2, "tag_pool": ["wine", "restaurants", "craft_beer", "street_food", "coffee"]},
+    {"name": "coffee_explorers", "cluster": 2, "tag_pool": ["coffee", "street_food", "restaurants", "reading", "travel"]},
+    {"name": "urban_runners", "cluster": 3, "tag_pool": ["running", "gym", "cycling", "yoga", "swimming"]},
+    {"name": "yoga_wellness", "cluster": 3, "tag_pool": ["yoga", "running", "swimming", "gym", "meditation"]},
+    {"name": "mountain_hikers", "cluster": 0, "tag_pool": ["trekking", "mountains", "camping", "travel", "climbing"]},
+    {"name": "climbing_crew", "cluster": 0, "tag_pool": ["climbing", "mountains", "trekking", "camping", "gym"]},
+    {"name": "travel_backpackers", "cluster": 5, "tag_pool": ["travel", "languages", "beach", "mountains", "photography"]},
+    {"name": "pet_lovers_club", "cluster": 5, "tag_pool": ["pets", "volunteering", "travel", "coffee", "parties"]},
+    {"name": "language_exchange_lounge", "cluster": 5, "tag_pool": ["languages", "travel", "coffee", "parties", "reading"]},
+]
+
+EVENT_ARCHETYPES: list[dict] = [
+    {"name": "board_game_night", "cluster": 5, "tag_pool": ["board_games", "parties", "coffee"], "price_choices": [0, 500, 1000], "hour_choices": [19, 20, 21], "max_choices": [12, 20, 30]},
+    {"name": "esports_tournament", "cluster": 4, "tag_pool": ["gaming", "coding", "parties"], "price_choices": [0, 1000, 1500], "hour_choices": [18, 19, 20], "max_choices": [20, 40, 80]},
+    {"name": "lan_party", "cluster": 4, "tag_pool": ["gaming", "coding", "music"], "price_choices": [0, 800, 1200], "hour_choices": [19, 20], "max_choices": [16, 24, 40]},
+    {"name": "hackathon", "cluster": 4, "tag_pool": ["coding", "diy", "coffee"], "price_choices": [0, 2000, 3000], "hour_choices": [9, 10], "max_choices": [30, 60, 120]},
+    {"name": "ai_workshop", "cluster": 4, "tag_pool": ["coding", "reading", "coffee"], "price_choices": [0, 1500, 2500], "hour_choices": [18, 19], "max_choices": [20, 40, 60]},
+    {"name": "startup_pitch_night", "cluster": 4, "tag_pool": ["coding", "languages", "coffee"], "price_choices": [0, 1000, 2000], "hour_choices": [18, 19, 20], "max_choices": [20, 40, 80]},
+    {"name": "movie_screening", "cluster": 1, "tag_pool": ["cinema", "theater", "coffee"], "price_choices": [0, 700, 1200], "hour_choices": [20, 21], "max_choices": [20, 40, 80]},
+    {"name": "book_discussion", "cluster": 1, "tag_pool": ["reading", "writing", "coffee"], "price_choices": [0, 500, 1000], "hour_choices": [18, 19, 20], "max_choices": [10, 16, 24]},
+    {"name": "photo_walk", "cluster": 1, "tag_pool": ["photography", "art", "travel"], "price_choices": [0, 1000], "hour_choices": [9, 10, 16], "max_choices": [12, 20, 30]},
+    {"name": "art_workshop", "cluster": 1, "tag_pool": ["art", "drawing", "museums"], "price_choices": [1000, 2000, 3000], "hour_choices": [17, 18, 19], "max_choices": [10, 16, 24]},
+    {"name": "open_mic_live", "cluster": 4, "tag_pool": ["music", "live_music", "parties"], "price_choices": [0, 1000, 1500], "hour_choices": [20, 21], "max_choices": [20, 40, 70]},
+    {"name": "cooking_class", "cluster": 2, "tag_pool": ["cooking", "restaurants", "street_food"], "price_choices": [1500, 2500, 3500], "hour_choices": [11, 18, 19], "max_choices": [8, 12, 20]},
+    {"name": "wine_tasting", "cluster": 2, "tag_pool": ["wine", "restaurants", "craft_beer"], "price_choices": [2000, 3000, 5000], "hour_choices": [19, 20], "max_choices": [12, 20, 30]},
+    {"name": "coffee_cupping", "cluster": 2, "tag_pool": ["coffee", "street_food", "reading"], "price_choices": [0, 1000, 1500], "hour_choices": [10, 11, 16], "max_choices": [10, 16, 24]},
+    {"name": "running_session", "cluster": 3, "tag_pool": ["running", "cycling", "gym"], "price_choices": [0, 500, 1000], "hour_choices": [7, 8, 18], "max_choices": [12, 25, 40]},
+    {"name": "yoga_session", "cluster": 3, "tag_pool": ["yoga", "swimming", "running"], "price_choices": [0, 1000, 1500], "hour_choices": [7, 8, 19], "max_choices": [10, 20, 30]},
+    {"name": "mountain_trek", "cluster": 0, "tag_pool": ["trekking", "mountains", "camping"], "price_choices": [0, 1500, 2500], "hour_choices": [7, 8, 9], "max_choices": [10, 20, 30]},
+    {"name": "climbing_session", "cluster": 0, "tag_pool": ["climbing", "mountains", "gym"], "price_choices": [1000, 2000, 3000], "hour_choices": [17, 18, 19], "max_choices": [8, 16, 24]},
+    {"name": "city_trip", "cluster": 5, "tag_pool": ["travel", "languages", "photography"], "price_choices": [0, 2000, 4000], "hour_choices": [8, 9, 10], "max_choices": [12, 20, 35]},
+    {"name": "language_meetup", "cluster": 5, "tag_pool": ["languages", "travel", "coffee"], "price_choices": [0, 500, 1000], "hour_choices": [18, 19, 20], "max_choices": [12, 24, 40]},
+]
+
+SPACE_EVENT_COMPATIBILITY: dict[str, list[str]] = {
+    "nerd_hub": ["board_game_night", "esports_tournament", "lan_party", "hackathon", "ai_workshop"],
+    "board_games_society": ["board_game_night", "language_meetup", "coffee_cupping"],
+    "indie_gaming_club": ["esports_tournament", "lan_party", "open_mic_live"],
+    "tech_founders_circle": ["hackathon", "ai_workshop", "startup_pitch_night", "language_meetup"],
+    "ai_builders_lab": ["hackathon", "ai_workshop", "startup_pitch_night"],
+    "cinephile_collective": ["movie_screening", "book_discussion", "photo_walk"],
+    "book_cafe_club": ["book_discussion", "coffee_cupping", "language_meetup"],
+    "street_photo_crew": ["photo_walk", "city_trip", "art_workshop"],
+    "modern_art_collective": ["art_workshop", "photo_walk", "open_mic_live"],
+    "live_music_tribe": ["open_mic_live", "movie_screening", "board_game_night"],
+    "foodie_circle": ["cooking_class", "wine_tasting", "coffee_cupping"],
+    "wine_tasting_society": ["wine_tasting", "cooking_class", "open_mic_live"],
+    "coffee_explorers": ["coffee_cupping", "book_discussion", "language_meetup"],
+    "urban_runners": ["running_session", "city_trip", "yoga_session"],
+    "yoga_wellness": ["yoga_session", "running_session", "coffee_cupping"],
+    "mountain_hikers": ["mountain_trek", "city_trip", "climbing_session"],
+    "climbing_crew": ["climbing_session", "mountain_trek", "running_session"],
+    "travel_backpackers": ["city_trip", "language_meetup", "photo_walk"],
+    "pet_lovers_club": ["city_trip", "coffee_cupping", "board_game_night"],
+    "language_exchange_lounge": ["language_meetup", "city_trip", "book_discussion"],
+}
+
+PERSONA_SPACE_PREFS: dict[str, list[str]] = {
+    "outdoor_adventurer": [
+        "mountain_hikers", "climbing_crew", "travel_backpackers", "urban_runners",
+        "yoga_wellness", "pet_lovers_club", "language_exchange_lounge", "coffee_explorers",
+    ],
+    "culture_lover": [
+        "cinephile_collective", "book_cafe_club", "modern_art_collective", "street_photo_crew",
+        "live_music_tribe", "language_exchange_lounge", "coffee_explorers", "travel_backpackers",
+    ],
+    "foodie": [
+        "foodie_circle", "wine_tasting_society", "coffee_explorers", "language_exchange_lounge",
+        "book_cafe_club", "live_music_tribe", "travel_backpackers", "pet_lovers_club",
+    ],
+    "sports_enthusiast": [
+        "urban_runners", "yoga_wellness", "mountain_hikers", "climbing_crew",
+        "travel_backpackers", "nerd_hub", "language_exchange_lounge", "foodie_circle",
+    ],
+    "creative": [
+        "modern_art_collective", "live_music_tribe", "street_photo_crew", "book_cafe_club",
+        "cinephile_collective", "language_exchange_lounge", "indie_gaming_club", "coffee_explorers",
+    ],
+    "social_butterfly": [
+        "language_exchange_lounge", "pet_lovers_club", "travel_backpackers", "board_games_society",
+        "foodie_circle", "live_music_tribe", "coffee_explorers", "urban_runners",
+    ],
+}
+
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -150,6 +246,37 @@ def rand_date(start: date, end: date) -> date:
     if delta <= 0:
         return start
     return start + timedelta(days=random.randint(0, delta))
+
+
+def sample_time_slot(status: str) -> tuple[int, int]:
+    """
+    Sample a realistic start time by time-slot (morning/afternoon/evening),
+    including minute granularity.
+    """
+    if status == "published":
+        # Upcoming content is more evening-heavy.
+        slot = random.choices(
+            ["morning", "afternoon", "evening"],
+            weights=[0.18, 0.32, 0.50],
+            k=1,
+        )[0]
+    else:
+        slot = random.choices(
+            ["morning", "afternoon", "evening"],
+            weights=[0.22, 0.34, 0.44],
+            k=1,
+        )[0]
+
+    if slot == "morning":
+        hour = random.randint(7, 11)
+    elif slot == "afternoon":
+        hour = random.randint(12, 17)
+    else:
+        hour = random.randint(18, 22)
+
+    # Round synthetic starts to the nearest hour for cleaner time bands.
+    minute = 0
+    return hour, minute
 
 def skewed_age(lo: int, hi: int) -> int:
     """
@@ -175,47 +302,143 @@ def power_law_popularity(n: int, exponent: float = 1.8) -> list[float]:
 
 def sample_user_tags(persona: dict) -> dict[str, float]:
     """
-    Sample tags for a user biased toward their persona's cluster.
-    ~65% from primary cluster, ~35% from other clusters.
-    Core interests (1-2) get high weights; secondary interests get lower.
+    Sample dense user interests:
+      - many low-weight tags from broad exploration (page visits)
+      - few high-weight core tags aligned with persona
     """
-    n_total  = random.randint(4, 9)
-    n_prim   = max(2, round(n_total * 0.65))
-    prim     = TAG_CLUSTERS[persona["cluster"]]
+    prim = TAG_CLUSTERS[persona["cluster"]]
     sec_pool = [t for t in TAG_VOCAB if t not in prim]
 
-    chosen = set(random.sample(prim, min(n_prim, len(prim))))
-    n_sec  = n_total - len(chosen)
-    if n_sec > 0:
-        chosen |= set(random.sample(sec_pool, min(n_sec, len(sec_pool))))
+    # Broad footprint: users touched many tags, but only a few are truly strong.
+    n_total = random.randint(14, 24)
+    n_core = random.randint(2, 4)
+    n_mid = random.randint(4, 7)
+    n_low = max(0, n_total - n_core - n_mid)
 
-    # 1-2 core interests with high weight, rest secondary
-    tags   = list(chosen)
-    result = {}
-    n_core = min(2, len(tags))
-    for i, tag in enumerate(tags):
-        if i < n_core:
-            result[tag] = round(random.uniform(0.70, 1.00), 2)
-        else:
-            result[tag] = round(random.uniform(0.25, 0.65), 2)
+    core_tags = random.sample(prim, min(n_core, len(prim)))
+    remaining_prim = [t for t in prim if t not in core_tags]
+    mid_from_prim = random.sample(remaining_prim, min(len(remaining_prim), max(1, round(n_mid * 0.6))))
+    n_mid_sec = max(0, n_mid - len(mid_from_prim))
+    mid_from_sec = random.sample(sec_pool, min(n_mid_sec, len(sec_pool)))
+
+    low_pool = [t for t in TAG_VOCAB if t not in set(core_tags + mid_from_prim + mid_from_sec)]
+    low_tags = random.sample(low_pool, min(n_low, len(low_pool)))
+
+    result: dict[str, float] = {}
+    for tag in core_tags:
+        result[tag] = round(random.uniform(0.75, 1.00), 2)
+    for tag in (mid_from_prim + mid_from_sec):
+        result[tag] = round(random.uniform(0.28, 0.65), 2)
+    for tag in low_tags:
+        result[tag] = round(random.uniform(0.03, 0.20), 2)
     return result
+
+
+def bump_user_tag_weights(
+    user: dict,
+    item_tags: list[str],
+    strength: float,
+    decay_existing: float = 0.0,
+) -> None:
+    """
+    Simulates incremental preference updates after page visits/interactions.
+    Users accumulate many low signals and a few strong ones.
+    """
+    if not item_tags:
+        return
+    tw = user["tag_weights"]
+    if decay_existing > 0:
+        for tag, w in list(tw.items()):
+            tw[tag] = max(0.0, round(w * (1.0 - decay_existing), 4))
+    for tag in item_tags:
+        current = float(tw.get(tag, 0.0))
+        # Saturating increment: easy to move from low->mid, harder near 1.0
+        inc = strength * (1.0 - min(1.0, current))
+        tw[tag] = round(min(1.25, current + inc), 4)
+
+
+def _sample_tag_count(min_n: int, max_n: int, weights: list[float]) -> int:
+    values = list(range(min_n, max_n + 1))
+    return random.choices(values, weights=weights, k=1)[0]
+
+
+def sample_space_tags(archetype: dict) -> list[str]:
+    """
+    Space tags: 1..5, avg around 3.
+    """
+    n = _sample_tag_count(1, 5, [0.10, 0.20, 0.40, 0.20, 0.10])
+    pool = [t for t in archetype["tag_pool"] if t in TAG_VOCAB]
+    if len(pool) < n:
+        fallback = [t for t in TAG_VOCAB if t not in pool]
+        pool = pool + random.sample(fallback, min(n - len(pool), len(fallback)))
+    return random.sample(pool, min(n, len(pool)))
+
+
+def sample_event_tags(space_tags: list[str], event_archetype: dict) -> list[str]:
+    """
+    Event tags: 1..4, avg 2-3.
+    Most tags are inherited from parent space tags.
+    """
+    n = _sample_tag_count(1, 4, [0.15, 0.35, 0.35, 0.15])
+    n_from_space = max(1, min(len(space_tags), round(n * random.uniform(0.7, 1.0))))
+    chosen = set(random.sample(space_tags, n_from_space)) if space_tags else set()
+
+    event_pool = [t for t in event_archetype["tag_pool"] if t in TAG_VOCAB and t not in chosen]
+    if len(chosen) < n and event_pool:
+        chosen |= set(random.sample(event_pool, min(n - len(chosen), len(event_pool))))
+
+    if len(chosen) < n:
+        fallback = [t for t in TAG_VOCAB if t not in chosen]
+        chosen |= set(random.sample(fallback, min(n - len(chosen), len(fallback))))
+
+    return list(chosen)
 
 
 def sample_entity_tags(preferred_cluster: int = -1) -> list[str]:
     """
-    Sample 1-4 tags for an event or space.
-    If preferred_cluster >= 0, bias toward that cluster.
+    Backward-compatible fallback sampler used by the current generators.
     """
-    n = random.randint(1, 4)
-    if preferred_cluster >= 0 and random.random() < 0.70:
-        clus = TAG_CLUSTERS[preferred_cluster]
+    if preferred_cluster >= 0:
+        pool = list(TAG_CLUSTERS[preferred_cluster])
     else:
-        clus = random.choice(TAG_CLUSTERS)
-    tags = set(random.sample(clus, min(max(1, round(n * 0.75)), len(clus))))
-    rest = [t for t in TAG_VOCAB if t not in clus]
-    if len(tags) < n:
-        tags |= set(random.sample(rest, min(n - len(tags), len(rest))))
-    return list(tags)
+        pool = list(random.choice(TAG_CLUSTERS))
+    n = _sample_tag_count(1, 4, [0.15, 0.35, 0.35, 0.15])
+    if len(pool) < n:
+        rest = [t for t in TAG_VOCAB if t not in pool]
+        pool += random.sample(rest, min(n - len(pool), len(rest)))
+    return random.sample(pool, min(n, len(pool)))
+
+
+def _tag_score(weight: float | None) -> float:
+    """
+    Implicit preference semantics:
+      - missing       -> strong negative
+      - very low      -> weak negative
+      - medium        -> weak positive
+      - high          -> strong positive
+    Uses lighter thresholds than 0.2.
+    """
+    if weight is None:
+        return -1.0
+    if weight <= 0.10:
+        return -0.35
+    if weight <= 0.40:
+        return 0.15
+    return 1.0
+
+
+def _implicit_tag_preference_factor(user_tag_weights: dict[str, float], item_tags: list[str]) -> float:
+    """
+    Maps tag overlap quality to a multiplicative factor for interaction strength.
+    Output range is intentionally moderate to avoid over-penalizing sparse profiles.
+    """
+    if not item_tags:
+        return 0.75
+    scores = [_tag_score(user_tag_weights.get(tag)) for tag in item_tags]
+    mean_score = sum(scores) / len(scores)  # in [-1, 1]
+    # [-1,1] -> [0.55,1.05], with a mild curve.
+    norm = (mean_score + 1.0) / 2.0
+    return 0.55 + (norm ** 0.85) * 0.50
 
 
 # ─── Entity generators ─────────────────────────────────────────────────────────
@@ -242,7 +465,6 @@ def gen_user(persona_idx: int) -> dict:
         "drinking":            wc(DRINKING,  p["drinking_w"])          if random.random() > 0.10 else None,
         "activity_level":      wc(p["activity_choices"], p["activity_w"]) if random.random() > 0.10 else None,
         "interaction_count":   0,
-        "conversation_count":  0,
         "tag_weights":         sample_user_tags(p),
     }
 
@@ -268,15 +490,16 @@ def gen_event(space_id: str, status: str, preferred_cluster: int, popularity: fl
 
     max_att = random.choice([None, None, 20, 30, 50, 100, 200])
     price   = 0 if random.random() < 0.65 else random.choice([5, 10, 15, 20, 30])
+    start_hour, start_minute = sample_time_slot(status)
 
     return {
         "id":               uid(),
         "space_id":         space_id,
         "tags":             sample_entity_tags(preferred_cluster),
-        "starts_at":        f"{starts} 20:00:00",
+        "starts_at":        f"{starts} {start_hour:02d}:{start_minute:02d}:00",
         "max_attendees":    max_att,
         "is_paid":          price > 0,
-        "status":           status,
+        "price_cents":      price * 100,
         "attendee_count":   a_count,
         "avg_attendee_age": avg_age,
         # internal — not in real export
@@ -285,15 +508,16 @@ def gen_event(space_id: str, status: str, preferred_cluster: int, popularity: fl
     }
 
 
-def gen_space(preferred_cluster: int, popularity: float) -> dict:
+def gen_space(archetype: dict, popularity: float) -> dict:
     return {
         "id":             uid(),
-        "tags":           sample_entity_tags(preferred_cluster),
+        "tags":           sample_space_tags(archetype),
         "member_count":   0,
         "avg_member_age": None,
         "event_count":    0,
         # internal
-        "preferred_cluster": preferred_cluster,
+        "preferred_cluster": archetype["cluster"],
+        "archetype":      archetype["name"],
         "popularity":        round(popularity, 3),
     }
 
@@ -328,13 +552,11 @@ def assign_interactions(
        persona's pool (items with high affinity for their cluster).
        This creates the collaborative filtering signal HGT needs.
     2. POPULARITY BOOST: high-popularity items have higher base probability.
-    3. CONVERSATION CLUSTERING: users prefer same-persona partners (70%).
-    4. SERENDIPITY: 15% of each user's interactions are cross-persona (exploration).
+    3. SERENDIPITY: 15% of each user's interactions are cross-persona (exploration).
     """
     n_users = len(users)
-    n_ev    = max(1, round(n_interactions * 0.60 / n_users))
-    n_sp    = max(1, round(n_interactions * 0.25 / n_users))
-    n_co    = max(1, round(n_interactions * 0.15 / n_users))
+    n_ev    = max(1, round(n_interactions * 0.70 / n_users))
+    n_sp    = max(1, round(n_interactions * 0.30 / n_users))
 
     # Pre-compute persona affinity for each event and space
     for e in events:
@@ -358,27 +580,27 @@ def assign_interactions(
 
         sp_sorted = sorted(
             spaces,
-            key=lambda s: (s["_affinity"][p_idx] * 0.7 + s["popularity"] * 0.3),
+            key=lambda s: (
+                s["_affinity"][p_idx] * 0.6
+                + s["popularity"] * 0.25
+                + (0.15 if s.get("archetype") in PERSONA_SPACE_PREFS.get(PERSONAS[p_idx]["name"], []) else 0.0)
+            ),
             reverse=True,
         )
         persona_space_pools.append([s["id"] for s in sp_sorted])
 
-    # Group users by persona for conversation clustering
-    users_by_persona: list[list[str]] = [[] for _ in range(n_personas)]
-    for u in users:
-        users_by_persona[u["persona_idx"]].append(u["id"])
-
     all_event_ids = [e["id"] for e in events]
-    all_space_ids = [s["id"] for s in spaces]
 
     interactions: list[dict]   = []
     positive_pairs: set[tuple] = set()
     user_event_cnt: dict[str, int] = defaultdict(int)
-    user_conv_cnt:  dict[str, int] = defaultdict(int)
+    user_space_cnt: dict[str, int] = defaultdict(int)
     space_member_data: dict[str, list[dict]] = defaultdict(list)
+    event_by_id = {e["id"]: e for e in events}
+    space_by_id = {s["id"]: s for s in spaces}
+    user_by_id = {u["id"]: u for u in users}
 
-    today            = date.today()
-    event_status_map = {e["id"]: e["status"] for e in events}
+    today = date.today()
 
     def _recency(d: date) -> float:
         """Exponential decay: exp(-days_since / 180). Half-life ≈ 6 months."""
@@ -392,19 +614,37 @@ def assign_interactions(
             days_back  = round(random.betavariate(1.5, 3.0) * 364) + 1
             created_at = today - timedelta(days=days_back)
 
+            user = user_by_id[uid]
+            p_idx = user["persona_idx"]
+            pref_factor = 1.0
             if itype == "event":
-                ev_status = event_status_map.get(iid, "published")
-                type_w    = 1.0 if ev_status == "completed" else 0.7
-            elif itype == "space":
+                event = event_by_id[iid]
+                try:
+                    event_day = date.fromisoformat(str(event["starts_at"]).split(" ")[0])
+                except (TypeError, ValueError):
+                    event_day = today
+                type_w = 1.0 if event_day < today else 0.7
+                pref_score = float(event.get("_affinity", [0.0] * len(PERSONAS))[p_idx])
+                persona_factor = 0.35 + 0.65 * pref_score
+                tag_factor = _implicit_tag_preference_factor(user["tag_weights"], event["tags"])
+                pref_factor = persona_factor * tag_factor
+                # Every opened/visited event contributes to user tag interests.
+                bump_user_tag_weights(user, event["tags"], strength=0.02 + 0.08 * pref_factor)
+            else:
+                space = space_by_id[iid]
                 type_w = 0.9
-            else:   # user / conversation
-                type_w = 0.85
+                pref_score = float(space.get("_affinity", [0.0] * len(PERSONAS))[p_idx])
+                persona_factor = 0.35 + 0.65 * pref_score
+                tag_factor = _implicit_tag_preference_factor(user["tag_weights"], space["tags"])
+                pref_factor = persona_factor * tag_factor
+                bump_user_tag_weights(user, space["tags"], strength=0.015 + 0.06 * pref_factor)
 
             interactions.append({
                 "user_id":    uid,
                 "item_id":    iid,
                 "item_type":  itype,
-                "weight":     round(type_w * _recency(created_at), 4),
+                # Lower affinity interactions remain, but with lower weight.
+                "weight":     round(type_w * pref_factor * _recency(created_at), 4),
                 "created_at": created_at.isoformat(),
             })
             return True
@@ -445,25 +685,11 @@ def assign_interactions(
         for sid in sampled_sp:
             if _add(uid, sid, "space"):
                 space_member_data[sid].append(user)
-
-        # ── Conversations ───────────────────────────────────────────────────
-        same = [u for u in users_by_persona[p_idx] if u != uid]
-        diff = [u["id"] for u in users if u["persona_idx"] != p_idx]
-
-        n_same = round(n_co * 0.70)
-        n_diff = n_co - n_same
-        partners  = random.sample(same, min(n_same, len(same)))
-        partners += random.sample(diff, min(n_diff, len(diff)))
-
-        for pid in partners:
-            if _add(uid, pid, "user"):
-                user_conv_cnt[uid] += 1
-                user_conv_cnt[pid] += 1
+                user_space_cnt[uid] += 1
 
     # ── Update denormalized stats ────────────────────────────────────────────
     for user in users:
-        user["interaction_count"]  = user_event_cnt[user["id"]]
-        user["conversation_count"] = user_conv_cnt[user["id"]]
+        user["interaction_count"] = user_event_cnt[user["id"]] + user_space_cnt[user["id"]]
 
     for space in spaces:
         members = space_member_data[space["id"]]
@@ -487,7 +713,7 @@ def _clean_event(e: dict) -> dict:
     return {k: v for k, v in e.items() if k not in ("preferred_cluster", "popularity", "_affinity")}
 
 def _clean_space(s: dict) -> dict:
-    return {k: v for k, v in s.items() if k not in ("preferred_cluster", "popularity", "_affinity")}
+    return {k: v for k, v in s.items() if k not in ("preferred_cluster", "archetype", "popularity", "_affinity")}
 
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
@@ -507,15 +733,20 @@ def generate(
     print(f"  users={n_users:,}  events={n_events:,}  spaces={n_spaces:,}  interactions≈{n_interactions:,}\n")
 
     # ── Spaces ─────────────────────────────────────────────────────────────
-    # Clusters distributed evenly; popularity follows power law
+    # Archetypes + popularity: mostly cluster-aligned, with some cross-cluster variety.
     space_popularities = power_law_popularity(n_spaces)
     spaces = []
     for i, pop in enumerate(space_popularities):
         cluster = i % len(TAG_CLUSTERS)
-        spaces.append(gen_space(cluster, pop))
+        cluster_candidates = [a for a in SPACE_ARCHETYPES if a["cluster"] == cluster]
+        if cluster_candidates and random.random() < 0.75:
+            archetype = random.choice(cluster_candidates)
+        else:
+            archetype = random.choice(SPACE_ARCHETYPES)
+        spaces.append(gen_space(archetype, pop))
 
     # ── Events ─────────────────────────────────────────────────────────────
-    # ~60% completed (historical), ~40% published (upcoming)
+    # ~60% past (historical), ~40% upcoming
     event_popularities = power_law_popularity(n_events)
     events = []
     for i, pop in enumerate(event_popularities):

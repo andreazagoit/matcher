@@ -47,6 +47,10 @@ from config import (
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
+# bfloat16 autocast: M1 executes bfloat16 natively (~30% speedup, no gradient scaler needed)
+_AUTOCAST_ENABLED = device.type in ("mps", "cuda")
+_AUTOCAST_DTYPE   = torch.bfloat16 if _AUTOCAST_ENABLED else torch.float32
+
 _DIM_MAP = {"user": USER_DIM, "event": EVENT_DIM, "space": SPACE_DIM}
 
 
@@ -559,7 +563,24 @@ def train(
         print("No training data. Returning untrained model.")
         return HetEncoder().to(device)
 
-    model     = HetEncoder().to(device)
+    model = HetEncoder().to(device)
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        try:
+            model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+            print(f"  ↻  Fine-tuning from checkpoint: {checkpoint_path}", flush=True)
+        except RuntimeError:
+            print(
+                "  !  Checkpoint incompatible with current architecture."
+                " Training from scratch.",
+                flush=True,
+            )
+    else:
+        print("  •  No checkpoint found. Training from scratch.", flush=True)
+
+    if device.type == "cuda":
+        # torch.compile MPS inductor has a dynamic-shape bug; safe only on CUDA
+        model = torch.compile(model, mode="default")
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
@@ -605,12 +626,13 @@ def train(
             batch_weights  = batch_weights.to(device)
 
             components: dict = {}
-            optimizer.zero_grad()
-            anchor_emb, item_emb = model(batch_anchors, batch_items, item_types, use_graph=True)
-            loss = contrastive_loss(
-                anchor_emb, item_emb, batch_labels, batch_weights,
-                _components=components,
-            )
+            optimizer.zero_grad(set_to_none=True)
+            with torch.autocast(device_type=device.type, dtype=_AUTOCAST_DTYPE, enabled=_AUTOCAST_ENABLED):
+                anchor_emb, item_emb = model(batch_anchors, batch_items, item_types, use_graph=True)
+                loss = contrastive_loss(
+                    anchor_emb, item_emb, batch_labels, batch_weights,
+                    _components=components,
+                )
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -665,7 +687,7 @@ def train(
                 f"\r  ep {epoch+1:>4}/{epochs}"
                 f"  loss: {avg_loss:.4f}{breakdown}"
                 f"  {epoch_time:.1f}s{eta_str}"
-                f"\n       Recall@10: {r_at_k:.4f}"
+                f"  Recall@10: {r_at_k:.4f}"
                 f"  NDCG@10: {n_at_k:.4f}"
                 f"  (n={metrics['n_users']}){star}",
                 flush=True,
@@ -710,7 +732,6 @@ def train(
             checkpoint_path
             and checkpoint_every > 0
             and (epoch + 1) % checkpoint_every == 0
-            and best_weights is None   # only when we have no val-based checkpoint yet
         ):
             _recovery_path = checkpoint_path + ".latest"
             torch.save(model.state_dict(), _recovery_path)

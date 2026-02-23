@@ -6,6 +6,20 @@ function toUsername(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 30);
 }
 
+// Milan city center (Duomo area). Seeded users get a small random offset
+// so all locations stay in/around Milano for geospatial testing.
+const MILAN_CENTER = { lat: 45.4642, lon: 9.19 };
+
+function randomMilanLocation() {
+  // ~ +/- 8 km around center (rough approximation)
+  const latJitter = (Math.random() - 0.5) * 0.14;
+  const lonJitter = (Math.random() - 0.5) * 0.20;
+  return {
+    lat: MILAN_CENTER.lat + latJitter,
+    lon: MILAN_CENTER.lon + lonJitter,
+  };
+}
+
 export const SEED_USERS: Omit<NewUser, "id" | "emailVerified" | "createdAt" | "updatedAt">[] = [
   { name: "Admin System", email: "admin@matcher.local", birthdate: "1990-01-01", gender: "man" },
   {
@@ -181,9 +195,15 @@ export async function seedUsers() {
   const created: Record<string, { id: string; email: string }> = {};
 
   for (const seed of SEED_USERS) {
+    const loc = randomMilanLocation();
     const [user] = await db
       .insert(users)
-      .values({ ...seed, username: toUsername(seed.name!) })
+      .values({
+        ...seed,
+        username: toUsername(seed.name!),
+        location: { x: loc.lon, y: loc.lat },
+        locationUpdatedAt: new Date(),
+      })
       .returning({ id: users.id, email: users.email });
 
     created[user.email] = user;

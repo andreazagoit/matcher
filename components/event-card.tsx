@@ -106,6 +106,16 @@ export function EventCard({ event, onRespond, onComplete }: EventCardProps) {
           </div>
         </div>
 
+        {!!event.tags?.length && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {event.tags.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="outline" className="text-[10px] h-5 px-1.5">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         {(onRespond || onComplete) && (
           <div className="flex gap-2 pt-1">
             {onRespond && isPublished && !isPast && (

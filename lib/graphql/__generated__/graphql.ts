@@ -216,6 +216,7 @@ export type MatchUser = {
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
+  username: Maybe<Scalars['String']['output']>;
 };
 
 export type Member = {
@@ -970,13 +971,14 @@ export type UpdateMyInterestsMutation = { updateMyInterests: Array<{ __typename:
 export type GetFindMatchesQueryVariables = Exact<{
   maxDistance?: Scalars['Float']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
   gender?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
   minAge?: InputMaybe<Scalars['Int']['input']>;
   maxAge?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, name: string, image: string | null, gender: string | null, birthdate: string | null } }> };
+export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string | null, name: string, image: string | null, gender: string | null, birthdate: string | null } }> };
 
 export type GetProfileStatusQueryVariables = Exact<{ [key: string]: never; }>;
 

@@ -15,6 +15,7 @@ export const matchTypeDefs = `#graphql
 
   type MatchUser {
     id: ID!
+    username: String
     name: String!
     image: String
     gender: String

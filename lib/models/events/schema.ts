@@ -5,26 +5,16 @@ import {
   timestamp,
   integer,
   boolean,
+  pgEnum,
   index,
   uniqueIndex,
-  pgEnum,
   geometry,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
 import { spaces } from "@/lib/models/spaces/schema";
 import { users } from "@/lib/models/users/schema";
 
-const EMBEDDING_DIMENSIONS = 1536;
-
 // ─── Enums ─────────────────────────────────────────────────────────
-
-export const eventStatusEnum = pgEnum("event_status", [
-  "draft",
-  "published",
-  "cancelled",
-  "completed",
-]);
 
 export const attendeeStatusEnum = pgEnum("attendee_status", [
   "going",
@@ -52,7 +42,6 @@ export const events = pgTable(
     endsAt: timestamp("ends_at"),
 
     maxAttendees: integer("max_attendees"),
-    status: eventStatusEnum("status").default("draft").notNull(),
 
     // Ticketing — null means free event
     price: integer("price"),
@@ -60,8 +49,6 @@ export const events = pgTable(
 
     // Tags (shared vocabulary from models/tags/data.ts)
     tags: text("tags").array().default([]),
-
-    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
 
     createdBy: uuid("created_by")
       .notNull()

@@ -58,7 +58,7 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 
 # ─── Feature vector layouts ────────────────────────────────────────────────────
 #
-# User (USER_DIM = 61):
+# User (USER_DIM = 60):
 #   [0:40]  tag weights            (NUM_TAGS)
 #   [40]    age norm               (1)
 #   [41:44] gender one-hot         (3)
@@ -67,24 +67,27 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 #   [51:54] drinking one-hot       (3)
 #   [54:59] activity one-hot       (5)
 #   [59]    interaction count norm (1) — events attended + spaces joined
-#   [60]    conversation count norm(1) — active conversations
 #
-# Event (EVENT_DIM = 45):
+# Event (EVENT_DIM = 51):
 #   [0:40]  tags multi-hot         (NUM_TAGS)
 #   [40]    avg attendee age norm  (1)
 #   [41]    attendee count norm    (1)
 #   [42]    days until event norm  (1)
 #   [43]    capacity fill rate     (1) — attendee_count / max_attendees, 0.5 if unbounded
 #   [44]    is_paid                (1) — 1.0 if price > 0, else 0.0
+#   [45]    price log norm         (1) — normalized log1p(price_cents)
+#   [46:48] start hour cyclical    (2) — sin/cos(hour of day)
+#   [48:50] start weekday cyclical (2) — sin/cos(day of week)
+#   [50]    is_weekend             (1)
 #
 # Space (SPACE_DIM = 43):
 #   [0:40]  tags multi-hot         (NUM_TAGS)
 #   [40]    avg member age norm    (1)
 #   [41]    member count norm      (1)
-#   [42]    event count norm       (1) — published/completed events in this space
+#   [42]    event count norm       (1) — events in this space
 
-USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 2  # 61
-EVENT_DIM = NUM_TAGS + 5   # 45
+USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1  # 60
+EVENT_DIM = NUM_TAGS + 11  # 51
 SPACE_DIM = NUM_TAGS + 3   # 43
 
 # Entity types

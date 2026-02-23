@@ -3,16 +3,16 @@ Feature engineering: transforms raw entity data into typed float vectors.
 
 Each entity type has its own feature space (different dims, different semantics):
 
-  User  → 60-dim  (tags, age, gender, rel_intent, smoking, drinking, activity, interactions)
-  Event → 43-dim  (tags, avg_attendee_age, attendee_count, days_until)
-  Space → 42-dim  (tags, avg_member_age, member_count)
+  User  → 60-dim  (tags, profile, interactions)
+  Event → 51-dim  (tags, attendees, timing, price)
+  Space → 43-dim  (tags, avg_member_age, member_count, event_count)
 
 See config.py for exact layout documentation.
 """
 
 from __future__ import annotations
 import math
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from config import (
     TAG_TO_IDX, NUM_TAGS,
@@ -42,6 +42,54 @@ def normalize_days(days: int | None, max_days: int = 365) -> float:
     if days is None:
         return 0.5
     return max(0.0, min(1.0, days / max_days))
+
+
+def normalize_price_cents(price_cents: int | None, max_price_cents: int = 50_000) -> float:
+    """
+    Log-normalized event price in [0, 1].
+    0 cents -> 0.0, 50000 cents or more -> 1.0.
+    """
+    if not price_cents or price_cents <= 0:
+        return 0.0
+    clipped = min(price_cents, max_price_cents)
+    return math.log1p(clipped) / math.log1p(max_price_cents)
+
+
+def _parse_datetime(value: Optional[str | datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        # Accept both "YYYY-MM-DD HH:MM:SS" and ISO "YYYY-MM-DDTHH:MM:SS".
+        return datetime.fromisoformat(value.replace(" ", "T"))
+    except ValueError:
+        return None
+
+
+def _time_cyclical_features(starts_at: Optional[str | datetime]) -> list[float]:
+    """
+    Returns [hour_sin, hour_cos, dow_sin, dow_cos, is_weekend].
+    Uses neutral defaults when starts_at is missing/unparseable.
+    """
+    dt = _parse_datetime(starts_at)
+    if dt is None:
+        return [0.0, 1.0, 0.0, 1.0, 0.0]
+
+    hour = dt.hour + (dt.minute / 60.0)
+    dow = dt.weekday()  # 0=Mon ... 6=Sun
+
+    hour_angle = 2.0 * math.pi * (hour / 24.0)
+    dow_angle = 2.0 * math.pi * (dow / 7.0)
+
+    is_weekend = 1.0 if dow >= 5 else 0.0
+    return [
+        math.sin(hour_angle),
+        math.cos(hour_angle),
+        math.sin(dow_angle),
+        math.cos(dow_angle),
+        is_weekend,
+    ]
 
 
 def calculate_age(birthdate) -> float | None:
@@ -83,10 +131,9 @@ def build_user_features(
     drinking: Optional[str] = None,
     activity_level: Optional[str] = None,
     interaction_count: int = 0,
-    conversation_count: int = 0,
 ) -> "list[float]":
     """
-    Builds a 61-dim user feature vector.
+    Builds a 60-dim user feature vector.
 
     Args:
         birthdate:            users.birthdate (date, str "YYYY-MM-DD", or None)
@@ -97,7 +144,6 @@ def build_user_features(
         drinking:             users.drinking enum value or None
         activity_level:       users.activity_level enum value or None
         interaction_count:    events attended + spaces joined
-        conversation_count:   number of active conversations (social engagement)
     """
     # [0:40] tag weights
     tags_vec = [0.0] * NUM_TAGS
@@ -127,10 +173,7 @@ def build_user_features(
     # [59] interaction count (events attended + spaces joined) — sqrt-normalized, scale=10
     interaction_vec = [normalize_count(interaction_count, scale=10.0)]
 
-    # [60] conversation count — sqrt-normalized, scale=5
-    conversation_vec = [normalize_count(conversation_count, scale=5.0)]
-
-    vec = tags_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec + interaction_vec + conversation_vec
+    vec = tags_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec + interaction_vec
     assert len(vec) == USER_DIM, f"Expected {USER_DIM}, got {len(vec)}"
     return vec
 
@@ -142,22 +185,26 @@ def build_event_features(
     avg_attendee_age: Optional[float],
     attendee_count: int = 0,
     days_until_event: Optional[int] = None,
+    starts_at: Optional[str | datetime] = None,
     max_attendees: Optional[int] = None,
     is_paid: bool = False,
+    price_cents: Optional[int] = None,
 ) -> "list[float]":
     """
-    Builds a 45-dim event feature vector.
+    Builds a 51-dim event feature vector.
 
-    For completed events, attendee_count should be the number of users with
+    For past events, attendee_count should be the number of users with
     status='attended' (real participation). For upcoming events, use status='going'.
 
     Args:
         tags:              events.tags
-        avg_attendee_age:  AVG(age) of real attendees (completed) or registered (upcoming)
-        attendee_count:    actual participants (completed) or registered (upcoming)
+        avg_attendee_age:  AVG(age) of real attendees (past) or registered (upcoming)
+        attendee_count:    actual participants (past) or registered (upcoming)
         days_until_event:  days from today to starts_at; negative = past event
+        starts_at:         event start timestamp used for hour/day cyclical encoding
         max_attendees:     events.max_attendees (None = no cap)
         is_paid:           True if events.price > 0
+        price_cents:       events.price in cents
     """
     # [0:40] tags multi-hot
     tags_vec = [0.0] * NUM_TAGS
@@ -172,6 +219,11 @@ def build_event_features(
     # [41] attendee count — sqrt-normalized, scale=20
     count_vec = [normalize_count(attendee_count, scale=20.0)]
 
+    if days_until_event is None:
+        dt = _parse_datetime(starts_at)
+        if dt is not None:
+            days_until_event = (dt.date() - date.today()).days
+
     # [42] days until event — negative=past, 0=today, 0.5≈6 months, 1=1 year+
     days_vec = [normalize_days(days_until_event)]
 
@@ -184,9 +236,16 @@ def build_event_features(
     fill_vec = [fill_rate]
 
     # [44] is_paid — paid events attract different audiences than free ones
-    paid_vec = [1.0 if is_paid else 0.0]
+    inferred_paid = is_paid or (price_cents is not None and price_cents > 0)
+    paid_vec = [1.0 if inferred_paid else 0.0]
 
-    vec = tags_vec + age_vec + count_vec + days_vec + fill_vec + paid_vec
+    # [45] numeric price signal (log-normalized)
+    price_vec = [normalize_price_cents(price_cents)]
+
+    # [46:50] cyclical calendar/time + weekend
+    time_vec = _time_cyclical_features(starts_at)
+
+    vec = tags_vec + age_vec + count_vec + days_vec + fill_vec + paid_vec + price_vec + time_vec
     assert len(vec) == EVENT_DIM, f"Expected {EVENT_DIM}, got {len(vec)}"
     return vec
 
@@ -206,7 +265,7 @@ def build_space_features(
         tags:           spaces.tags
         avg_member_age: AVG(age) of active members, or None
         member_count:   number of active members
-        event_count:    number of published/completed events organized by this space
+        event_count:    number of events organized by this space
     """
     # [0:40] tags multi-hot
     tags_vec = [0.0] * NUM_TAGS

@@ -72,7 +72,6 @@ def users_to_features(records: list[dict]) -> dict[str, list[float]]:
             drinking=u.get("drinking"),
             activity_level=u.get("activity_level"),
             interaction_count=int(u.get("interaction_count") or 0),
-            conversation_count=int(u.get("conversation_count") or 0),
         )
     return result
 
@@ -85,8 +84,10 @@ def events_to_features(records: list[dict]) -> dict[str, list[float]]:
             avg_attendee_age=e.get("avg_attendee_age"),
             attendee_count=int(e.get("attendee_count") or 0),
             days_until_event=_days_until(e.get("starts_at")),
+            starts_at=e.get("starts_at"),
             max_attendees=e.get("max_attendees"),
             is_paid=bool(e.get("is_paid")),
+            price_cents=(int(e["price_cents"]) if e.get("price_cents") is not None else None),
         )
     return result
 
@@ -154,6 +155,7 @@ def build_training_data(
 
     train_records: list[dict] = []
     val_pairs: list[tuple[str, str]] = []   # (user_id, item_id) held-out positives
+    seen_train_by_user: dict[str, set[str]] = defaultdict(set)
 
     for uid, records in by_user.items():
         if len(records) >= 3:
@@ -166,6 +168,8 @@ def build_training_data(
             train_recs = records
 
         train_records.extend(train_recs)
+        for r in train_recs:
+            seen_train_by_user[uid].add(r["item_id"])
         val_pairs.extend((uid, r["item_id"]) for r in val_recs)
 
     # ── Build 5-tuple triplets from train_records ─────────────────────────────
@@ -216,6 +220,8 @@ def build_training_data(
         },
         "item_features": all_item_features,   # rank against full corpus
         "val_pairs": val_pairs,
+        # Exclude train positives during eval to avoid trivial re-recommendations.
+        "seen_train_by_user": {uid: list(items) for uid, items in seen_train_by_user.items()},
     }
 
     return {

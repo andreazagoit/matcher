@@ -7,6 +7,7 @@ interface SpaceHeaderProps {
         name: string;
         image?: string | null;
         description?: string | null;
+        tags?: string[] | null;
         slug: string;
         membersCount?: number | null;
         visibility: string;
@@ -72,6 +73,16 @@ export function SpaceHeader({ space, className }: SpaceHeaderProps) {
                         <span>{space.membersCount || 0} members</span>
                     </div>
                 </div>
+
+                {!!space.tags?.length && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {space.tags.map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                                #{tag}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
 
             </div>
         </div>

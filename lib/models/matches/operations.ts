@@ -25,6 +25,7 @@ import { eq, ne, and, or, sql, inArray, notExists } from "drizzle-orm";
 export interface MatchResult {
   user: {
     id: string;
+    username: string | null;
     name: string;
     image: string | null;
     gender: string | null;
@@ -111,21 +112,27 @@ export async function findMatches(
         ), 0)`
       : sql<number>`0`;
 
-  const sharedSpacesCountSql = sql<number>`(
-    SELECT count(*)::int 
-    FROM ${members} m 
-    WHERE m.user_id = ${users.id} 
-      AND m.space_id = ANY(${mySpaceIds})
-      AND m.status = 'active'
-  )`;
+  const sharedSpacesCountSql =
+    mySpaceIds.length > 0
+      ? sql<number>`(
+          SELECT count(*)::int
+          FROM ${members}
+          WHERE ${members.userId} = ${users.id}
+            AND ${inArray(members.spaceId, mySpaceIds)}
+            AND ${members.status} = 'active'
+        )`
+      : sql<number>`0`;
 
-  const sharedEventsCountSql = sql<number>`(
-    SELECT count(*)::int 
-    FROM ${eventAttendees} ea 
-    WHERE ea.user_id = ${users.id} 
-      AND ea.event_id = ANY(${myEventIds})
-      AND ea.status IN ('going', 'attended')
-  )`;
+  const sharedEventsCountSql =
+    myEventIds.length > 0
+      ? sql<number>`(
+          SELECT count(*)::int
+          FROM ${eventAttendees}
+          WHERE ${eventAttendees.userId} = ${users.id}
+            AND ${inArray(eventAttendees.eventId, myEventIds)}
+            AND ${eventAttendees.status} IN ('going', 'attended')
+        )`
+      : sql<number>`0`;
 
   const distanceSql = sql<number>`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
 
@@ -166,7 +173,7 @@ export async function findMatches(
       ? sql<string[]>`ARRAY(
           SELECT ui.tag FROM ${userInterests} ui
           WHERE ui.user_id = ${users.id}
-            AND ui.tag = ANY(${myTags}::text[])
+            AND ui.tag IN (${sql.join(myTags.map((tag) => sql`${tag}`), sql`, `)})
         )`
       : sql<string[]>`'{}'::text[]`;
 
@@ -176,6 +183,7 @@ export async function findMatches(
     .select({
       user: {
         id: users.id,
+        username: users.username,
         name: users.name,
         image: users.image,
         gender: users.gender,

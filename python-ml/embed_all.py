@@ -57,16 +57,12 @@ def read_users(cur) -> dict[str, tuple[str, list[float]]]:
             u.smoking,
             u.drinking,
             u.activity_level,
-            (COUNT(DISTINCT ea.event_id) + COUNT(DISTINCT m.space_id))::int AS interaction_count,
-            COUNT(DISTINCT c.id)::int                                        AS conversation_count
+            (COUNT(DISTINCT ea.event_id) + COUNT(DISTINCT m.space_id))::int AS interaction_count
         FROM users u
         LEFT JOIN event_attendees ea
                ON ea.user_id = u.id AND ea.status = 'attended'
         LEFT JOIN members m
                ON m.user_id = u.id AND m.status = 'active'
-        LEFT JOIN conversations c
-               ON (c.initiator_id = u.id OR c.recipient_id = u.id)
-              AND c.status = 'active'
         GROUP BY u.id, u.birthdate, u.gender, u.relationship_intent,
                  u.smoking, u.drinking, u.activity_level
     """)
@@ -91,7 +87,6 @@ def read_users(cur) -> dict[str, tuple[str, list[float]]]:
                 drinking=u[5],
                 activity_level=u[6],
                 interaction_count=int(u[7] or 0),
-                conversation_count=int(u[8] or 0),
             ),
         )
     return result
@@ -105,7 +100,6 @@ def read_events(cur) -> dict[str, tuple[str, list[float]]]:
             e.starts_at,
             e.max_attendees,
             e.price,
-            e.status,
             COUNT(ea_real.user_id)::int                           AS attended_count,
             AVG(date_part('year', age(u_real.birthdate)))::float  AS avg_age_attended,
             COUNT(ea_going.user_id)::int                          AS going_count,
@@ -119,23 +113,25 @@ def read_events(cur) -> dict[str, tuple[str, list[float]]]:
                ON ea_going.event_id = e.id AND ea_going.status = 'going'
         LEFT JOIN users u_going
                ON u_going.id = ea_going.user_id AND u_going.birthdate IS NOT NULL
-        WHERE e.status IN ('published', 'completed')
-        GROUP BY e.id, e.tags, e.starts_at, e.max_attendees, e.price, e.status
+        GROUP BY e.id, e.tags, e.starts_at, e.max_attendees, e.price
     """)
     result: dict[str, tuple[str, list[float]]] = {}
     for e in cur.fetchall():
-        is_completed   = e[5] == "completed"
-        attendee_count = int(e[6] if is_completed else e[8]) or 0
-        avg_age        = float(e[7]) if is_completed and e[7] else (float(e[9]) if e[9] else None)
+        starts_at = e[2]
+        is_completed = bool(starts_at and starts_at.date() < date.today())
+        attendee_count = int(e[5] if is_completed else e[7]) or 0
+        avg_age = float(e[6]) if is_completed and e[6] else (float(e[8]) if e[8] else None)
         result[e[0]] = (
             "event",
             build_event_features(
                 tags=list(e[1]) if e[1] else [],
+                starts_at=e[2].isoformat() if e[2] else None,
                 avg_attendee_age=avg_age,
                 attendee_count=attendee_count,
                 days_until_event=_days_until(e[2]),
                 max_attendees=int(e[3]) if e[3] else None,
                 is_paid=bool(e[4] and int(e[4]) > 0),
+                price_cents=int(e[4]) if e[4] else 0,
             ),
         )
     return result
@@ -153,7 +149,7 @@ def read_spaces(cur) -> dict[str, tuple[str, list[float]]]:
         LEFT JOIN members m ON m.space_id = s.id AND m.status = 'active'
         LEFT JOIN users u   ON u.id = m.user_id AND u.birthdate IS NOT NULL
         LEFT JOIN events e  ON e.space_id = s.id
-                  AND e.status IN ('published', 'completed')
+                  AND e.starts_at IS NOT NULL
         WHERE s.is_active = true
         GROUP BY s.id, s.tags
     """)

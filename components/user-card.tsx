@@ -1,14 +1,16 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 interface UserCardUser {
     id?: string;
+    username?: string | null;
     name?: string;
     email?: string;
     image?: string | null;
     gender?: string | null;
-    birthdate?: string;
+    birthdate?: string | null;
 }
 
 interface UserCardProps {
@@ -19,8 +21,8 @@ interface UserCardProps {
 export function UserCard({ user, compatibility }: UserCardProps) {
     const name = user.name || user.email || "Unknown User";
     const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-
-    return (
+    const canOpenProfile = !!user.username;
+    const card = (
         <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">
             <CardHeader className="p-0">
                 <div className="relative aspect-square w-full">
@@ -52,5 +54,12 @@ export function UserCard({ user, compatibility }: UserCardProps) {
                 </div>
             </CardContent>
         </Card>
+    );
+
+    if (!canOpenProfile) return card;
+    return (
+        <Link href={`/users/${user.username}`} className="block">
+            {card}
+        </Link>
     );
 }

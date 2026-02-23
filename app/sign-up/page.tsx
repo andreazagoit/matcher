@@ -156,7 +156,6 @@ function SignUpForm() {
         ...(data.schoolName && { schoolName: data.schoolName }),
         ...(data.ethnicity && { ethnicity: data.ethnicity }),
         ...(data.languages.length && { languages: data.languages }),
-        ...(data.initialInterests.length && { initialInterests: data.initialInterests }),
       } as Parameters<typeof authClient.signUp.email>[0]);
 
       if (result?.error) {
@@ -188,6 +187,13 @@ function SignUpForm() {
         setSubmitError((result.error as { message?: string }).message || "Codice non valido");
         setLoading(false);
         return;
+      }
+      if (data.initialInterests.length) {
+        await fetch("/api/users/interests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tags: data.initialInterests }),
+        }).catch(() => {});
       }
       window.location.href = `/users/${data.username}`;
     } catch (err) {

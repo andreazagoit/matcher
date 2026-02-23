@@ -26,7 +26,6 @@ export interface UserEmbedInput {
   drinking?: string | null;
   activityLevel?: string | null;
   interactionCount?: number;
-  conversationCount?: number;
   // kept for forward compatibility; not used by the current model
   jobTitle?: string | null;
   educationLevel?: string | null;
@@ -36,6 +35,7 @@ export interface UserEmbedInput {
 export interface EventEmbedInput {
   tags?: string[];
   startsAt?: string | null;        // ISO string — used to compute daysUntilEvent
+  priceCents?: number | null;
   avgAttendeeAge?: number | null;
   attendeeCount?: number;
   maxAttendees?: number | null;
@@ -118,7 +118,6 @@ export async function embedUser(
     drinking:             data.drinking ?? null,
     activity_level:       data.activityLevel ?? null,
     interaction_count:    data.interactionCount ?? 0,
-    conversation_count:   data.conversationCount ?? 0,
   });
 
   await upsertEmbedding(entityId, "user", embedding);
@@ -138,6 +137,8 @@ export async function embedEvent(
 
   const embedding = await callMlEmbed("event", {
     tags:               data.tags ?? [],
+    starts_at:          data.startsAt ?? null,
+    price_cents:        data.priceCents ?? null,
     avg_attendee_age:   data.avgAttendeeAge ?? null,
     attendee_count:     data.attendeeCount ?? 0,
     days_until_event:   daysUntilEvent,

@@ -55,23 +55,24 @@ class UserData(BaseModel):
     drinking: Optional[str] = None
     activity_level: Optional[str] = None             # "sedentary" | ... | "very_active"
     interaction_count: int = 0                       # events attended + spaces joined
-    conversation_count: int = 0                      # active conversations
 
 
 class EventData(BaseModel):
     tags: list[str] = []
-    avg_attendee_age: Optional[float] = None         # real for completed, registered for upcoming
-    attendee_count: int = 0                          # status='attended' (completed) or 'going' (upcoming)
+    starts_at: Optional[str] = None                  # ISO timestamp
+    avg_attendee_age: Optional[float] = None         # real for past, registered for upcoming
+    attendee_count: int = 0                          # status='attended' (past) or 'going' (upcoming)
     days_until_event: Optional[int] = None           # days from today; negative = past
     max_attendees: Optional[int] = None              # events.max_attendees (None = no cap)
     is_paid: bool = False                            # True if price > 0
+    price_cents: Optional[int] = None                # price in cents
 
 
 class SpaceData(BaseModel):
     tags: list[str] = []
     avg_member_age: Optional[float] = None
     member_count: int = 0
-    event_count: int = 0                             # published/completed events in this space
+    event_count: int = 0                             # events in this space
 
 
 class EmbedRequest(BaseModel):
@@ -102,7 +103,6 @@ def _build_features(req: EmbedRequest) -> tuple[str, list[float]]:
             drinking=req.user.drinking,
             activity_level=req.user.activity_level,
             interaction_count=req.user.interaction_count,
-            conversation_count=req.user.conversation_count,
         )
 
     if req.entity_type == "event":
@@ -110,11 +110,13 @@ def _build_features(req: EmbedRequest) -> tuple[str, list[float]]:
             raise HTTPException(400, "event data required for entity_type=event")
         return "event", build_event_features(
             tags=req.event.tags,
+            starts_at=req.event.starts_at,
             avg_attendee_age=req.event.avg_attendee_age,
             attendee_count=req.event.attendee_count,
             days_until_event=req.event.days_until_event,
             max_attendees=req.event.max_attendees,
             is_paid=req.event.is_paid,
+            price_cents=req.event.price_cents,
         )
 
     if req.entity_type == "space":

@@ -23,10 +23,17 @@ Flow:
 
 from __future__ import annotations
 import argparse
+import os
 import sys
 import time
 
-from config import TRAINING_DATA_DIR, EPOCHS, BATCH_SIZE, NEGATIVE_SAMPLES
+from config import (
+    TRAINING_DATA_DIR,
+    EPOCHS,
+    BATCH_SIZE,
+    NEGATIVE_SAMPLES,
+    MODEL_WEIGHTS_PATH,
+)
 from data import build_training_data
 from model import train, save_model, mine_hard_negatives
 
@@ -50,8 +57,10 @@ def main() -> None:
     parser.add_argument("--batch-size",    type=int, default=BATCH_SIZE)
     parser.add_argument("--patience",      type=int, default=15,
                         help="Early stopping patience in epochs (0 = disabled)")
-    parser.add_argument("--eval-every",    type=int, default=5,
+    parser.add_argument("--eval-every",    type=int, default=1,
                         help="Compute val Recall@10 / NDCG@10 every N epochs (0 = disabled)")
+    parser.add_argument("--checkpoint-every", type=int, default=1,
+                        help="Save recovery checkpoint every N epochs (0 = disabled)")
 
     # Hard negative mining
     parser.add_argument("--hard-neg-every", type=int, default=0,
@@ -71,6 +80,7 @@ def main() -> None:
     print(f"  batch-size     : {args.batch_size}")
     print(f"  patience       : {args.patience or 'disabled'}")
     print(f"  eval-every     : {args.eval_every or 'disabled'}")
+    print(f"  checkpoint-ev. : {args.checkpoint_every or 'disabled'}")
     print(f"  hard-neg-every : {args.hard_neg_every or 'disabled'}")
     if args.hard_neg_every > 0:
         print(f"  n-hard-neg     : {args.n_hard_neg}")
@@ -123,6 +133,10 @@ def main() -> None:
 
     # ── Train ──────────────────────────────────────────────────────────────────
     print("Training...\n", flush=True)
+    if os.path.exists(MODEL_WEIGHTS_PATH):
+        print(f"Resuming from existing checkpoint: {MODEL_WEIGHTS_PATH}", flush=True)
+    else:
+        print("No checkpoint found, training from scratch.", flush=True)
     t1 = time.time()
     model = train(
         triplets=train_triplets,
@@ -131,6 +145,7 @@ def main() -> None:
         batch_size=args.batch_size,
         patience=args.patience,
         eval_every=args.eval_every,
+        checkpoint_every=args.checkpoint_every,
         hard_neg_fn=hard_neg_fn,
         hard_neg_every=args.hard_neg_every,
     )
@@ -147,7 +162,7 @@ def main() -> None:
         print(f"  (evaluated on {metrics['n_users']} users)")
 
     save_model(model)
-    print("\nDone. Run 'npm run ml:reembed' to regenerate entity embeddings.")
+    print("\nDone. Run 'npm run ml:embed-all' to regenerate entity embeddings.")
 
 
 if __name__ == "__main__":

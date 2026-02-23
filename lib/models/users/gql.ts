@@ -102,3 +102,16 @@ export const UPDATE_USER = gql`
   }
 `;
 
+export const UPDATE_LOCATION = gql`
+  mutation UpdateLocation($lat: Float!, $lon: Float!) {
+    updateLocation(lat: $lat, lon: $lon) {
+      id
+      location {
+        lat
+        lon
+      }
+      locationUpdatedAt
+    }
+  }
+`;
+
