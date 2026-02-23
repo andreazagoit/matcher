@@ -35,7 +35,7 @@ from config import (
     MODEL_WEIGHTS_PATH,
 )
 from data import build_training_data
-from model import train, save_model, mine_hard_negatives
+from model import train, save_model, mine_hard_negatives, evaluate_recall_ndcg
 
 
 def main() -> None:
@@ -63,10 +63,15 @@ def main() -> None:
                         help="Save recovery checkpoint every N epochs (0 = disabled)")
 
     # Hard negative mining
-    parser.add_argument("--hard-neg-every", type=int, default=0,
+    parser.add_argument("--hard-neg-every", type=int, default=10,
                         help="Refresh hard negatives every N epochs (0 = disabled)")
     parser.add_argument("--n-hard-neg",     type=int, default=3,
                         help="Hard negatives per user per refresh")
+
+    # Parallelism
+    parser.add_argument("--num-workers",    type=int, default=4,
+                        help="DataLoader worker processes (0=single-threaded). "
+                             "2–4 recommended on M1/M2 Mac to overlap CPU data prep with MPS training.")
 
     args = parser.parse_args()
 
@@ -84,6 +89,7 @@ def main() -> None:
     print(f"  hard-neg-every : {args.hard_neg_every or 'disabled'}")
     if args.hard_neg_every > 0:
         print(f"  n-hard-neg     : {args.n_hard_neg}")
+    print(f"  num-workers    : {args.num_workers or 'disabled (single-threaded)'}")
     print()
 
     # ── Load data ──────────────────────────────────────────────────────────────
@@ -114,11 +120,7 @@ def main() -> None:
     pos   = sum(1 for *_, label, _w in train_triplets if label == 1)
     neg   = len(train_triplets) - pos
     n_val = len(val_data["val_pairs"])
-    n_val_users = (
-        len(val_data["anchor_features"])
-        if "anchor_features" in val_data
-        else len(val_data["user_features"])
-    )
+    n_val_users = len(val_data["anchor_features"])
 
     print(f"  Train triplets : {len(train_triplets):>10,}  ({pos:,} pos / {neg:,} neg)")
     print(f"  Val pairs      : {n_val:>10,}  from {n_val_users:,} anchors")
@@ -159,20 +161,20 @@ def main() -> None:
         checkpoint_every=args.checkpoint_every,
         hard_neg_fn=hard_neg_fn,
         hard_neg_every=args.hard_neg_every,
+        num_workers=args.num_workers,
     )
     elapsed = time.time() - t1
     print(f"\nTraining completed in {elapsed:.0f}s")
 
     # ── Final evaluation ───────────────────────────────────────────────────────
     if val_data["val_pairs"]:
-        from model import evaluate_recall_ndcg
         metrics = evaluate_recall_ndcg(model, val_data, k=10, max_users=1000)
         print(f"\nFinal metrics:")
-        print(f"  Recall@10  : {metrics.get('micro_recall@k', metrics.get('macro_recall@k', metrics['recall@k'])):.4f} (micro)")
-        print(f"  NDCG@10    : {metrics.get('micro_ndcg@k',   metrics.get('macro_ndcg@k',   metrics['ndcg@k'])):.4f} (micro)")
-        print(f"  Recall@10  : {metrics.get('macro_recall@k', metrics['recall@k']):.4f} (macro)")
-        print(f"  NDCG@10    : {metrics.get('macro_ndcg@k',   metrics['ndcg@k']):.4f} (macro)")
-        print(f"  (evaluated on {metrics.get('n_anchors', metrics['n_users'])} anchors)")
+        print(f"  Recall@10  : {metrics['micro_recall@k']:.4f} (micro)")
+        print(f"  NDCG@10    : {metrics['micro_ndcg@k']:.4f} (micro)")
+        print(f"  Recall@10  : {metrics['macro_recall@k']:.4f} (macro)")
+        print(f"  NDCG@10    : {metrics['macro_ndcg@k']:.4f} (macro)")
+        print(f"  (evaluated on {metrics['n_anchors']} anchors)")
         per_task = metrics.get("per_task") or {}
         for task_name in sorted(per_task.keys()):
             task = per_task[task_name]
@@ -180,7 +182,7 @@ def main() -> None:
                 f"  {task_name:>12}  "
                 f"R@10={task['recall@k']:.4f}  "
                 f"N@10={task['ndcg@k']:.4f}  "
-                f"(n={task['n_users']})"
+                f"(n={task['n_anchors']})"
             )
 
     save_model(model)

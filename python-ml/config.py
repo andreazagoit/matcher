@@ -14,8 +14,8 @@ if os.path.exists(_env_path):
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/matcher")
 
 # ─── Model ─────────────────────────────────────────────────────────────────────
-EMBED_DIM = 256
-HIDDEN_DIM = 128
+EMBED_DIM  = 256
+HIDDEN_DIM = 256   # must be ≥ EMBED_DIM: encoder compresses → HGT operates → proj scales down
 LEARNING_RATE = 0.001
 EPOCHS = 50
 BATCH_SIZE = 256

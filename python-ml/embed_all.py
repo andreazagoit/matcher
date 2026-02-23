@@ -18,8 +18,7 @@ import argparse
 import os
 import sys
 import time
-from datetime import date, datetime
-from typing import Optional
+from datetime import date
 
 import psycopg2
 import psycopg2.extras
@@ -27,22 +26,13 @@ import psycopg2.extras
 from config import DATABASE_URL, MODEL_WEIGHTS_PATH, TRAINING_DATA_DIR
 from features import build_user_features, build_event_features, build_space_features
 from model import load_model, encode_all
+from utils import days_until
 
 
 # ─── DB helpers ────────────────────────────────────────────────────────────────
 
 def _connect():
     return psycopg2.connect(DATABASE_URL)
-
-
-def _days_until(starts_at) -> Optional[int]:
-    if not starts_at:
-        return None
-    try:
-        dt = starts_at if isinstance(starts_at, datetime) else datetime.fromisoformat(str(starts_at))
-        return (dt.date() - date.today()).days
-    except (ValueError, TypeError):
-        return None
 
 
 # ─── DB readers ────────────────────────────────────────────────────────────────
@@ -128,7 +118,7 @@ def read_events(cur) -> dict[str, tuple[str, list[float]]]:
                 starts_at=e[2].isoformat() if e[2] else None,
                 avg_attendee_age=avg_age,
                 attendee_count=attendee_count,
-                days_until_event=_days_until(e[2]),
+                days_until_event=days_until(e[2]),
                 max_attendees=int(e[3]) if e[3] else None,
                 is_paid=bool(e[4] and int(e[4]) > 0),
                 price_cents=int(e[4]) if e[4] else 0,

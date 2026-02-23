@@ -11,108 +11,21 @@ See config.py for exact layout documentation.
 """
 
 from __future__ import annotations
-import math
-from datetime import date, datetime
 from typing import Optional
+
 from config import (
     TAG_TO_IDX, NUM_TAGS,
     GENDER_TO_IDX, REL_INTENT_TO_IDX, SMOKING_TO_IDX, DRINKING_TO_IDX, ACTIVITY_TO_IDX,
     GENDER_VOCAB, REL_INTENT_VOCAB, SMOKING_VOCAB, DRINKING_VOCAB, ACTIVITY_VOCAB,
     USER_DIM, EVENT_DIM, SPACE_DIM,
-    AGE_MIN, AGE_MAX,
+)
+from utils import (
+    normalize_age, normalize_count, normalize_days, normalize_price_cents,
+    time_cyclical_features, calculate_age, days_until,
 )
 
 
-# ─── Helpers ───────────────────────────────────────────────────────────────────
-
-def normalize_age(age: Optional[float]) -> float:
-    if age is None:
-        return 0.5
-    return max(0.0, min(1.0, (age - AGE_MIN) / (AGE_MAX - AGE_MIN)))
-
-
-def normalize_count(count: int | None, scale: float = 1.0) -> float:
-    """Square-root normalization — reduces the impact of outliers."""
-    if not count:
-        return 0.0
-    return min(1.0, math.sqrt(count) / scale)
-
-
-def normalize_days(days: int | None, max_days: int = 365) -> float:
-    """
-    Maps days relative to today into [0, 1]:
-      -max_days (distant past) → 0.0
-       0        (today)        → 0.5
-      +max_days (far future)   → 1.0
-
-    Using a symmetric scale preserves temporal information for past events
-    (previously all negative values collapsed to 0.0).
-    """
-    if days is None:
-        return 0.5
-    return max(0.0, min(1.0, 0.5 + 0.5 * (days / max_days)))
-
-
-def normalize_price_cents(price_cents: int | None, max_price_cents: int = 50_000) -> float:
-    """
-    Log-normalized event price in [0, 1].
-    0 cents -> 0.0, 50000 cents or more -> 1.0.
-    """
-    if not price_cents or price_cents <= 0:
-        return 0.0
-    clipped = min(price_cents, max_price_cents)
-    return math.log1p(clipped) / math.log1p(max_price_cents)
-
-
-def _parse_datetime(value: Optional[str | datetime]) -> Optional[datetime]:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        # Accept both "YYYY-MM-DD HH:MM:SS" and ISO "YYYY-MM-DDTHH:MM:SS".
-        return datetime.fromisoformat(value.replace(" ", "T"))
-    except ValueError:
-        return None
-
-
-def _time_cyclical_features(starts_at: Optional[str | datetime]) -> list[float]:
-    """
-    Returns [hour_sin, hour_cos, dow_sin, dow_cos, is_weekend].
-    Uses neutral defaults when starts_at is missing/unparseable.
-    """
-    dt = _parse_datetime(starts_at)
-    if dt is None:
-        return [0.0, 1.0, 0.0, 1.0, 0.0]
-
-    hour = dt.hour + (dt.minute / 60.0)
-    dow = dt.weekday()  # 0=Mon ... 6=Sun
-
-    hour_angle = 2.0 * math.pi * (hour / 24.0)
-    dow_angle = 2.0 * math.pi * (dow / 7.0)
-
-    is_weekend = 1.0 if dow >= 5 else 0.0
-    return [
-        math.sin(hour_angle),
-        math.cos(hour_angle),
-        math.sin(dow_angle),
-        math.cos(dow_angle),
-        is_weekend,
-    ]
-
-
-def calculate_age(birthdate) -> float | None:
-    if birthdate is None:
-        return None
-    today = date.today()
-    if isinstance(birthdate, str):
-        from datetime import datetime
-        birthdate = datetime.strptime(birthdate, "%Y-%m-%d").date()
-    age = today.year - birthdate.year - (
-        (today.month, today.day) < (birthdate.month, birthdate.day)
-    )
-    return float(age)
-
+# ─── Vocabulary helpers ─────────────────────────────────────────────────────────
 
 def _onehot(vocab_to_idx: dict[str, int], vocab_size: int, value: Optional[str]) -> list[float]:
     v = [0.0] * vocab_size
@@ -133,14 +46,14 @@ def _multihot(vocab_to_idx: dict[str, int], vocab_size: int, values: list[str]) 
 
 def build_user_features(
     birthdate,
-    tag_weights: "dict[str, float]",
+    tag_weights: dict[str, float],
     gender: Optional[str] = None,
-    relationship_intent: "list[str] | None" = None,
+    relationship_intent: list[str] | None = None,
     smoking: Optional[str] = None,
     drinking: Optional[str] = None,
     activity_level: Optional[str] = None,
     interaction_count: int = 0,
-) -> "list[float]":
+) -> list[float]:
     """
     Builds a 60-dim user feature vector.
 
@@ -190,15 +103,15 @@ def build_user_features(
 # ─── Event ─────────────────────────────────────────────────────────────────────
 
 def build_event_features(
-    tags: "list[str]",
+    tags: list[str],
     avg_attendee_age: Optional[float],
     attendee_count: int = 0,
     days_until_event: Optional[int] = None,
-    starts_at: Optional[str | datetime] = None,
+    starts_at=None,
     max_attendees: Optional[int] = None,
     is_paid: bool = False,
     price_cents: Optional[int] = None,
-) -> "list[float]":
+) -> list[float]:
     """
     Builds a 51-dim event feature vector.
 
@@ -229,9 +142,7 @@ def build_event_features(
     count_vec = [normalize_count(attendee_count, scale=20.0)]
 
     if days_until_event is None:
-        dt = _parse_datetime(starts_at)
-        if dt is not None:
-            days_until_event = (dt.date() - date.today()).days
+        days_until_event = days_until(starts_at)
 
     # [42] days until event — negative=past, 0=today, 0.5≈6 months, 1=1 year+
     days_vec = [normalize_days(days_until_event)]
@@ -252,7 +163,7 @@ def build_event_features(
     price_vec = [normalize_price_cents(price_cents)]
 
     # [46:50] cyclical calendar/time + weekend
-    time_vec = _time_cyclical_features(starts_at)
+    time_vec = time_cyclical_features(starts_at)
 
     vec = tags_vec + age_vec + count_vec + days_vec + fill_vec + paid_vec + price_vec + time_vec
     assert len(vec) == EVENT_DIM, f"Expected {EVENT_DIM}, got {len(vec)}"
@@ -262,11 +173,11 @@ def build_event_features(
 # ─── Space ─────────────────────────────────────────────────────────────────────
 
 def build_space_features(
-    tags: "list[str]",
+    tags: list[str],
     avg_member_age: Optional[float],
     member_count: int = 0,
     event_count: int = 0,
-) -> "list[float]":
+) -> list[float]:
     """
     Builds a 43-dim space feature vector.
 
@@ -300,8 +211,8 @@ def build_space_features(
 # ─── Cold start: Jaccard-based tag similarity ──────────────────────────────────
 
 def jaccard_tag_similarity(
-    tag_weights_a: "dict[str, float]",
-    tags_b: "list[str]",
+    tag_weights_a: dict[str, float],
+    tags_b: list[str],
 ) -> float:
     """
     Weighted Jaccard between user tag weights and a flat tag list (event/space).

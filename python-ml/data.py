@@ -11,8 +11,8 @@ File format (see lib/db/scripts/export-ml-data.ts):
   training-data/spaces.json       — spaces + member/event stats
   training-data/interactions.json — positive pairs with recency weights
 
-Triplet format (6-tuple):
-  (anchor_type, anchor_vec, item_type, item_vec, label, weight)
+Triplet format (8-tuple):
+  (anchor_type, anchor_id, anchor_vec, item_type, item_id, item_vec, label, weight)
   - anchor_type/item_type: "user" | "event" | "space"
   - label: 1 = positive interaction, 0 = sampled negative
   - weight: recency-weighted interaction strength [0.05, 1.0] for positives,
@@ -24,7 +24,6 @@ import json
 import os
 import random
 from collections import defaultdict
-from datetime import date, datetime
 from typing import Optional
 
 from config import TRAINING_DATA_DIR, NEGATIVE_SAMPLES
@@ -33,6 +32,7 @@ from features import (
     build_event_features,
     build_space_features,
 )
+from utils import days_until
 
 
 # ─── JSON loaders ──────────────────────────────────────────────────────────────
@@ -47,17 +47,8 @@ def _read(data_dir: str, filename: str) -> list[dict]:
         return json.load(f)
 
 
+
 # ─── Feature builders from JSON records ────────────────────────────────────────
-
-def _days_until(starts_at: Optional[str]) -> Optional[int]:
-    if not starts_at:
-        return None
-    try:
-        dt = datetime.fromisoformat(starts_at)
-        return (dt.date() - date.today()).days
-    except ValueError:
-        return None
-
 
 def users_to_features(records: list[dict]) -> dict[str, list[float]]:
     result: dict[str, list[float]] = {}
@@ -82,7 +73,7 @@ def events_to_features(records: list[dict]) -> dict[str, list[float]]:
             tags=e.get("tags") or [],
             avg_attendee_age=e.get("avg_attendee_age"),
             attendee_count=int(e.get("attendee_count") or 0),
-            days_until_event=_days_until(e.get("starts_at")),
+            days_until_event=days_until(e.get("starts_at")),
             starts_at=e.get("starts_at"),
             max_attendees=e.get("max_attendees"),
             is_paid=bool(e.get("is_paid")),
@@ -378,7 +369,6 @@ def build_training_data(
 
     train_records: list[dict] = []
     val_pairs: list[tuple[str, str, str, str]] = []   # (anchor_type, anchor_id, item_type, item_id)
-    seen_train_by_anchor: dict[tuple[str, str], set[str]] = defaultdict(set)
 
     for anchor_key, records in by_anchor.items():
         if len(records) >= 3:
@@ -391,14 +381,34 @@ def build_training_data(
             train_recs = records
 
         train_records.extend(train_recs)
-        for r in train_recs:
-            seen_train_by_anchor[anchor_key].add(r["item_id"])
         val_pairs.extend(
             (r["anchor_type"], r["anchor_id"], r["item_type"], r["item_id"])
             for r in val_recs
         )
 
-    # ── Build 6-tuple triplets from train_records ─────────────────────────────
+    # ── Bidirectional leakage fix ─────────────────────────────────────────────
+    # After the per-anchor split, A→B may be in train while B→A is held out in
+    # val. Filter train_records now (before building triplets) so no positives
+    # or their random negatives are generated for leaked pairs.
+    # (positive_set already covers both directions, so negative sampling is safe.)
+    val_canonical: set[tuple] = set()
+    for atype, aid, itype, iid in val_pairs:
+        ep_a, ep_b = (atype, aid), (itype, iid)
+        val_canonical.add((min(ep_a, ep_b), max(ep_a, ep_b)))
+
+    train_records = [
+        r for r in train_records
+        if (
+            min((r["anchor_type"], r["anchor_id"]), (r["item_type"], r["item_id"])),
+            max((r["anchor_type"], r["anchor_id"]), (r["item_type"], r["item_id"])),
+        ) not in val_canonical
+    ]
+
+    seen_train_by_anchor: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for r in train_records:
+        seen_train_by_anchor[(r["anchor_type"], r["anchor_id"])].add(r["item_id"])
+
+    # ── Build 8-tuple triplets from train_records ─────────────────────────────
     train_triplets: list[tuple] = []
 
     for record in train_records:
@@ -437,30 +447,6 @@ def build_training_data(
                 continue
             train_triplets.append((anchor_type, anchor_id, anchor_vec, neg_type, neg_id, neg_vec, 0, 1.0))
             sampled += 1
-
-    # ── Bidirectional leakage fix ─────────────────────────────────────────────
-    # After the per-anchor split, edges A→B and B→A are in different buckets and
-    # may land in different splits: B→A in train while A→B is held out in val.
-    # The model then sees the reverse signal during training and the val metric
-    # is inflated. Fix: for every canonical pair that has any direction in val,
-    # remove the reverse direction from train_records before building triplets.
-    #
-    # We rebuild the triplet list so both directions are treated as one unit.
-    # (The positive_set already covers both directions, so negatives are safe.)
-    val_canonical: set[tuple] = set()
-    for atype, aid, itype, iid in val_pairs:
-        ep_a, ep_b = (atype, aid), (itype, iid)
-        val_canonical.add((min(ep_a, ep_b), max(ep_a, ep_b)))
-
-    # Re-filter: rebuild train_triplets without any triplet whose canonical pair
-    # is entirely held out in validation.
-    train_triplets = [
-        t for t in train_triplets
-        if (
-            min((t[0], t[1]), (t[3], t[4])),
-            max((t[0], t[1]), (t[3], t[4])),
-        ) not in val_canonical
-    ]
 
     random.shuffle(train_triplets)
 
