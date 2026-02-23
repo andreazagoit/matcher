@@ -1,7 +1,6 @@
 import { conversationTypeDefs } from "../models/conversations/typedefs";
 import { notificationTypeDefs } from "../models/notifications/typedefs";
 import { eventTypeDefs } from "../models/events/typedefs";
-import { interestTypeDefs } from "../models/interests/typedefs";
 import { matchTypeDefs } from "../models/matches/typedefs";
 import { memberTypeDefs } from "../models/members/typedefs";
 import { postTypeDefs } from "../models/posts/typedefs";
@@ -24,7 +23,6 @@ export const typeDefs = [
   baseTypeDefs,
   conversationTypeDefs,
   eventTypeDefs,
-  interestTypeDefs,
   matchTypeDefs,
   memberTypeDefs,
   postTypeDefs,

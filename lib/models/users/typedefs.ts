@@ -18,7 +18,7 @@ export const userTypeDefs = `#graphql
     locationUpdatedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
-    interests: [UserInterest!]!
+    tags: [String!]!
     userItems: [ProfileItem!]!
 
     # Orientation & identity
@@ -171,6 +171,12 @@ export const userTypeDefs = `#graphql
     users: [User!]!
     me: User
     checkUsername(username: String!): Boolean!
+    myTags: [String!]!
+    """
+    Tags recommended for the authenticated user based on embedding similarity.
+    Excludes tags the user already has. Requires ml:sync to have been run.
+    """
+    recommendedTags(limit: Int): [String!]!
   }
 
   extend type Mutation {
@@ -178,5 +184,6 @@ export const userTypeDefs = `#graphql
     updateUser(id: ID!, input: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
     updateLocation(lat: Float!, lon: Float!): User!
+    updateMyTags(tags: [String!]!): User!
   }
 `;

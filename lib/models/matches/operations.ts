@@ -14,11 +14,8 @@
 import { db } from "@/lib/db/drizzle";
 import { users, type User } from "@/lib/models/users/schema";
 import { embeddings } from "@/lib/models/embeddings/schema";
-import { userInterests } from "@/lib/models/interests/schema";
-import { members } from "@/lib/models/members/schema";
-import { eventAttendees } from "@/lib/models/events/schema";
 import { conversations } from "@/lib/models/conversations/schema";
-import { eq, ne, and, or, sql, inArray, notExists } from "drizzle-orm";
+import { eq, ne, and, or, sql, notExists, inArray } from "drizzle-orm";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -67,77 +64,16 @@ export async function findMatches(
   const myEmbeddingRow = await db.query.embeddings.findFirst({
     where: and(eq(embeddings.entityId, userId), eq(embeddings.entityType, "user")),
   });
-  const myBehaviorEmbedding = myEmbeddingRow?.embedding ?? null;
-
-  // Get current user's interest tags for overlap calculation
-  const myInterests = await db.query.userInterests.findMany({
-    where: eq(userInterests.userId, userId),
-  });
-  const myTags = myInterests.map((i) => i.tag);
-
-  // Get current user's spaces and events
-  const mySpaces = await db
-    .select({ spaceId: members.spaceId })
-    .from(members)
-    .where(and(eq(members.userId, userId), eq(members.status, "active")));
-  const mySpaceIds = mySpaces.map((s) => s.spaceId);
-
-  const myEvents = await db
-    .select({ eventId: eventAttendees.eventId })
-    .from(eventAttendees)
-    .where(
-      and(
-        eq(eventAttendees.userId, userId),
-        inArray(eventAttendees.status, ["going", "attended"]),
-      ),
-    );
-  const myEventIds = myEvents.map((e) => e.eventId);
-
-  // Weighted interest similarity via user_interests table.
-  // For each candidate: sum of min(myWeight, theirWeight) for shared tags,
-  // divided by sum of max(myWeight, theirWeight) for the union of tags.
-  // Falls back to 0 when either user has no interests.
-  const interestScoreSql =
-    myTags.length > 0
-      ? sql<number>`COALESCE((
-          SELECT SUM(LEAST(my.w, their.weight)) / NULLIF(
-            SUM(LEAST(my.w, their.weight)) +
-            (SELECT COALESCE(SUM(mi.weight), 0) FROM ${userInterests} mi WHERE mi.user_id = ${userId} AND mi.tag NOT IN (SELECT ui2.tag FROM ${userInterests} ui2 WHERE ui2.user_id = ${users.id})) +
-            (SELECT COALESCE(SUM(ui3.weight), 0) FROM ${userInterests} ui3 WHERE ui3.user_id = ${users.id} AND ui3.tag NOT IN (SELECT mi2.tag FROM ${userInterests} mi2 WHERE mi2.user_id = ${userId}))
-          , 0)
-          FROM ${userInterests} their
-          JOIN (VALUES ${sql.raw(myInterests.map((i) => `('${i.tag}'::text, ${i.weight}::real)`).join(","))}) AS my(tag, w)
-            ON their.tag = my.tag
-          WHERE their.user_id = ${users.id}
-        ), 0)`
-      : sql<number>`0`;
-
-  const sharedSpacesCountSql =
-    mySpaceIds.length > 0
-      ? sql<number>`(
-          SELECT count(*)::int
-          FROM ${members}
-          WHERE ${members.userId} = ${users.id}
-            AND ${inArray(members.spaceId, mySpaceIds)}
-            AND ${members.status} = 'active'
-        )`
-      : sql<number>`0`;
-
-  const sharedEventsCountSql =
-    myEventIds.length > 0
-      ? sql<number>`(
-          SELECT count(*)::int
-          FROM ${eventAttendees}
-          WHERE ${eventAttendees.userId} = ${users.id}
-            AND ${inArray(eventAttendees.eventId, myEventIds)}
-            AND ${eventAttendees.status} IN ('going', 'attended')
-        )`
-      : sql<number>`0`;
+  const myEmbedding = myEmbeddingRow?.embedding ?? null;
+  const myTags = currentUser.tags ?? [];
 
   const distanceSql = sql<number>`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
 
-  const embeddingStr = myBehaviorEmbedding ? `[${myBehaviorEmbedding.join(",")}]` : null;
-  const behaviorSimSql = embeddingStr
+  const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
+
+  // Score = cosine similarity of HGT embeddings (1 = identical, 0 = orthogonal)
+  const embeddingStr = myEmbedding ? `[${myEmbedding.join(",")}]` : null;
+  const finalScoreSql = embeddingStr
     ? sql<number>`COALESCE((
         SELECT 1 - (e.embedding <=> ${embeddingStr}::vector)
         FROM ${embeddings} e
@@ -145,35 +81,15 @@ export async function findMatches(
       ), 0)`
     : sql<number>`0`;
 
-  const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
-
-  const spaceScoreSql =
-    mySpaceIds.length > 0
-      ? sql<number>`${sharedSpacesCountSql}::float / ${Math.max(mySpaceIds.length, 1)}`
-      : sql<number>`0`;
-
-  const eventScoreSql =
-    myEventIds.length > 0
-      ? sql<number>`${sharedEventsCountSql}::float / ${Math.max(myEventIds.length, 1)}`
-      : sql<number>`0`;
-
-  const proximityScoreSql = sql<number>`CASE WHEN ${distanceSql} <= ${filters.maxDistance} THEN 1 - (${distanceSql} / ${filters.maxDistance}) ELSE 0 END`;
-
-  const finalScoreSql = sql<number>`(
-    0.35 * ${interestScoreSql} +
-    0.20 * ${spaceScoreSql} +
-    0.20 * ${eventScoreSql} +
-    0.15 * ${proximityScoreSql} +
-    0.10 * ${behaviorSimSql}
-  )`;
-
-  // Shared tags for display
+  // Shared tags for display (array intersection)
   const sharedTagsSql =
     myTags.length > 0
-      ? sql<string[]>`ARRAY(
-          SELECT ui.tag FROM ${userInterests} ui
-          WHERE ui.user_id = ${users.id}
-            AND ui.tag IN (${sql.join(myTags.map((tag) => sql`${tag}`), sql`, `)})
+      ? sql<string[]>`(
+          SELECT ARRAY(
+            SELECT UNNEST(${users.tags})
+            INTERSECT
+            SELECT UNNEST(${sql.raw(`ARRAY[${myTags.map((t) => `'${t}'`).join(",")}]::text[]`)})
+          )
         )`
       : sql<string[]>`'{}'::text[]`;
 

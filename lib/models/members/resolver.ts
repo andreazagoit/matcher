@@ -3,7 +3,6 @@ import { eq, and } from "drizzle-orm";
 import { members, type Member } from "./schema";
 import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { membershipTiers } from "@/lib/models/tiers/schema";
-import { boostInterestsFromTags, getUserInterests } from "@/lib/models/interests/operations";
 import { embedUser } from "@/lib/models/embeddings/operations";
 import { users } from "@/lib/models/users/schema";
 import { GraphQLError } from "graphql";
@@ -82,24 +81,20 @@ export const memberResolvers = {
                 });
             }
 
-            // Boost interests and regenerate embedding in background
-            if (space.tags?.length && status === "active") {
+            // Regenerate embedding in background after joining a space
+            if (status === "active") {
                 const userId = auth.user.id;
                 (async () => {
-                    await boostInterestsFromTags(userId, space.tags!, 0.1);
-                    const interests = await getUserInterests(userId);
                     const userData = await db.query.users.findFirst({ where: eq(users.id, userId) });
+                    if (!userData) return;
                     await embedUser(userId, {
-                        tags: interests.map((i) => ({ tag: i.tag, weight: i.weight })),
-                        birthdate: userData?.birthdate ?? null,
-                        gender: userData?.gender ?? null,
-                        relationshipIntent: userData?.relationshipIntent ?? null,
-                        jobTitle: userData?.jobTitle ?? null,
-                        educationLevel: userData?.educationLevel ?? null,
-                        smoking: userData?.smoking ?? null,
-                        drinking: userData?.drinking ?? null,
-                        activityLevel: userData?.activityLevel ?? null,
-                        religion: userData?.religion ?? null,
+                        tags: userData.tags ?? [],
+                        birthdate: userData.birthdate ?? null,
+                        gender: userData.gender ?? null,
+                        relationshipIntent: userData.relationshipIntent ?? null,
+                        smoking: userData.smoking ?? null,
+                        drinking: userData.drinking ?? null,
+                        activityLevel: userData.activityLevel ?? null,
                     });
                 })().catch(() => {});
             }

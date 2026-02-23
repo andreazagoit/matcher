@@ -20,7 +20,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/match
 EMBED_DIM  = 256
 HIDDEN_DIM = 256   # must be ≥ EMBED_DIM: encoder compresses → HGT operates → proj scales down
 LEARNING_RATE = 0.001
-EPOCHS = 50
+EPOCHS = 100
 BATCH_SIZE = 256
 NEGATIVE_SAMPLES = 5       # negatives per positive interaction
 DROPOUT = 0.2
@@ -44,6 +44,7 @@ TAG_VOCAB: list[str] = [
 
 TAG_TO_IDX: dict[str, int] = {tag: i for i, tag in enumerate(TAG_VOCAB)}
 NUM_TAGS = len(TAG_VOCAB)  # 40
+TAG_DIM  = NUM_TAGS        # tag node feature size (identity matrix)
 
 # ─── Profile enum vocabularies ────────────────────────────────────────────────
 # Must stay in sync with lib/models/users/schema.ts pgEnums
@@ -63,7 +64,7 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 # ─── Feature vector layouts ────────────────────────────────────────────────────
 #
 # User (USER_DIM = 60):
-#   [0:40]  tag weights            (NUM_TAGS)
+#   [0:40]  tags multi-hot         (NUM_TAGS)  — 1.0 if tag declared, else 0.0
 #   [40]    age norm               (1)
 #   [41:44] gender one-hot         (3)
 #   [44:48] rel_intent multi-hot   (4)
@@ -101,6 +102,32 @@ ENTITY_TYPE_TO_IDX: dict[str, int] = {e: i for i, e in enumerate(ENTITY_TYPES)}
 # Age normalization range
 AGE_MIN = 18.0
 AGE_MAX = 65.0
+
+# ─── Graph topology (HGTConv metadata) ────────────────────────────────────────
+NODE_TYPES: list[str] = ["user", "event", "space", "tag"]
+
+EDGE_TYPES: list[tuple[str, str, str]] = [
+    # behavioural edges
+    ("user",  "attends",                "event"),
+    ("event", "rev_attends",            "user"),
+    ("user",  "joins",                  "space"),
+    ("space", "rev_joins",              "user"),
+    ("event", "hosted_by",              "space"),
+    ("space", "rev_hosted_by",          "event"),
+    ("user",  "similar_to",             "user"),
+    # tag edges
+    ("user",  "likes",                  "tag"),
+    ("tag",   "rev_likes",              "user"),
+    ("event", "tagged_with",            "tag"),
+    ("tag",   "rev_tagged_with_event",  "event"),
+    ("space", "tagged_with_space",      "tag"),
+    ("tag",   "rev_tagged_with_space",  "space"),
+]
+
+METADATA: tuple = (NODE_TYPES, EDGE_TYPES)
+
+HGT_HEADS  = 4
+HGT_LAYERS = 2
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 MODEL_WEIGHTS_PATH  = os.path.join(_SERVICE_DIR, "model_weights.pt")

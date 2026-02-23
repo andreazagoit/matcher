@@ -13,8 +13,7 @@ import {
   sendMessage,
   getMessages,
 } from "./operations";
-import { boostInterestsFromTags } from "../interests/operations";
-import { getSharedInterestTags } from "../interests/operations";
+import { users } from "../users/schema";
 import type { Conversation } from "./schema";
 
 function requireAuth(context: GraphQLContext) {
@@ -108,20 +107,6 @@ export const conversationResolvers = {
       try {
         const updated = await respondToRequest(conversationId, user.id, accept);
 
-        // Boost shared interests when a request is accepted
-        if (accept) {
-          const otherId = updated.initiatorId;
-          getSharedInterestTags(user.id, otherId)
-            .then((sharedTags) => {
-              if (sharedTags.length > 0) {
-                Promise.all([
-                  boostInterestsFromTags(user.id, sharedTags, 0.05),
-                  boostInterestsFromTags(otherId, sharedTags, 0.05),
-                ]);
-              }
-            })
-            .catch(() => {});
-        }
 
         return updated;
       } catch (err) {

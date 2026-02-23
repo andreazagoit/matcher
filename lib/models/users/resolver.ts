@@ -11,13 +11,16 @@ import {
   updateUserLocation,
   isUsernameTaken,
 } from "./operations";
+import { users } from "./schema";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
 import type { GraphQLContext } from "@/lib/graphql/context";
-import { embedUser } from "@/lib/models/embeddings/operations";
-import { getUserInterests } from "@/lib/models/interests/operations";
-import type { UserInterest } from "@/lib/models/interests/schema";
+import { embedUser, recommendTagsForUser } from "@/lib/models/embeddings/operations";
+import { db } from "@/lib/db/drizzle";
+import { eq } from "drizzle-orm";
+import { isValidTag } from "@/lib/models/tags/data";
 import { getUserItems } from "@/lib/models/profileitems/operations";
 import type { ProfileItem } from "@/lib/models/profileitems/schema";
+import { GraphQLError } from "graphql";
 
 class AuthError extends Error {
   constructor(message: string, public code: string = "UNAUTHENTICATED") {
@@ -28,6 +31,28 @@ class AuthError extends Error {
 
 export const userResolvers = {
   Query: {
+    myTags: async (_: unknown, __: unknown, context: GraphQLContext) => {
+      if (!context.auth.user) return [];
+      const u = await db.query.users.findFirst({
+        where: eq(users.id, context.auth.user.id),
+        columns: { tags: true },
+      });
+      return u?.tags ?? [];
+    },
+
+    recommendedTags: async (
+      _: unknown,
+      { limit = 10 }: { limit?: number },
+      context: GraphQLContext,
+    ) => {
+      if (!context.auth.user) return [];
+      const u = await db.query.users.findFirst({
+        where: eq(users.id, context.auth.user.id),
+        columns: { tags: true },
+      });
+      return recommendTagsForUser(context.auth.user.id, u?.tags ?? [], limit);
+    },
+
     user: async (
       _: unknown,
       { username }: { username: string },
@@ -86,18 +111,14 @@ export const userResolvers = {
 
       // Regenerate embedding in background when profile data changes
       (async () => {
-        const interests = await getUserInterests(id);
         await embedUser(id, {
-          tags: interests.map((i) => ({ tag: i.tag, weight: i.weight })),
+          tags: updatedUser.tags ?? [],
           birthdate: updatedUser.birthdate ?? null,
           gender: updatedUser.gender ?? null,
           relationshipIntent: updatedUser.relationshipIntent ?? null,
-          jobTitle: updatedUser.jobTitle ?? null,
-          educationLevel: updatedUser.educationLevel ?? null,
           smoking: updatedUser.smoking ?? null,
           drinking: updatedUser.drinking ?? null,
           activityLevel: updatedUser.activityLevel ?? null,
-          religion: updatedUser.religion ?? null,
         });
       })().catch(() => {});
 
@@ -131,6 +152,42 @@ export const userResolvers = {
 
       return await updateUserLocation(context.auth.user.id, lat, lon);
     },
+
+    updateMyTags: async (
+      _: unknown,
+      { tags }: { tags: string[] },
+      context: GraphQLContext,
+    ) => {
+      if (!context.auth.user) {
+        throw new AuthError("Authentication required");
+      }
+
+      const invalidTags = tags.filter((t) => !isValidTag(t));
+      if (invalidTags.length > 0) {
+        throw new GraphQLError(`Invalid tags: ${invalidTags.join(", ")}`);
+      }
+
+      const [updated] = await db
+        .update(users)
+        .set({ tags, updatedAt: new Date() })
+        .where(eq(users.id, context.auth.user.id))
+        .returning();
+
+      if (!updated) throw new GraphQLError("User not found");
+
+      // Regenerate embedding in background
+      embedUser(context.auth.user.id, {
+        tags,
+        birthdate: updated.birthdate ?? null,
+        gender: updated.gender ?? null,
+        relationshipIntent: updated.relationshipIntent ?? null,
+        smoking: updated.smoking ?? null,
+        drinking: updated.drinking ?? null,
+        activityLevel: updated.activityLevel ?? null,
+      }).catch(() => {});
+
+      return updated;
+    },
   },
 
   User: {
@@ -138,9 +195,7 @@ export const userResolvers = {
       if (!parent.location) return null;
       return { lat: parent.location.y, lon: parent.location.x };
     },
-    interests: (parent: { id: string }): Promise<UserInterest[]> => {
-      return getUserInterests(parent.id);
-    },
+    tags: (parent: { tags?: string[] | null }) => parent.tags ?? [],
     userItems: (parent: { id: string }): Promise<ProfileItem[]> => {
       return getUserItems(parent.id);
     },

@@ -14,7 +14,7 @@ from __future__ import annotations
 N_USERS        = 10_000
 N_EVENTS       = 1_000
 N_SPACES       = 500
-N_INTERACTIONS = 100_000   # positive pairs (split ~70% event, 30% space)
+N_INTERACTIONS = 150_000   # positive pairs (split ~70% event, 30% space)
 # └─────────────────────────────────────────────────────────────────────────────
 
 import argparse
@@ -430,7 +430,8 @@ def gen_user(persona_idx: int) -> dict:
         "drinking":            wc(DRINKING,  p["drinking_w"])             if random.random() > 0.10 else None,
         "activity_level":      wc(p["activity_choices"], p["activity_w"]) if random.random() > 0.10 else None,
         "interaction_count":   0,
-        "tag_weights":         sample_user_tags(p),
+        "tag_weights":         (_tw := sample_user_tags(p)),  # internal only — used for interaction simulation
+        "tags":                list(_tw.keys()),               # exported to JSON (same sample)
     }
 
 
@@ -493,6 +494,33 @@ def compute_item_persona_affinity(tags: list[str]) -> list[float]:
     return [c / total for c in counts]
 
 
+def _per_user_counts(
+    n_users: int,
+    target_total: int,
+    event_ratio: float = 0.70,
+    min_per_user: int = 5,
+) -> list[tuple[int, int]]:
+    """
+    Sample per-user interaction counts from a lognormal distribution,
+    mirroring real app engagement (power-law: few power-users, many casual).
+
+    Returns [(n_events, n_spaces), ...] per user, scaled to target_total.
+    """
+    raw = [
+        max(min_per_user, round(random.lognormvariate(math.log(12), 0.85)))
+        for _ in range(n_users)
+    ]
+    scale = target_total / max(1, sum(raw))
+    counts = [max(min_per_user, round(c * scale)) for c in raw]
+
+    result = []
+    for n in counts:
+        n_ev = max(1, round(n * event_ratio))
+        n_sp = max(1, n - n_ev)
+        result.append((n_ev, n_sp))
+    return result
+
+
 def assign_interactions(
     users:          list[dict],
     events:         list[dict],
@@ -506,11 +534,11 @@ def assign_interactions(
     1. PERSONA COHERENCE: users sample events/spaces primarily from their
        persona's pool (items with high affinity for their cluster).
     2. POPULARITY BOOST: high-popularity items have higher base probability.
-    3. SERENDIPITY: 15% of each user's interactions are cross-persona (exploration).
+    3. SERENDIPITY: 8% of each user's interactions are cross-persona (exploration).
+    4. POWER-LAW engagement: per-user counts follow a lognormal distribution.
     """
-    n_users = len(users)
-    n_ev    = max(1, round(n_interactions * 0.70 / n_users))
-    n_sp    = max(1, round(n_interactions * 0.30 / n_users))
+    n_users     = len(users)
+    user_counts = _per_user_counts(n_users, n_interactions)
 
     for e in events:
         e["_affinity"] = compute_item_persona_affinity(e["tags"])
@@ -594,16 +622,17 @@ def assign_interactions(
             return True
         return False
 
-    for user in users:
+    for user, (n_ev, n_sp) in zip(users, user_counts):
         user_id = user["id"]
         p_idx   = user["persona_idx"]
 
         # ── Events ──────────────────────────────────────────────────────────
-        pool  = persona_event_pools[p_idx]
-        top   = pool[: max(1, len(pool) // 3)]
-        rest  = pool[len(pool) // 3 :]
+        pool = persona_event_pools[p_idx]
+        # 92% from persona-aligned top-third, 8% serendipity
+        top  = pool[: max(1, len(pool) // 3)]
+        rest = pool[len(pool) // 3 :]
 
-        n_top  = max(0, round(n_ev * 0.85))
+        n_top  = max(0, round(n_ev * 0.92))
         n_rest = n_ev - n_top
         sampled_ev  = random.sample(top,  min(n_top,  len(top)))
         sampled_ev += random.sample(rest, min(n_rest, len(rest)))
@@ -616,11 +645,11 @@ def assign_interactions(
                 user_event_cnt[user_id] += 1
 
         # ── Spaces ──────────────────────────────────────────────────────────
-        pool  = persona_space_pools[p_idx]
-        top   = pool[: max(1, len(pool) // 3)]
-        rest  = pool[len(pool) // 3 :]
+        pool = persona_space_pools[p_idx]
+        top  = pool[: max(1, len(pool) // 3)]
+        rest = pool[len(pool) // 3 :]
 
-        n_top  = max(0, round(n_sp * 0.85))
+        n_top  = max(0, round(n_sp * 0.92))
         n_rest = n_sp - n_top
         sampled_sp  = random.sample(top,  min(n_top,  len(top)))
         sampled_sp += random.sample(rest, min(n_rest, len(rest)))
@@ -649,7 +678,8 @@ def assign_interactions(
 # ─── Strip internal fields before writing ──────────────────────────────────────
 
 def _clean_user(u: dict) -> dict:
-    return {k: v for k, v in u.items() if k not in ("persona", "persona_idx")}
+    # Remove internal-only fields; tag_weights is internal, tags is the exported field
+    return {k: v for k, v in u.items() if k not in ("persona", "persona_idx", "tag_weights")}
 
 def _clean_event(e: dict) -> dict:
     return {k: v for k, v in e.items() if k not in ("preferred_cluster", "popularity", "_affinity")}

@@ -2,7 +2,7 @@
  * Exports all data needed for ML training to JSON files.
  *
  * Output directory: python-ml/training-data/
- *   users.json        — user profiles + tag weights + stats
+ *   users.json        — user profiles + tags + stats
  *   events.json       — events + real attendance stats
  *   spaces.json       — spaces + member/event stats
  *   interactions.json — positive interaction pairs
@@ -36,6 +36,7 @@ async function exportUsers() {
       u.smoking,
       u.drinking,
       u.activity_level,
+      u.tags,
       (COUNT(DISTINCT ea.event_id) + COUNT(DISTINCT m.space_id))::int AS interaction_count
     FROM users u
     LEFT JOIN event_attendees ea
@@ -43,19 +44,8 @@ async function exportUsers() {
     LEFT JOIN members m
            ON m.user_id = u.id AND m.status = 'active'
     GROUP BY u.id, u.birthdate, u.gender, u.relationship_intent,
-             u.smoking, u.drinking, u.activity_level
+             u.smoking, u.drinking, u.activity_level, u.tags
   `;
-
-  const interests = await client`
-    SELECT user_id::text, tag, weight::float FROM user_interests
-  `;
-
-  // Group interests by user
-  const tagsByUser: Record<string, Record<string, number>> = {};
-  for (const row of interests) {
-    tagsByUser[row.user_id] ??= {};
-    tagsByUser[row.user_id][row.tag] = row.weight;
-  }
 
   return rows.map((u) => ({
     id:                   u.id,
@@ -66,7 +56,7 @@ async function exportUsers() {
     drinking:             u.drinking ?? null,
     activity_level:       u.activity_level ?? null,
     interaction_count:    Number(u.interaction_count),
-    tag_weights:          tagsByUser[u.id] ?? {},
+    tags:                 u.tags ?? [],
   }));
 }
 

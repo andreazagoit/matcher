@@ -4,8 +4,10 @@
 
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
-import { getUserInterests } from "@/lib/models/interests/operations";
 import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
+import { db } from "@/lib/db/drizzle";
+import { users } from "@/lib/models/users/schema";
+import { eq } from "drizzle-orm";
 import { getUserItems } from "@/lib/models/profileitems/operations";
 import { findMatches } from "./operations";
 import type { Gender } from "@/lib/graphql/__generated__/graphql";
@@ -53,13 +55,13 @@ export const matchResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const [interests, embeddingRow] = await Promise.all([
-        getUserInterests(user.id),
+      const [userRow, embeddingRow] = await Promise.all([
+        db.query.users.findFirst({ where: eq(users.id, user.id), columns: { tags: true } }),
         getStoredEmbedding(user.id, "user"),
       ]);
 
       return {
-        hasProfile: interests.length > 0 || embeddingRow !== null,
+        hasProfile: (userRow?.tags?.length ?? 0) > 0 || embeddingRow !== null,
         updatedAt: null,
       };
     },

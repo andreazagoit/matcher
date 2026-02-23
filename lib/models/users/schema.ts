@@ -105,6 +105,11 @@ export const users = pgTable(
     activityLevel: activityLevelEnum("activity_level"),
 
     // ==========================================
+    // PROFILE — INTERESTS
+    // ==========================================
+    tags: text("tags").array().default(sql`'{}'::text[]`).notNull(),
+
+    // ==========================================
     // PROFILE — IDENTITY & BACKGROUND
     // ==========================================
     jobTitle: text("job_title"),

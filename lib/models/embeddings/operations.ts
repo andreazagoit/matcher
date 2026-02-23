@@ -10,7 +10,7 @@
 
 import { db } from "@/lib/db/drizzle";
 import { embeddings } from "./schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 const ML_SERVICE_URL =
   process.env.ML_SERVICE_URL ?? "http://localhost:8000";
@@ -18,7 +18,7 @@ const ML_SERVICE_URL =
 // ─── Input types ───────────────────────────────────────────────────────────────
 
 export interface UserEmbedInput {
-  tags: { tag: string; weight: number }[];
+  tags: string[];
   birthdate?: string | null;
   gender?: string | null;
   relationshipIntent?: string[] | null;
@@ -26,10 +26,6 @@ export interface UserEmbedInput {
   drinking?: string | null;
   activityLevel?: string | null;
   interactionCount?: number;
-  // kept for forward compatibility; not used by the current model
-  jobTitle?: string | null;
-  educationLevel?: string | null;
-  religion?: string | null;
 }
 
 export interface EventEmbedInput {
@@ -104,13 +100,8 @@ export async function embedUser(
   entityId: string,
   data: UserEmbedInput,
 ): Promise<void> {
-  const tagWeights: Record<string, number> = {};
-  for (const { tag, weight } of data.tags) {
-    tagWeights[tag] = weight;
-  }
-
   const embedding = await callMlEmbed("user", {
-    tag_weights:          tagWeights,
+    tags:                 data.tags,
     birthdate:            data.birthdate ?? null,
     gender:               data.gender ?? null,
     relationship_intent:  data.relationshipIntent ?? [],
@@ -182,4 +173,41 @@ export async function getStoredEmbedding(
     ),
   });
   return row?.embedding ?? null;
+}
+
+/**
+ * Recommend tags for a user using cosine similarity in the shared embedding space.
+ *
+ * Finds the user's embedding, then returns the tag names whose embeddings are
+ * closest to it — ordered by similarity descending, excluding tags the user
+ * already has.
+ */
+export async function recommendTagsForUser(
+  userId: string,
+  existingTags: string[] = [],
+  limit = 10,
+): Promise<string[]> {
+  const userRow = await db.query.embeddings.findFirst({
+    where: and(
+      eq(embeddings.entityId, userId),
+      eq(embeddings.entityType, "user"),
+    ),
+  });
+
+  if (!userRow) return [];
+
+  const vectorLiteral = `[${userRow.embedding.join(",")}]`;
+
+  const rows = await db.execute<{ entity_id: string }>(sql`
+    SELECT entity_id
+    FROM   embeddings
+    WHERE  entity_type = 'tag'
+    ORDER BY embedding <=> ${sql.raw(`'${vectorLiteral}'::vector`)}
+    LIMIT  ${sql.raw(String(limit + existingTags.length))}
+  `);
+
+  return rows
+    .map((r) => r.entity_id)
+    .filter((tag) => !existingTags.includes(tag))
+    .slice(0, limit);
 }

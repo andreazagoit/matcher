@@ -23,12 +23,9 @@ import {
 import { events, eventAttendees } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
 import { getUserById } from "@/lib/models/users/operations";
-import { generateEmbedding, computeCentroid } from "@/lib/embeddings";
-import { boostInterestsFromTags } from "@/lib/models/interests/operations";
-import { getUserInterestTags } from "@/lib/models/interests/operations";
 import { db } from "@/lib/db/drizzle";
-import { embeddings } from "@/lib/models/embeddings/schema";
-import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
+import { getStoredEmbedding, embedEvent } from "@/lib/models/embeddings/operations";
+import { users } from "@/lib/models/users/schema";
 import { eq, sql, gte, and, inArray } from "drizzle-orm";
 
 function requireAuth(context: GraphQLContext) {
@@ -121,7 +118,8 @@ export const eventResolvers = {
         });
       }
 
-      const userTags = await getUserInterestTags(userId);
+      const userRow = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { tags: true } });
+      const userTags = userRow?.tags ?? [];
       const userEmbedding = await getStoredEmbedding(userId, "user");
 
       // Strategy 1: OpenAI behavioral embedding
@@ -214,13 +212,13 @@ export const eventResolvers = {
         createdBy: user.id,
       });
 
-      // Generate OpenAI embedding in background (non-blocking)
-      const embText = [event.title, event.description, event.tags?.length ? `Tags: ${event.tags.join(", ")}` : ""].filter(Boolean).join("\n");
-      if (embText.trim()) {
-        generateEmbedding(embText)
-          .then((embedding) => db.update(events).set({ embedding }).where(eq(events.id, event.id)))
-          .catch(() => {});
-      }
+      // Generate ML embedding in background (non-blocking)
+      embedEvent(event.id, {
+        tags: event.tags ?? [],
+        startsAt: event.startsAt?.toISOString() ?? null,
+        isPaid: (event.price ?? 0) > 0,
+        priceCents: event.price ?? null,
+      }).catch(() => {});
 
       return event;
     },
@@ -312,33 +310,6 @@ export const eventResolvers = {
       }
 
       const result = await respondToEvent(eventId, user.id, status);
-
-      // Boost interests from event tags in background
-      if (status === "going" || status === "attended") {
-        if (event.tags?.length) {
-          boostInterestsFromTags(user.id, event.tags, 0.1).catch(() => {});
-        }
-      }
-
-      // Recompute OpenAI behavioral centroid in background
-      (async () => {
-        const attended = await db
-          .select({ eventId: eventAttendees.eventId })
-          .from(eventAttendees)
-          .where(and(eq(eventAttendees.userId, user.id), inArray(eventAttendees.status, ["going", "attended"])));
-        if (attended.length === 0) return;
-        const eventRows = await db.select({ embedding: events.embedding }).from(events).where(inArray(events.id, attended.map((a) => a.eventId)));
-        const validEmbeddings = eventRows.map((r) => r.embedding).filter((e): e is number[] => e !== null && e.length > 0);
-        if (validEmbeddings.length === 0) return;
-        const centroid = computeCentroid(validEmbeddings);
-        await db
-          .insert(embeddings)
-          .values({ entityId: user.id, entityType: "user", embedding: centroid })
-          .onConflictDoUpdate({
-            target: [embeddings.entityId, embeddings.entityType],
-            set: { embedding: centroid, updatedAt: new Date() },
-          });
-      })().catch(() => {});
 
       return result;
     },

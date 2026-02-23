@@ -16,9 +16,6 @@ export * from "../models/posts/schema";
 // 5. Events
 export * from "../models/events/schema";
 
-// 6. Interests
-export * from "../models/interests/schema";
-
 // 7. Chat System
 export * from "../models/conversations/schema";
 export * from "../models/messages/schema";

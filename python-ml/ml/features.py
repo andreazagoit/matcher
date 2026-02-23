@@ -46,7 +46,7 @@ def _multihot(vocab_to_idx: dict[str, int], vocab_size: int, values: list[str]) 
 
 def build_user_features(
     birthdate,
-    tag_weights: dict[str, float],
+    tags: list[str],
     gender: Optional[str] = None,
     relationship_intent: list[str] | None = None,
     smoking: Optional[str] = None,
@@ -59,7 +59,7 @@ def build_user_features(
 
     Args:
         birthdate:            users.birthdate (date, str "YYYY-MM-DD", or None)
-        tag_weights:          {tag: weight} from user_interests  (0.0–1.0)
+        tags:                 users.tags (list of declared tag strings)
         gender:               users.gender enum value or None
         relationship_intent:  users.relationship_intent array or None
         smoking:              users.smoking enum value or None
@@ -67,12 +67,12 @@ def build_user_features(
         activity_level:       users.activity_level enum value or None
         interaction_count:    events attended + spaces joined
     """
-    # [0:40] tag weights
+    # [0:40] tags multi-hot
     tags_vec = [0.0] * NUM_TAGS
-    for tag, weight in tag_weights.items():
+    for tag in (tags or []):
         idx = TAG_TO_IDX.get(tag)
         if idx is not None:
-            tags_vec[idx] = float(weight)
+            tags_vec[idx] = 1.0
 
     # [40] age
     age_vec = [normalize_age(calculate_age(birthdate))]
@@ -210,17 +210,12 @@ def build_space_features(
 
 # ─── Cold start: Jaccard-based tag similarity ──────────────────────────────────
 
-def jaccard_tag_similarity(
-    tag_weights_a: dict[str, float],
-    tags_b: list[str],
-) -> float:
+def jaccard_tag_similarity(tags_a: list[str], tags_b: list[str]) -> float:
     """
-    Weighted Jaccard between user tag weights and a flat tag list (event/space).
+    Jaccard similarity between two tag lists.
     Used as fallback when ML model is not trained yet.
     """
-    if not tag_weights_a or not tags_b:
+    if not tags_a or not tags_b:
         return 0.0
-    set_b = set(tags_b)
-    intersection = sum(w for tag, w in tag_weights_a.items() if tag in set_b)
-    union = sum(tag_weights_a.values()) + len(set_b - set(tag_weights_a.keys()))
-    return intersection / union if union > 0 else 0.0
+    set_a, set_b = set(tags_a), set(tags_b)
+    return len(set_a & set_b) / len(set_a | set_b)

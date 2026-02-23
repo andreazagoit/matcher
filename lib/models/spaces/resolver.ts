@@ -3,7 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
-import { getUserInterestTags } from "@/lib/models/interests/operations";
+import { users } from "@/lib/models/users/schema";
 import { createSpace, updateSpace, deleteSpace, getSpacesByTags } from "./operations";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
@@ -56,10 +56,11 @@ export const spaceResolvers = {
             if (!auth.user) throw new GraphQLError("Unauthorized");
             const maxResults = limit ?? 10;
 
-            const [userEmbedding, userTags] = await Promise.all([
+            const [userEmbedding, userRow] = await Promise.all([
                 getStoredEmbedding(auth.user.id, "user"),
-                getUserInterestTags(auth.user.id),
+                db.query.users.findFirst({ where: eq(users.id, auth.user.id), columns: { tags: true } }),
             ]);
+            const userTags = userRow?.tags ?? [];
 
             // Exclude spaces user is already a member of
             const myMemberships = await db

@@ -1,7 +1,6 @@
 import { conversationResolvers } from "../models/conversations/resolver";
 import { notificationResolvers } from "../models/notifications/resolver";
 import { eventResolvers } from "../models/events/resolver";
-import { interestResolvers } from "../models/interests/resolver";
 import { matchResolvers } from "../models/matches/resolver";
 import { memberResolvers } from "../models/members/resolver";
 import { postResolvers } from "../models/posts/resolver";
@@ -19,7 +18,6 @@ export const resolvers = {
   Query: {
     ...conversationResolvers.Query,
     ...eventResolvers.Query,
-    ...interestResolvers.Query,
     ...matchResolvers.Query,
     ...postResolvers.Query,
     ...userItemResolvers.Query,
@@ -32,7 +30,6 @@ export const resolvers = {
   Mutation: {
     ...conversationResolvers.Mutation,
     ...eventResolvers.Mutation,
-    ...interestResolvers.Mutation,
     ...memberResolvers.Mutation,
     ...postResolvers.Mutation,
     ...userItemResolvers.Mutation,

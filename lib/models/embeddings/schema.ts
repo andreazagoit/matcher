@@ -9,23 +9,26 @@ import {
 import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
 
 /**
- * Embeddings — 64-dim vectors for cross-entity recommendations.
+ * Embeddings — 256-dim vectors for cross-entity recommendations.
  *
- * Stores a comparable embedding for every entity (user, event, space)
+ * Stores a comparable embedding for every entity (user, event, space, tag)
  * in a shared vector space. All entity types can be compared with each other
  * via cosine similarity using pgvector (HNSW index for ANN search).
+ *
+ * entityId is text (not uuid) to support tag entities, which use their
+ * string name (e.g. "music", "travel") as identifier rather than a UUID.
  */
 
-export const EMBEDDING_DIMENSIONS = 256; // HGT-lite ML model (256-dim behavioural embeddings)
+export const EMBEDDING_DIMENSIONS = 256;
 
-export const entityTypeEnum = ["user", "event", "space"] as const;
+export const entityTypeEnum = ["user", "event", "space", "tag"] as const;
 
 export const embeddings = pgTable(
   "embeddings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    entityId: uuid("entity_id").notNull(),
+    entityId: text("entity_id").notNull(),
 
     entityType: text("entity_type", { enum: entityTypeEnum }).notNull(),
 
