@@ -28,13 +28,8 @@ function getAge(birthdate: string): number {
     return age;
 }
 
-type ProfileItemData = {
-    id: string;
-    type: string;
-    promptKey?: string | null;
-    content: string;
-    displayOrder: number;
-};
+type UserData = NonNullable<GetUserQuery["user"]>;
+type UserItemData = UserData["userItems"][number];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -113,7 +108,7 @@ export default async function UserProfilePage({
     const age = user.birthdate ? getAge(user.birthdate) : null;
     const initials = (user.name ?? "").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
-    const profileItems = ((user as unknown as { profileItems?: ProfileItemData[] }).profileItems ?? [])
+    const profileItems: UserItemData[] = user.userItems
         .slice()
         .sort((a, b) => a.displayOrder - b.displayOrder);
 

@@ -25,11 +25,11 @@ import { eq, ne, and, or, sql, inArray, notExists } from "drizzle-orm";
 export interface MatchResult {
   user: {
     id: string;
-    username: string | null;
+    username: string;
     name: string;
     image: string | null;
     gender: string | null;
-    birthdate: string | null;
+    birthdate: string;
   };
   score: number;
   distanceKm: number | null;
@@ -217,6 +217,9 @@ export async function findMatches(
         ),
         // Candidates must have a location set
         sql`${users.location} IS NOT NULL`,
+        // Required by MatchUser GraphQL type
+        sql`${users.username} IS NOT NULL`,
+        sql`${users.birthdate} IS NOT NULL`,
         // Must be within maxDistance radius
         sql`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`,
         filters.gender?.length
@@ -241,6 +244,11 @@ export async function findMatches(
 
   return results.map((c) => ({
     ...c,
+    user: {
+      ...c.user,
+      username: c.user.username ?? "",
+      birthdate: c.user.birthdate ?? "",
+    },
     sharedSpaceIds: [],
     sharedEventIds: [],
   }));

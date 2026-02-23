@@ -7,37 +7,10 @@ import { UserCard } from "@/components/user-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowRightIcon, UsersIcon } from "lucide-react";
+import type { GetFindMatchesQuery, GetFindMatchesQueryVariables } from "@/lib/graphql/__generated__/graphql";
 
 const UNLIMITED_RADIUS_KM = 1_000_000;
 const PAGE_SIZE = 12;
-
-interface MatchUser {
-  id: string;
-  username: string | null;
-  name: string;
-  image: string | null;
-  gender: string | null;
-  birthdate: string | null;
-}
-
-interface Match {
-  user: MatchUser;
-  score: number;
-  distanceKm: number | null;
-  sharedTags: string[];
-  sharedSpaceIds: string[];
-  sharedEventIds: string[];
-}
-
-interface FindMatchesQuery {
-  findMatches: Match[];
-}
-
-interface FindMatchesVariables {
-  maxDistance: number;
-  limit: number;
-  offset: number;
-}
 
 function parsePage(value: string | undefined): number {
   const parsed = Number(value ?? "1");
@@ -55,14 +28,14 @@ export default async function UsersPage({
   const offset = (page - 1) * PAGE_SIZE;
   await cookies();
 
-  const response = await query<FindMatchesQuery, FindMatchesVariables>({
+  const response = await query<GetFindMatchesQuery, GetFindMatchesQueryVariables>({
     query: GET_FIND_MATCHES,
     variables: {
       maxDistance: UNLIMITED_RADIUS_KM,
       limit: PAGE_SIZE + 1, // fetch one extra to detect next page
       offset,
     },
-  }).catch(() => ({ data: { findMatches: [] as Match[] } }));
+  }).catch(() => ({ data: { findMatches: [] as GetFindMatchesQuery["findMatches"] } }));
 
   const allMatches = response.data?.findMatches ?? [];
   const hasNextPage = allMatches.length > PAGE_SIZE;

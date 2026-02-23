@@ -19,7 +19,7 @@ export const userTypeDefs = `#graphql
     createdAt: DateTime!
     updatedAt: DateTime!
     interests: [UserInterest!]!
-    profileItems: [ProfileItem!]!
+    userItems: [ProfileItem!]!
 
     # Orientation & identity
     sexualOrientation: [String!]!

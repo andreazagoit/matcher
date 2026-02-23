@@ -211,12 +211,13 @@ export type Match = {
 
 export type MatchUser = {
   __typename: 'MatchUser';
-  birthdate: Maybe<Scalars['String']['output']>;
+  birthdate: Scalars['String']['output'];
   gender: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
-  username: Maybe<Scalars['String']['output']>;
+  userItems: Array<ProfileItem>;
+  username: Scalars['String']['output'];
 };
 
 export type Member = {
@@ -823,7 +824,6 @@ export type User = {
   location: Maybe<Location>;
   locationUpdatedAt: Maybe<Scalars['DateTime']['output']>;
   name: Scalars['String']['output'];
-  profileItems: Array<ProfileItem>;
   relationshipIntent: Array<Scalars['String']['output']>;
   relationshipStyle: Maybe<RelationshipStyle>;
   religion: Maybe<Religion>;
@@ -831,6 +831,7 @@ export type User = {
   sexualOrientation: Array<Scalars['String']['output']>;
   smoking: Maybe<Smoking>;
   updatedAt: Scalars['DateTime']['output'];
+  userItems: Array<ProfileItem>;
   username: Maybe<Scalars['String']['output']>;
   wantsChildren: Maybe<WantsChildren>;
 };
@@ -978,7 +979,7 @@ export type GetFindMatchesQueryVariables = Exact<{
 }>;
 
 
-export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string | null, name: string, image: string | null, gender: string | null, birthdate: string | null } }> };
+export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string, name: string, image: string | null, gender: string | null, birthdate: string, userItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, content: string, displayOrder: number }> } }> };
 
 export type GetProfileStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1210,7 +1211,7 @@ export type GetUserQueryVariables = Exact<{
 }>;
 
 
-export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, profileItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
+export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, userItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
 
 export type GetUserWithCardsQueryVariables = Exact<{
   username: Scalars['String']['input'];
@@ -1233,3 +1234,11 @@ export type UpdateUserMutationVariables = Exact<{
 
 
 export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
+
+export type UpdateLocationMutationVariables = Exact<{
+  lat: Scalars['Float']['input'];
+  lon: Scalars['Float']['input'];
+}>;
+
+
+export type UpdateLocationMutation = { updateLocation: { __typename: 'User', id: string, locationUpdatedAt: unknown | null, location: { __typename: 'Location', lat: number, lon: number } | null } };

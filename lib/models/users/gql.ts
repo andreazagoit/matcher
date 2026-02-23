@@ -55,7 +55,7 @@ export const GET_USER = gql`
         tag
         weight
       }
-      profileItems {
+      userItems {
         id
         type
         promptKey

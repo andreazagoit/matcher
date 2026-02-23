@@ -10,6 +10,12 @@ export const GET_FIND_MATCHES = gql`
         image
         gender
         birthdate
+        userItems {
+          id
+          type
+          content
+          displayOrder
+        }
       }
       score
       distanceKm

@@ -10,30 +10,13 @@ import { LocationSelector } from "@/components/location-selector";
 import { ItemCarousel } from "@/components/item-carousel";
 import type {
     GetAllSpacesQuery,
+    GetFindMatchesQuery,
+    GetFindMatchesQueryVariables,
     GetRecommendedSpacesQuery,
     GetRecommendedSpacesQueryVariables,
 } from "@/lib/graphql/__generated__/graphql";
 
 const DEFAULT_RADIUS = 50;
-
-interface MatchUser {
-    id: string;
-    name: string;
-    image: string | null;
-    gender: string | null;
-    birthdate: string;
-}
-
-interface Match {
-    user: MatchUser;
-    score: number;
-    distanceKm: number | null;
-    sharedTags: string[];
-}
-
-interface FindMatchesQuery {
-    findMatches: Match[];
-}
 
 export default async function DiscoverPage() {
     const cookieStore = await cookies();
@@ -45,10 +28,10 @@ export default async function DiscoverPage() {
             query: GET_RECOMMENDED_SPACES,
             variables: { limit: 6 },
         }).catch(() => ({ data: { recommendedSpaces: [] } })),
-        query<FindMatchesQuery>({
+        query<GetFindMatchesQuery, GetFindMatchesQueryVariables>({
             query: GET_FIND_MATCHES,
             variables: { maxDistance: radius },
-        }).catch(() => ({ data: { findMatches: [] } })),
+        }).catch(() => ({ data: { findMatches: [] as GetFindMatchesQuery["findMatches"] } })),
     ]);
 
     const allSpaces = spacesRes.data?.spaces ?? [];

@@ -15,11 +15,12 @@ export const matchTypeDefs = `#graphql
 
   type MatchUser {
     id: ID!
-    username: String
+    username: String!
     name: String!
     image: String
     gender: String
-    birthdate: String
+    birthdate: String!
+    userItems: [ProfileItem!]!
   }
 
   type ProfileStatus {

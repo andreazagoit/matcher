@@ -141,7 +141,7 @@ export const userResolvers = {
     interests: (parent: { id: string }): Promise<UserInterest[]> => {
       return getUserInterests(parent.id);
     },
-    profileItems: (parent: { id: string }): Promise<ProfileItem[]> => {
+    userItems: (parent: { id: string }): Promise<ProfileItem[]> => {
       return getProfileItems(parent.id);
     },
   },
