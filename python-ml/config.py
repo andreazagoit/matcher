@@ -87,8 +87,8 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 #   [42]    event count norm       (1) — events in this space
 
 USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1  # 60
-EVENT_DIM = NUM_TAGS + 11  # 51
-SPACE_DIM = NUM_TAGS + 3   # 43
+EVENT_DIM = NUM_TAGS + 1 + 1 + 1 + 1 + 1 + 1 + 5  # tags + age + count + days + fill + paid + price + time(5) = 51
+SPACE_DIM = NUM_TAGS + 1 + 1 + 1                    # tags + age + member_count + event_count = 43
 
 # Entity types
 ENTITY_TYPES = ["user", "event", "space"]

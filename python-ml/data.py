@@ -168,11 +168,25 @@ def _build_same_type_tag_edges(
     entity_type: str,
     min_jaccard: float,
     top_k_per_entity: int,
+    max_entities: int = 5_000,
 ) -> list[dict]:
     """
     Build same-type edges (event↔event, space↔space) from tag overlap.
+
+    Complexity: O(n²) in the number of entities.  ``max_entities`` caps the
+    input to keep build time reasonable on large datasets; entities are sampled
+    randomly when the cap is exceeded.
     """
     ids = [r["id"] for r in records if r.get("id")]
+    if len(ids) > max_entities:
+        import warnings
+        warnings.warn(
+            f"_build_same_type_tag_edges: {len(ids)} {entity_type} entities exceed "
+            f"max_entities={max_entities}. Sampling {max_entities} randomly.",
+            stacklevel=2,
+        )
+        ids = random.sample(ids, max_entities)
+
     tags_by_id = {
         r["id"]: set(r.get("tags") or [])
         for r in records
@@ -225,7 +239,7 @@ def build_training_data(
         val_data:        dict for evaluation — {anchor_features, item_features, val_pairs}
         user_features:   {user_id: vec}  — needed for hard neg mining
         item_features:   {item_id: (type, vec)}  — ALL corpus items
-        positive_set:    set of (anchor_type, anchor_id, item_id)  — for negative sampling exclusion
+        positive_set:    set of (anchor_type, anchor_id, item_type, item_id)  — for negative sampling exclusion
 
     Val split:
         Anchors with ≥ 3 positive interactions: val_ratio % held out (min 1).
@@ -250,6 +264,13 @@ def build_training_data(
         all_item_features[sid] = ("space", fvec)
 
     all_item_ids = list(all_item_features.keys())
+    # Pre-split item IDs by type for type-constrained negative sampling.
+    # For a positive (anchor_type → item_type), negatives are drawn only from
+    # items of the same item_type so the model learns type-specific ranking
+    # rather than cross-type discrimination (which dilutes the signal).
+    item_ids_by_type: dict[str, list[str]] = {"user": [], "event": [], "space": []}
+    for _iid, (_itype, _) in all_item_features.items():
+        item_ids_by_type[_itype].append(_iid)
 
     def _feature_of(entity_type: str, entity_id: str) -> Optional[list[float]]:
         if entity_type == "user":
@@ -316,7 +337,9 @@ def build_training_data(
     all_positive_records.extend(_build_user_user_edges(interactions_raw))
     all_positive_records.extend(
         _build_same_type_tag_edges(
-            records=events_raw,
+            # Pre-filter: only pass records that have a feature vector so no
+            # orphan edges slip into all_positive_records and get silently dropped.
+            records=[r for r in events_raw if r.get("id") in event_features],
             entity_type="event",
             min_jaccard=0.5,
             top_k_per_entity=8,
@@ -324,7 +347,7 @@ def build_training_data(
     )
     all_positive_records.extend(
         _build_same_type_tag_edges(
-            records=spaces_raw,
+            records=[r for r in spaces_raw if r.get("id") in space_features],
             entity_type="space",
             min_jaccard=0.45,
             top_k_per_entity=10,
@@ -340,9 +363,11 @@ def build_training_data(
             dedup[key] = r
     all_positive_records = list(dedup.values())
 
-    # Full positive set — used to avoid picking positives as negatives
+    # Full positive set — used to avoid picking positives as negatives.
+    # Key is a 4-tuple that includes item_type so we never over-exclude
+    # in cases where entity IDs happen to collide across types.
     positive_set = {
-        (r["anchor_type"], r["anchor_id"], r["item_id"])
+        (r["anchor_type"], r["anchor_id"], r["item_type"], r["item_id"])
         for r in all_positive_records
     }
 
@@ -391,23 +416,51 @@ def build_training_data(
         if item_vec is None:
             continue
 
-        # Positive triplet
-        train_triplets.append((anchor_type, anchor_vec, item_type, item_vec, 1, weight))
+        # Positive triplet — 8-tuple includes entity IDs for loss masking
+        train_triplets.append((anchor_type, anchor_id, anchor_vec, item_type, item_id, item_vec, 1, weight))
 
-        # Random negatives (weight 1.0 — push all negatives equally)
+        # Type-constrained random negatives (weight 1.0).
+        # Sample negatives only from items of the same type as the positive item
+        # so the loss teaches type-specific ranking (e.g. event→user negatives
+        # are other users, not events or spaces which are irrelevant to that task).
+        neg_pool = item_ids_by_type.get(item_type, all_item_ids)
         sampled  = 0
         attempts = 0
         while sampled < negative_samples and attempts < negative_samples * 10:
             attempts += 1
-            neg_id = random.choice(all_item_ids)
-            if (
-                (anchor_type, anchor_id, neg_id) in positive_set
-                or (anchor_type in ("user", "event", "space") and neg_id == anchor_id)
-            ):
+            neg_id = random.choice(neg_pool)
+            if neg_id == anchor_id:
                 continue
             neg_type, neg_vec = all_item_features[neg_id]
-            train_triplets.append((anchor_type, anchor_vec, neg_type, neg_vec, 0, 1.0))
+            # Check 4-tuple: include neg_type to avoid over-exclusion on ID collisions
+            if (anchor_type, anchor_id, neg_type, neg_id) in positive_set:
+                continue
+            train_triplets.append((anchor_type, anchor_id, anchor_vec, neg_type, neg_id, neg_vec, 0, 1.0))
             sampled += 1
+
+    # ── Bidirectional leakage fix ─────────────────────────────────────────────
+    # After the per-anchor split, edges A→B and B→A are in different buckets and
+    # may land in different splits: B→A in train while A→B is held out in val.
+    # The model then sees the reverse signal during training and the val metric
+    # is inflated. Fix: for every canonical pair that has any direction in val,
+    # remove the reverse direction from train_records before building triplets.
+    #
+    # We rebuild the triplet list so both directions are treated as one unit.
+    # (The positive_set already covers both directions, so negatives are safe.)
+    val_canonical: set[tuple] = set()
+    for atype, aid, itype, iid in val_pairs:
+        ep_a, ep_b = (atype, aid), (itype, iid)
+        val_canonical.add((min(ep_a, ep_b), max(ep_a, ep_b)))
+
+    # Re-filter: rebuild train_triplets without any triplet whose canonical pair
+    # is entirely held out in validation.
+    train_triplets = [
+        t for t in train_triplets
+        if (
+            min((t[0], t[1]), (t[3], t[4])),
+            max((t[0], t[1]), (t[3], t[4])),
+        ) not in val_canonical
+    ]
 
     random.shuffle(train_triplets)
 
@@ -428,11 +481,13 @@ def build_training_data(
     }
 
     return {
-        "train_triplets": train_triplets,
-        "val_data":       val_data,
-        "user_features":  user_features,
-        "item_features":  all_item_features,
-        "positive_set":   positive_set,
+        "train_triplets":  train_triplets,
+        "val_data":        val_data,
+        "user_features":   user_features,
+        "event_features":  event_features,
+        "space_features":  space_features,
+        "item_features":   all_item_features,
+        "positive_set":    positive_set,
     }
 
 
@@ -442,8 +497,8 @@ def build_training_triplets(
 ) -> list[tuple]:
     """
     Backward-compatible wrapper — returns just the training triplets.
-    Each triplet is a 6-tuple:
-    (anchor_type, anchor_vec, item_type, item_vec, label, weight).
+    Each triplet is an 8-tuple:
+    (anchor_type, anchor_id, anchor_vec, item_type, item_id, item_vec, label, weight).
     """
     result = build_training_data(data_dir=data_dir, negative_samples=negative_samples)
     return result["train_triplets"]

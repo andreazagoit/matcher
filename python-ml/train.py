@@ -99,11 +99,13 @@ def main() -> None:
         print(f"\nError: {e}", file=sys.stderr)
         sys.exit(1)
 
-    train_triplets = result["train_triplets"]
-    val_data       = result["val_data"]
-    user_features  = result["user_features"]
-    item_features  = result["item_features"]
-    positive_set   = result["positive_set"]
+    train_triplets  = result["train_triplets"]
+    val_data        = result["val_data"]
+    user_features   = result["user_features"]
+    event_features  = result["event_features"]
+    space_features  = result["space_features"]
+    item_features   = result["item_features"]
+    positive_set    = result["positive_set"]
 
     if not train_triplets:
         print("No training data found. Exiting.")
@@ -129,10 +131,14 @@ def main() -> None:
         def hard_neg_fn(model):
             return mine_hard_negatives(
                 model=model,
-                user_features=user_features,
+                anchor_features_by_type={
+                    "user":  user_features,
+                    "event": event_features,
+                    "space": space_features,
+                },
                 item_features=item_features,
                 positive_set=positive_set,
-                n_per_user=args.n_hard_neg,
+                n_per_anchor=args.n_hard_neg,
             )
 
     # ── Train ──────────────────────────────────────────────────────────────────
@@ -145,6 +151,7 @@ def main() -> None:
     model = train(
         triplets=train_triplets,
         val_data=val_data if args.eval_every > 0 else None,
+        positive_set=positive_set,
         epochs=args.epochs,
         batch_size=args.batch_size,
         patience=args.patience,
@@ -161,11 +168,10 @@ def main() -> None:
         from model import evaluate_recall_ndcg
         metrics = evaluate_recall_ndcg(model, val_data, k=10, max_users=1000)
         print(f"\nFinal metrics:")
+        print(f"  Recall@10  : {metrics.get('micro_recall@k', metrics.get('macro_recall@k', metrics['recall@k'])):.4f} (micro)")
+        print(f"  NDCG@10    : {metrics.get('micro_ndcg@k',   metrics.get('macro_ndcg@k',   metrics['ndcg@k'])):.4f} (micro)")
         print(f"  Recall@10  : {metrics.get('macro_recall@k', metrics['recall@k']):.4f} (macro)")
-        print(f"  NDCG@10    : {metrics.get('macro_ndcg@k', metrics['ndcg@k']):.4f} (macro)")
-        if "micro_recall@k" in metrics:
-            print(f"  Recall@10  : {metrics['micro_recall@k']:.4f} (micro)")
-            print(f"  NDCG@10    : {metrics['micro_ndcg@k']:.4f} (micro)")
+        print(f"  NDCG@10    : {metrics.get('macro_ndcg@k',   metrics['ndcg@k']):.4f} (macro)")
         print(f"  (evaluated on {metrics.get('n_anchors', metrics['n_users'])} anchors)")
         per_task = metrics.get("per_task") or {}
         for task_name in sorted(per_task.keys()):

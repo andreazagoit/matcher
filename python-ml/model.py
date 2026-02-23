@@ -9,8 +9,8 @@ layer then refines each node's representation by attending over its direct
 neighbors (used during training; transparent at inference).
 
                  UserEncoder(60→128)  ─┐
-                EventEncoder(43→128)  ─┤─→  HGTAttentionLayer  →  OutputProj(128→64)  →  L2-norm
-                SpaceEncoder(42→128)  ─┘
+                EventEncoder(51→128)  ─┤─→  HGTAttentionLayer  →  OutputProj(128→256)  →  L2-norm
+                SpaceEncoder(43→128)  ─┘
 
 Inference
 ─────────
@@ -19,10 +19,11 @@ The `/embed` endpoint stays stateless.
 
 Training
 ────────
-For each positive triplet (user, item), one hop of HGT attention is applied:
-the user embedding is updated by attending over the item embedding (simulating
-the edge user→item). This creates a training signal that rewards proximity
-in the shared embedding space.
+Anchors can be any entity type (user / event / space). For each positive
+triplet (anchor, item), one hop of HGT attention is applied in both directions,
+making message-passing aware of the specific (anchor_type, item_type) edge.
+This creates a training signal that rewards proximity in the shared embedding
+space for all heterogeneous pairs.
 
 Loss: InfoNCE (in-batch negatives) + contrastive margin on explicit negatives.
 """
@@ -149,12 +150,7 @@ class HGTAttentionLayer(nn.Module):
         q = reshape(self.W_q[key_name](dst_h))  # (B, H, D)
         v = reshape(self.W_v[key_name](src_h))  # (B, H, D)
 
-        # Scaled dot-product attention per head (pair-wise within batch)
-        # attn[i,j] = softmax over j of (q_i · k_j / scale)
-        q_exp = q.unsqueeze(2)   # (B, H, 1, D)
-        k_exp = k.unsqueeze(1)   # (B, H, D)  → broadcast (1, B, H, D) not needed; just per-sample
-        # For a single-hop local update we compute per-sample (not across-batch),
-        # using the single src→dst pair: attention weight = sigmoid(q·k / scale)
+        # Per-sample attention: sigmoid(q·k / scale) — one weight per head per pair.
         attn = torch.sigmoid((q * k).sum(dim=-1, keepdim=True) / self.scale)  # (B, H, 1)
         msg  = (attn * v).view(B, self.hidden_dim)                             # (B, hidden_dim)
 
@@ -269,6 +265,7 @@ def contrastive_loss(
     weights: Optional[torch.Tensor] = None,
     margin: float = 0.3,
     temperature: float = 0.07,
+    fn_mask: Optional[torch.Tensor] = None,
     _components: Optional[dict] = None,
 ) -> torch.Tensor:
     """
@@ -277,9 +274,13 @@ def contrastive_loss(
       - Margin loss on explicit negatives (uniform weight)
       - InfoNCE on positive pairs with in-batch negatives (scaled by weight)
 
-    weights:     per-sample float in [0.05, 1.0].
-                 Positive weights reflect recency × interaction type.
-                 Negative weights are 1.0 — push all negatives equally.
+    weights:  per-sample float in [0.05, 1.0].
+              Positive weights reflect recency × interaction type.
+              Negative weights are 1.0 — push all negatives equally.
+    fn_mask:  optional (P, P) bool tensor of known off-diagonal true positives
+              in the positive subset of the batch.  These cells are masked out of
+              the InfoNCE denominator to avoid penalising bidirectional or
+              co-positive pairs that shouldn't count as negatives.
     _components: optional dict; if provided, filled with scalar breakdown
                  {"pos": float, "neg": float, "info": float} for logging.
     """
@@ -305,11 +306,15 @@ def contrastive_loss(
         loss  = loss + neg_t
         neg_val = neg_t.item()
 
-    # Weighted InfoNCE: positive pairs weighted by interaction strength
+    # Weighted InfoNCE: positive pairs weighted by interaction strength.
+    # fn_mask suppresses known off-diagonal true positives (bidirectional edges,
+    # co-engaged pairs) so they don't contribute false-negative gradient.
     if pos_mask.sum() >= 2:
         pos_anc = anchor_emb[pos_mask]
         pos_itm = item_emb[pos_mask]
         logits  = torch.matmul(pos_anc, pos_itm.T) / temperature  # (P, P)
+        if fn_mask is not None and fn_mask.shape == logits.shape:
+            logits = logits.masked_fill(fn_mask, -float("inf"))
         targets = torch.arange(logits.size(0), device=logits.device)
         infonce = F.cross_entropy(logits, targets, reduction="none")
         info_t  = (infonce * weights[pos_mask]).mean()
@@ -329,7 +334,10 @@ def contrastive_loss(
 class TripletDataset(Dataset):
     """
     Stores heterogeneous training triplets.
-    Each triplet: (anchor_type, anchor_vec, item_type, item_vec, label, weight)
+    Each triplet: (anchor_type, anchor_id, anchor_vec, item_type, item_id, item_vec, label, weight)
+
+    Entity IDs are threaded through so the training loop can build an in-batch
+    positive mask for InfoNCE false-negative rejection.
     """
 
     def __init__(self, triplets: list[tuple]):
@@ -339,11 +347,13 @@ class TripletDataset(Dataset):
         return len(self.triplets)
 
     def __getitem__(self, idx: int):
-        anchor_type, anchor_vec, item_type, item_vec, label, weight = self.triplets[idx]
+        anchor_type, anchor_id, anchor_vec, item_type, item_id, item_vec, label, weight = self.triplets[idx]
         return (
             anchor_type,
+            anchor_id,
             torch.tensor(anchor_vec, dtype=torch.float32),
             item_type,
+            item_id,
             torch.tensor(item_vec,   dtype=torch.float32),
             float(label),
             float(weight),
@@ -351,23 +361,29 @@ class TripletDataset(Dataset):
 
 
 def _collate(batch):
+    # batch element layout (from TripletDataset.__getitem__):
+    #   b[0] anchor_type  b[1] anchor_id  b[2] anchor_tensor
+    #   b[3] item_type    b[4] item_id    b[5] item_tensor
+    #   b[6] label        b[7] weight
     anchor_types = [b[0] for b in batch]
-    item_types = [b[2] for b in batch]
-    labels = torch.tensor([b[4] for b in batch], dtype=torch.float32)
-    weights = torch.tensor([b[5] for b in batch], dtype=torch.float32)
+    anchor_ids   = [b[1] for b in batch]
+    item_types   = [b[3] for b in batch]
+    item_ids     = [b[4] for b in batch]
+    labels  = torch.tensor([b[6] for b in batch], dtype=torch.float32)
+    weights = torch.tensor([b[7] for b in batch], dtype=torch.float32)
 
     # Anchors/items may have different dims — pad each side independently.
-    max_anchor_dim = max(b[1].size(0) for b in batch)
+    max_anchor_dim = max(b[2].size(0) for b in batch)
     anchors = torch.zeros(len(batch), max_anchor_dim)
     for i, b in enumerate(batch):
-        anchors[i, : b[1].size(0)] = b[1]
+        anchors[i, : b[2].size(0)] = b[2]
 
-    max_item_dim = max(b[3].size(0) for b in batch)
+    max_item_dim = max(b[5].size(0) for b in batch)
     items = torch.zeros(len(batch), max_item_dim)
     for i, b in enumerate(batch):
-        items[i, : b[3].size(0)] = b[3]
+        items[i, : b[5].size(0)] = b[5]
 
-    return anchors, anchor_types, items, item_types, labels, weights
+    return anchors, anchor_types, anchor_ids, items, item_types, item_ids, labels, weights
 
 
 # ─── Batch encoding ────────────────────────────────────────────────────────────
@@ -391,17 +407,22 @@ def encode_all(
     for eid, (etype, fvec) in features.items():
         by_type.setdefault(etype, []).append((eid, fvec))
 
+    was_training = model.training
     model.eval()
-    with torch.no_grad():
-        for etype, items in by_type.items():
-            for i in range(0, len(items), batch_size):
-                batch = items[i : i + batch_size]
-                ids   = [x[0] for x in batch]
-                vecs  = torch.tensor([x[1] for x in batch], dtype=torch.float32).to(device)
-                h     = model._encode_hidden(etype, vecs)
-                embs  = F.normalize(model._hidden_to_embed(h), dim=-1)
-                for j, eid in enumerate(ids):
-                    result[eid] = embs[j]
+    try:
+        with torch.no_grad():
+            for etype, items in by_type.items():
+                for i in range(0, len(items), batch_size):
+                    batch = items[i : i + batch_size]
+                    ids   = [x[0] for x in batch]
+                    vecs  = torch.tensor([x[1] for x in batch], dtype=torch.float32).to(device)
+                    h     = model._encode_hidden(etype, vecs)
+                    embs  = F.normalize(model._hidden_to_embed(h), dim=-1)
+                    for j, eid in enumerate(ids):
+                        result[eid] = embs[j]
+    finally:
+        if was_training:
+            model.train()
     return result
 
 
@@ -409,63 +430,95 @@ def encode_all(
 
 def mine_hard_negatives(
     model: HetEncoder,
-    user_features: dict[str, list[float]],
+    anchor_features_by_type: dict[str, dict[str, list[float]]],
     item_features: dict[str, tuple[str, list[float]]],
-    positive_set: set[tuple[str, str, str]],
-    n_per_user: int = 3,
-    max_users: int = 2_000,
+    positive_set: set[tuple[str, str, str, str]],
+    n_per_anchor: int = 3,
+    max_anchors_per_type: int = 2_000,
 ) -> list[tuple]:
     """
-    Find hard negatives: items with high similarity to a user but not in positive_set.
+    Mine hard negatives for every anchor type (user / event / space).
 
-    Encodes all items and sampled users in batch, then for each user selects
-    the top-N most similar non-interacted items as hard negatives (label=0, weight=1.0).
+    For each (anchor_type, target_type) pair found in positive_set, encodes all
+    target items and sampled anchors, then selects the top-N most similar
+    non-interacted items as hard negatives (label=0, weight=1.0).
 
-    Returns list of 6-tuples ("user", anchor_vec, item_type, item_vec, 0, 1.0).
+    Negatives are type-constrained: for a user→event positive, hard negatives are
+    events only — matching the type-constrained training regime.
+
+    Args:
+        anchor_features_by_type: {entity_type: {entity_id: feature_vec}}
+        item_features:           full corpus {entity_id: (entity_type, feature_vec)}
+        positive_set:            4-tuple keys (anchor_type, anchor_id, item_type, item_id)
+        n_per_anchor:            hard negatives per anchor per target type
+        max_anchors_per_type:    cap per anchor type to keep mining fast
+
+    Returns list of 8-tuples (anchor_type, anchor_id, anchor_vec,
+                               item_type, item_id, item_vec, 0, 1.0).
     """
-    # Encode all items once
-    all_item_embs  = encode_all(model, item_features)
-    item_ids       = list(item_features.keys())
-    item_emb_mat   = torch.stack([all_item_embs[iid] for iid in item_ids])  # (n_items, EMBED_DIM)
-    item_id_to_idx = {iid: i for i, iid in enumerate(item_ids)}
+    # Encode all corpus items once, then split by type for fast per-task lookup.
+    all_item_embs = encode_all(model, item_features)
+    emb_mat_by_type: dict[str, tuple[list[str], torch.Tensor]] = {}
+    items_by_type: dict[str, list[str]] = {}
+    for iid, (itype, _) in item_features.items():
+        items_by_type.setdefault(itype, []).append(iid)
+    for itype, iids in items_by_type.items():
+        mat = torch.stack([all_item_embs[iid] for iid in iids])
+        emb_mat_by_type[itype] = (iids, mat)
 
-    # Sample users for speed (encoding 10K users is fine but 100K would be slow)
-    uid_list = list(user_features.keys())
-    if len(uid_list) > max_users:
-        uid_list = random.sample(uid_list, max_users)
+    # Determine which (anchor_type → target_type) pairs exist in positive_set.
+    anchor_to_targets: dict[str, set[str]] = defaultdict(set)
+    for atype, _aid, itype, _iid in positive_set:
+        anchor_to_targets[atype].add(itype)
 
-    # Encode sampled users
-    user_feats_typed = {uid: ("user", user_features[uid]) for uid in uid_list}
-    all_user_embs    = encode_all(model, user_feats_typed)
-
-    # Build per-user positive set (fast lookup)
-    user_positives: dict[str, set[str]] = defaultdict(set)
-    for anchor_type, anchor_id, iid in positive_set:
-        if anchor_type != "user":
-            continue
-        if anchor_id in all_user_embs:
-            user_positives[anchor_id].add(iid)
+    # Build per-anchor positive lookup once (avoid re-iterating positive_set per anchor).
+    anchor_positives: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for atype, aid, _itype, iid in positive_set:
+        anchor_positives[(atype, aid)].add(iid)
 
     hard_neg_triplets: list[tuple] = []
-    for uid in uid_list:
-        u_emb = all_user_embs[uid].unsqueeze(0)                          # (1, EMBED_DIM)
-        sims  = F.cosine_similarity(u_emb, item_emb_mat).cpu().clone()  # (n_items,)
 
-        # Mask out this user's positives and themselves
-        for iid in user_positives.get(uid, set()) | {uid}:
-            if iid in item_id_to_idx:
-                sims[item_id_to_idx[iid]] = -float("inf")
-
-        valid_k = min(n_per_user, int((sims > -float("inf")).sum().item()))
-        if valid_k == 0:
+    for anchor_type, feats in anchor_features_by_type.items():
+        target_types = anchor_to_targets.get(anchor_type)
+        if not target_types:
             continue
 
-        top_idxs = torch.topk(sims, k=valid_k).indices.tolist()
-        u_feat   = user_features[uid]
-        for idx in top_idxs:
-            iid         = item_ids[idx]
-            itype, ivec = item_features[iid]
-            hard_neg_triplets.append(("user", u_feat, itype, ivec, 0, 1.0))
+        aid_list = list(feats.keys())
+        if len(aid_list) > max_anchors_per_type:
+            aid_list = random.sample(aid_list, max_anchors_per_type)
+
+        # Encode this anchor type in batch.
+        anchor_feats_typed = {aid: (anchor_type, feats[aid]) for aid in aid_list}
+        all_anchor_embs = encode_all(model, anchor_feats_typed)
+
+        for target_type in target_types:
+            if target_type not in emb_mat_by_type:
+                continue
+            target_ids, item_emb_mat = emb_mat_by_type[target_type]
+            item_id_to_idx = {iid: i for i, iid in enumerate(target_ids)}
+
+            for aid in aid_list:
+                a_emb = all_anchor_embs[aid].unsqueeze(0)
+                sims  = F.cosine_similarity(a_emb, item_emb_mat).cpu().clone()
+
+                # Mask out known positives and the anchor itself.
+                for exc_id in anchor_positives.get((anchor_type, aid), set()) | {aid}:
+                    idx = item_id_to_idx.get(exc_id)
+                    if idx is not None:
+                        sims[idx] = -float("inf")
+
+                valid_k = min(n_per_anchor, int((sims > -float("inf")).sum().item()))
+                if valid_k == 0:
+                    continue
+
+                top_idxs = torch.topk(sims, k=valid_k).indices.tolist()
+                a_feat   = feats[aid]
+                for idx in top_idxs:
+                    iid         = target_ids[idx]
+                    _, ivec     = item_features[iid]
+                    hard_neg_triplets.append(
+                        (anchor_type, aid, a_feat, target_type, iid, ivec, 0, 1.0)
+                    )
 
     return hard_neg_triplets
 
@@ -478,6 +531,7 @@ def evaluate_recall_ndcg(
     k: int = 10,
     max_users: int = 500,
     allowed_item_types: Optional[set[str]] = None,
+    fixed_eval_anchors: Optional[list] = None,
 ) -> dict:
     """
     Compute Recall@K and NDCG@K on held-out validation pairs.
@@ -525,9 +579,16 @@ def evaluate_recall_ndcg(
             target_type = item_features[iid][0]
         anchor_holdouts_by_task[(atype, aid)][target_type].add(iid)
 
-    eval_anchors = [akey for akey in anchor_holdouts_by_task if akey in anchor_features]
-    if len(eval_anchors) > max_users:
-        eval_anchors = random.sample(eval_anchors, max_users)
+    if fixed_eval_anchors is not None:
+        # Use the caller-supplied fixed subset for a consistent metric across epochs.
+        eval_anchors = [
+            a for a in fixed_eval_anchors
+            if a in anchor_holdouts_by_task and a in anchor_features
+        ]
+    else:
+        eval_anchors = [akey for akey in anchor_holdouts_by_task if akey in anchor_features]
+        if len(eval_anchors) > max_users:
+            eval_anchors = random.sample(eval_anchors, max_users)
 
     if not eval_anchors:
         return {"recall@k": 0.0, "ndcg@k": 0.0, "k": k, "n_users": 0}
@@ -656,6 +717,7 @@ def evaluate_recall_ndcg(
 def train(
     triplets: list[tuple],
     val_data: Optional[dict] = None,
+    positive_set: Optional[set] = None,
     epochs: int = EPOCHS,
     batch_size: int = BATCH_SIZE,
     patience: int = 15,
@@ -666,18 +728,20 @@ def train(
     checkpoint_every: int = 10,
 ) -> HetEncoder:
     """
-    Train HetEncoder from 6-tuple
-    (anchor_type, anchor_vec, item_type, item_vec, label, weight) triplets.
+    Train HetEncoder from 8-tuple
+    (anchor_type, anchor_id, anchor_vec, item_type, item_id, item_vec, label, weight) triplets.
 
     Args:
         triplets:          training data from build_training_data()["train_triplets"]
         val_data:          optional — enables Recall@K / NDCG@K evaluation
+        positive_set:      set of (anchor_type, anchor_id, item_type, item_id) 4-tuples;
+                           used to mask known off-diagonal positives in InfoNCE
         epochs:            max training epochs
         batch_size:        mini-batch size
         patience:          early stopping — stop if val Recall@K doesn't improve for
                            this many epochs (0 = disabled)
         eval_every:        evaluate validation metrics every N epochs
-        hard_neg_fn:       callable(model) → list of hard neg 6-tuples
+        hard_neg_fn:       callable(model) → list of hard neg 8-tuples
         hard_neg_every:    0 = disabled
         checkpoint_path:   path to save best checkpoint (None = no auto-save)
         checkpoint_every:  also save a periodic checkpoint every N epochs as crash recovery
@@ -719,6 +783,14 @@ def train(
     n_batches   = len(loader)
     epoch_times: list[float] = []
 
+    # Pre-sample a fixed eval subset once so early-stopping uses a consistent
+    # metric across epochs (avoids stopping on sampling noise).
+    _fixed_eval_anchors: Optional[list] = None
+    if val_data is not None and eval_every > 0:
+        _all_val_anc = list((val_data.get("anchor_features") or {}).keys())
+        if _all_val_anc:
+            _fixed_eval_anchors = random.sample(_all_val_anc, min(300, len(_all_val_anc)))
+
     for epoch in range(epochs):
         epoch_start = time.time()
 
@@ -742,24 +814,49 @@ def train(
         model.train()
         total_loss = total_pos = total_neg = total_info = 0.0
 
-        for batch_idx, (batch_anchors, anchor_types, batch_items, item_types, batch_labels, batch_weights) in enumerate(loader):
+        for batch_idx, (batch_anchors, anchor_types, anchor_ids, batch_items, item_types, item_ids, batch_labels, batch_weights) in enumerate(loader):
             batch_anchors  = batch_anchors.to(device)
             batch_items    = batch_items.to(device)
             batch_labels   = batch_labels.to(device)
             batch_weights  = batch_weights.to(device)
 
+            # ── InfoNCE false-negative mask ────────────────────────────────
+            # For each pair of positives in the batch, flag off-diagonal cells
+            # where (anchor_i, item_j) is a known true positive so InfoNCE
+            # doesn't penalise bidirectional or co-positive pairs.
+            fn_mask: Optional[torch.Tensor] = None
+            if positive_set is not None:
+                _pos_flags = (batch_labels == 1).cpu().tolist()
+                _pos_idx   = [i for i, m in enumerate(_pos_flags) if m]
+                P = len(_pos_idx)
+                if P >= 2:
+                    _fm = torch.zeros(P, P, dtype=torch.bool)
+                    for _pi, _i in enumerate(_pos_idx):
+                        for _pj, _j in enumerate(_pos_idx):
+                            if _pi != _pj and (
+                                anchor_types[_i], anchor_ids[_i],
+                                item_types[_j], item_ids[_j],
+                            ) in positive_set:
+                                _fm[_pi, _pj] = True
+                    if _fm.any():
+                        fn_mask = _fm.to(device)
+
             components: dict = {}
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=device.type, dtype=_AUTOCAST_DTYPE, enabled=_AUTOCAST_ENABLED):
+                # DropGraph: 15% of steps train without graph attention to keep
+                # the output projection aligned with the graph-free inference path.
+                _use_graph = random.random() > 0.15
                 anchor_emb, item_emb = model(
                     batch_anchors,
                     anchor_types,
                     batch_items,
                     item_types,
-                    use_graph=True,
+                    use_graph=_use_graph,
                 )
                 loss = contrastive_loss(
                     anchor_emb, item_emb, batch_labels, batch_weights,
+                    fn_mask=fn_mask,
                     _components=components,
                 )
             loss.backward()
@@ -805,9 +902,16 @@ def train(
 
         # ── Validation ─────────────────────────────────────────────────────
         if val_data is not None and eval_every > 0 and (epoch + 1) % eval_every == 0:
-            metrics = evaluate_recall_ndcg(model, val_data, k=10, max_users=300)
-            r_at_k = metrics.get("macro_recall@k", metrics["recall@k"])
-            n_at_k = metrics.get("macro_ndcg@k", metrics["ndcg@k"])
+            metrics = evaluate_recall_ndcg(
+                model, val_data, k=10, fixed_eval_anchors=_fixed_eval_anchors,
+            )
+            # Micro average (weighted by n) as the early-stopping signal.
+            # Macro would be dominated by trivially-easy same-type tasks
+            # (event→event, space→space) whose recall is near 1.0 from epoch 1
+            # due to raw feature similarity — masking lack of progress on the
+            # product-critical user→event / user→space tasks.
+            r_at_k = metrics.get("micro_recall@k", metrics.get("macro_recall@k", metrics["recall@k"]))
+            n_at_k = metrics.get("micro_ndcg@k",   metrics.get("macro_ndcg@k",   metrics["ndcg@k"]))
 
             is_best = r_at_k > best_recall
             star    = "  ★ best" if is_best else ""
@@ -848,16 +952,13 @@ def train(
                         flush=True,
                     )
                     break
+
+            model.train()
         else:
-            # Plain epoch log (every 10 epochs when no val, every epoch otherwise)
-            if val_data is None and (epoch + 1) % 10 == 0:
-                print(
-                    f"\r  ep {epoch+1:>4}/{epochs}"
-                    f"  loss: {avg_loss:.4f}{breakdown}"
-                    f"  {epoch_time:.1f}s{eta_str}",
-                    flush=True,
-                )
-            elif val_data is not None:
+            # Log every epoch when val is active but eval is skipped this epoch;
+            # log every 10 epochs when no val data at all.
+            should_log = val_data is not None or (epoch + 1) % 10 == 0
+            if should_log:
                 print(
                     f"\r  ep {epoch+1:>4}/{epochs}"
                     f"  loss: {avg_loss:.4f}{breakdown}"

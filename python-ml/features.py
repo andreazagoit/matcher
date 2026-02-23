@@ -39,9 +39,18 @@ def normalize_count(count: int | None, scale: float = 1.0) -> float:
 
 
 def normalize_days(days: int | None, max_days: int = 365) -> float:
+    """
+    Maps days relative to today into [0, 1]:
+      -max_days (distant past) → 0.0
+       0        (today)        → 0.5
+      +max_days (far future)   → 1.0
+
+    Using a symmetric scale preserves temporal information for past events
+    (previously all negative values collapsed to 0.0).
+    """
     if days is None:
         return 0.5
-    return max(0.0, min(1.0, days / max_days))
+    return max(0.0, min(1.0, 0.5 + 0.5 * (days / max_days)))
 
 
 def normalize_price_cents(price_cents: int | None, max_price_cents: int = 50_000) -> float:

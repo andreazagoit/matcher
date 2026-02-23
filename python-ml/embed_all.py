@@ -2,7 +2,7 @@
 """
 Batch embed all entities and write directly to the DB.
 
-Reads users/events/spaces from PostgreSQL, generates 64-dim embeddings
+Reads users/events/spaces from PostgreSQL, generates embeddings
 with the trained model, and upserts them into the `embeddings` table.
 
 No intermediate files — single step from DB to DB.
@@ -217,38 +217,50 @@ def main() -> None:
     print("\nReading entities from DB...", flush=True)
     t0 = time.time()
     conn = _connect()
-    cur  = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    users  = read_users(cur)
-    events = read_events(cur)
-    spaces = read_spaces(cur)
+        users  = read_users(cur)
+        events = read_events(cur)
+        spaces = read_spaces(cur)
 
-    all_features: dict[str, tuple[str, list[float]]] = {**users, **events, **spaces}
-    print(
-        f"  {len(users):>6,} users  "
-        f"{len(events):>6,} events  "
-        f"{len(spaces):>6,} spaces  "
-        f"→  {len(all_features):,} total  ({time.time()-t0:.1f}s)",
-        flush=True,
-    )
+        all_features: dict[str, tuple[str, list[float]]] = {}
+        for _src_name, _src in [("users", users), ("events", events), ("spaces", spaces)]:
+            for _eid, _val in _src.items():
+                if _eid in all_features:
+                    print(
+                        f"Warning: ID collision '{_eid}' "
+                        f"({all_features[_eid][0]} vs {_val[0]}) — skipping {_src_name} entry.",
+                        file=sys.stderr,
+                    )
+                    continue
+                all_features[_eid] = _val
+        print(
+            f"  {len(users):>6,} users  "
+            f"{len(events):>6,} events  "
+            f"{len(spaces):>6,} spaces  "
+            f"→  {len(all_features):,} total  ({time.time()-t0:.1f}s)",
+            flush=True,
+        )
 
-    # ── Encode in batch ────────────────────────────────────────────────────────
-    print(f"\nEncoding (batch_size={args.batch_size})...", flush=True)
-    t1 = time.time()
-    embeddings = encode_all(model, all_features, batch_size=args.batch_size)
-    print(f"  Done in {time.time()-t1:.1f}s", flush=True)
+        # ── Encode in batch ────────────────────────────────────────────────────
+        print(f"\nEncoding (batch_size={args.batch_size})...", flush=True)
+        t1 = time.time()
+        embeddings = encode_all(model, all_features, batch_size=args.batch_size)
+        print(f"  Done in {time.time()-t1:.1f}s", flush=True)
 
-    # ── Upsert to DB ───────────────────────────────────────────────────────────
-    print("\nUpserting to DB...", flush=True)
-    t2 = time.time()
-    records = [
-        (eid, all_features[eid][0], emb.cpu().tolist())
-        for eid, emb in embeddings.items()
-    ]
-    upsert_embeddings(cur, records)
-    conn.commit()
-    cur.close()
-    conn.close()
+        # ── Upsert to DB ───────────────────────────────────────────────────────
+        print("\nUpserting to DB...", flush=True)
+        t2 = time.time()
+        records = [
+            (eid, all_features[eid][0], emb.cpu().tolist())
+            for eid, emb in embeddings.items()
+        ]
+        upsert_embeddings(cur, records)
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
 
     elapsed = time.time() - t2
     print(f"  Upserted {len(records):,} embeddings in {elapsed:.1f}s", flush=True)
