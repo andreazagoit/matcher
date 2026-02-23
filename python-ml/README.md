@@ -1,119 +1,179 @@
 # Matcher ML Service
 
-Recommendation service for users, events, and spaces.
-Generates embeddings in a shared 64-dim space so any entity can be compared with any other.
+HGT-lite embedding service for the Matcher platform.  
+Generates L2-normalised embeddings in a shared 256-dim space so any entity (user / event / space) can be compared against any other.
+
+---
+
+## Package layout
+
+```
+python-ml/
+├── ml/                         ← installable Python package
+│   ├── config.py               — hyperparameters, vocabularies, feature dimensions
+│   ├── utils.py                — numeric / date helpers
+│   ├── features.py             — feature-vector builders (user / event / space)
+│   ├── data.py                 — training-data loader (reads JSON exports)
+│   ├── modeling/
+│   │   └── hgt.py              — HGT-lite architecture, loss, TripletDataset, batch encode
+│   ├── training/
+│   │   └── trainer.py          — training loop, hard-negative mining, save/load
+│   ├── evaluation/
+│   │   └── metrics.py          — Recall@K / NDCG@K
+│   └── serving/
+│       └── api.py              — FastAPI application (POST /embed)
+├── train.py                    ← entry point: train the model
+├── server.py                   ← entry point: start the FastAPI server
+├── embed_all.py                ← entry point: batch-embed all DB entities
+├── generate_synthetic.py       ← entry point: generate synthetic training data
+├── training-data/              ← JSON exports (git-ignored)
+├── model_weights.pt            ← trained checkpoint (git-ignored)
+└── pyproject.toml
+```
+
+---
 
 ## Setup
 
 ```bash
+# From the repo root
+npm run ml:setup        # creates .venv and pip install -e python-ml/
+
+# Or manually
+cd python-ml
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+Copy the environment file and set your database URL:
+
+```bash
 cp .env.example .env
-# edit .env with your DATABASE_URL
-
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# edit .env → set DATABASE_URL
 ```
 
-## Run
+---
+
+## Workflow
+
+### 1. Get training data
+
+**Real data** (requires a running database):
+```bash
+npm run ml:export
+```
+
+**Synthetic data** (no DB needed — great for development):
+```bash
+npm run ml:generate
+```
+
+Both commands write JSON files to `training-data/`.
+
+### 2. Train
 
 ```bash
-DATABASE_URL=postgresql://... uvicorn server:app --reload --port 8000
+npm run ml:train
+
+# Options
+python train.py --epochs 100 --patience 20
+python train.py --hard-neg-every 10 --n-hard-neg 3
+python train.py --val-ratio 0.15 --eval-every 5
 ```
 
-## Endpoints
+Saves the best checkpoint to `model_weights.pt`.
 
-### GET /health
-Returns model status.
-```json
-{ "status": "ok", "model_loaded": true, "is_training": false }
-```
-
-### POST /train
-Triggers training from DB data (runs in background).
-```bash
-curl -X POST http://localhost:8000/train
-```
-
-### POST /recommend
-Get recommendations for any entity.
+### 3. Embed all entities
 
 ```bash
-# Events recommended for a user
-curl -X POST http://localhost:8000/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"entity_id": "user-uuid", "entity_type": "user", "target_type": "event", "limit": 10}'
-
-# Users similar to another user (people matching)
-curl -X POST http://localhost:8000/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"entity_id": "user-uuid", "entity_type": "user", "target_type": "user", "limit": 8}'
-
-# Spaces recommended for a user
-curl -X POST http://localhost:8000/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"entity_id": "user-uuid", "entity_type": "user", "target_type": "space", "limit": 10}'
-
-# Users likely to join a space (for invitations)
-curl -X POST http://localhost:8000/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"entity_id": "space-uuid", "entity_type": "space", "target_type": "user", "limit": 20}'
-
-# All types at once (omit target_type)
-curl -X POST http://localhost:8000/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"entity_id": "user-uuid", "entity_type": "user", "limit": 15}'
+npm run ml:embed-all
 ```
 
-### GET /similar/{entity_type}/{entity_id}
-Shorthand for same-type similarity.
+Reads all users / events / spaces from PostgreSQL, generates embeddings with the trained model, and upserts them into the `embeddings` table.
+
+### 4. Start the inference server
+
 ```bash
-# Similar events to an event
-curl http://localhost:8000/similar/event/event-uuid
-
-# Similar spaces to a space
-curl http://localhost:8000/similar/space/space-uuid
+npm run ml:serve
+# → http://localhost:8000
 ```
 
-## Response format
+---
 
+## API
+
+### `POST /embed`
+
+Generate an embedding from raw entity data (no DB access).
+
+**Request:**
 ```json
 {
-  "source_id": "user-uuid",
-  "source_type": "user",
-  "model_used": "ml",
-  "recommendations": [
-    { "id": "event-uuid", "type": "event", "score": 0.92 },
-    { "id": "space-uuid", "type": "space", "score": 0.85 },
-    { "id": "user-uuid",  "type": "user",  "score": 0.78 }
-  ]
+  "entity_type": "user",
+  "user": {
+    "tag_weights": { "hiking": 0.9, "coffee": 0.6 },
+    "birthdate": "1995-04-12",
+    "gender": "woman",
+    "relationship_intent": ["serious_relationship"],
+    "smoking": "never",
+    "drinking": "sometimes",
+    "activity_level": "active",
+    "interaction_count": 14
+  }
 }
 ```
 
-`model_used` is `"ml"` when the trained model is available, or `"jaccard_fallback"` for cold start.
+**Response:**
+```json
+{
+  "entity_type": "user",
+  "embedding": [0.021, -0.043, ...],   // 256-dim, L2-normalised
+  "model_used": "hgt"                  // "hgt" | "untrained"
+}
+```
 
-## How it works
+The same schema works for `entity_type: "event"` and `entity_type: "space"`.
 
-### Feature vector (45-dim per entity)
-- `[0:40]`  Tag weights: user interests (0.0–1.0), event/space tags (1.0 if present)
-- `[40]`    Age normalized 0–1 (user age / avg attendee age / avg member age)
-- `[41:44]` Entity type one-hot: [user, event, space]
-- `[44]`    Popularity normalized 0–1
+**Next.js integration flow:**
+1. Collect entity data server-side
+2. `POST /embed` → receive embedding
+3. Save entity + embedding to the DB in a single transaction
 
-### Training data
-Positive interactions from DB:
-- `event_attendees` (going/attended) → user ↔ event
-- `members` (active) → user ↔ space
-- `conversations` (active) → user ↔ user
+---
 
-Negatives: random sampling (5 per positive).
+## Architecture
 
-### Cold start
-When model is not trained (no `model_weights.pt`), falls back to Jaccard tag similarity.
-Train the model as soon as you have 100+ interactions for meaningful results.
+```
+UserEncoder  (60-dim)  ─┐
+EventEncoder (51-dim)  ─┤─→ HGTLayer1 → HGTLayer2 → OutputProj → L2-norm → 256-dim
+SpaceEncoder (43-dim)  ─┘
+```
 
-## Deploy (Railway)
+**Feature dimensions:**
+| Entity | Dim | Contents |
+|--------|-----|----------|
+| User   | 60  | tag weights (40) + age (1) + gender (3) + rel_intent (4) + smoking (3) + drinking (3) + activity (5) + interaction_count (1) |
+| Event  | 51  | tags (40) + avg_age (1) + count (1) + days_until (1) + fill_rate (1) + is_paid (1) + price (1) + time_cyclical (5) |
+| Space  | 43  | tags (40) + avg_age (1) + member_count (1) + event_count (1) |
 
-1. Create a Railway project
-2. Set `DATABASE_URL` environment variable
-3. Start command: `uvicorn server:app --host 0.0.0.0 --port $PORT`
-4. Trigger training via cron from Next.js: `POST https://your-service.railway.app/train`
+**Training:**
+- Loss: InfoNCE (in-batch negatives) + weighted margin loss
+- Hard negative mining every N epochs
+- DropGraph (50/50): alternates between graph-augmented and encoder-only forward passes so the inference path (no graph) receives equal gradient
+- Validation: Recall@10 / NDCG@10 per task (user→event, user→space, user→user, …)
+- Early stopping on micro-average Recall@10
+
+**Cold start:** Falls back to weighted Jaccard tag similarity when `model_weights.pt` is missing.
+
+---
+
+## Deploy
+
+Start command (Railway / Render / Fly):
+
+```bash
+uvicorn server:app --host 0.0.0.0 --port $PORT
+```
+
+Set `DATABASE_URL` as an environment variable.

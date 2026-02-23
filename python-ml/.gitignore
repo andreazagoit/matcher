@@ -1,8 +1,22 @@
+# Virtual environments
 /venv/
 /.venv/
+
+# Package build artifacts
+*.egg-info/
+dist/
+build/
+
+# Python bytecode
 __pycache__/
-/training-data/
 *.pyc
 *.pyo
 *.pyd
+
+# Training artifacts (generated — not committed)
+/training-data/*
+!/training-data/.gitkeep
 *.pt
+
+# OS
+.DS_Store

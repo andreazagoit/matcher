@@ -21,10 +21,10 @@
     "codegen": "graphql-codegen --config codegen.ts",
     "ml:setup": "python3 -m venv python-ml/.venv && python-ml/.venv/bin/pip install -q -r python-ml/requirements.txt && echo 'venv ready'",
     "ml:export": "npx tsx lib/db/scripts/export-ml-data.ts",
-    "ml:generate": "python-ml/.venv/bin/python python-ml/generate_synthetic.py",
-    "ml:train": "python-ml/.venv/bin/python python-ml/train.py",
-    "ml:embed-all": "python-ml/.venv/bin/python python-ml/embed_all.py",
-    "ml:serve": "python-ml/.venv/bin/uvicorn server:app --app-dir python-ml --host 0.0.0.0 --port 8000 --reload"
+    "ml:generate": "cd python-ml && .venv/bin/python -m ml.synthetic",
+    "ml:train": "cd python-ml && .venv/bin/python -m ml.training --eval-every 5 --patience 25",
+    "ml:sync": "cd python-ml && .venv/bin/python -m ml.inference",
+    "ml:serve": "cd python-ml && .venv/bin/uvicorn ml.serving:app --host 0.0.0.0 --port 8000 --reload"
   },
   "dependencies": {
     "@apollo/client": "^4.1.3",
