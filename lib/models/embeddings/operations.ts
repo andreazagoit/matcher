@@ -1,93 +1,81 @@
 /**
  * Embeddings operations — generate and persist entity embeddings.
  *
- * Currently powered by OpenAI text-embedding-3-small (1536-dim).
- * All entity types share the same embeddings table, enabling cross-entity
- * similarity search via pgvector.
+ * Powered by the HGT-lite ML service (64-dim behavioural embeddings).
+ * The service runs at ML_SERVICE_URL (default: http://localhost:8000).
  *
- * To switch to an ML model in the future: replace the `generate*Text`
- * helpers with structured feature vectors and swap `generateEmbedding`
- * for a call to the ML service. The public API and DB logic stay identical.
+ * Public API is identical to the previous OpenAI version — only the
+ * internal implementation changed. Callers need no updates.
  */
 
 import { db } from "@/lib/db/drizzle";
-import { generateEmbedding } from "@/lib/embeddings";
 import { embeddings } from "./schema";
 import { eq, and } from "drizzle-orm";
+
+const ML_SERVICE_URL =
+  process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 
 // ─── Input types ───────────────────────────────────────────────────────────────
 
 export interface UserEmbedInput {
   tags: { tag: string; weight: number }[];
-  birthdate?: string | null; // "YYYY-MM-DD"
+  birthdate?: string | null;
   gender?: string | null;
   relationshipIntent?: string[] | null;
-  jobTitle?: string | null;
-  educationLevel?: string | null;
   smoking?: string | null;
   drinking?: string | null;
   activityLevel?: string | null;
+  interactionCount?: number;
+  conversationCount?: number;
+  // kept for forward compatibility; not used by the current model
+  jobTitle?: string | null;
+  educationLevel?: string | null;
   religion?: string | null;
 }
 
 export interface EventEmbedInput {
-  title: string;
-  description?: string | null;
   tags?: string[];
+  startsAt?: string | null;        // ISO string — used to compute daysUntilEvent
+  avgAttendeeAge?: number | null;
+  attendeeCount?: number;
+  maxAttendees?: number | null;
+  isPaid?: boolean;
+  // kept for forward compatibility; not used by the current model
+  title?: string;
+  description?: string | null;
 }
 
 export interface SpaceEmbedInput {
-  name: string;
-  description?: string | null;
   tags?: string[];
+  memberCount?: number;
+  avgMemberAge?: number | null;
+  eventCount?: number;
+  // kept for forward compatibility; not used by the current model
+  name?: string;
+  description?: string | null;
 }
 
-// ─── Text builders ─────────────────────────────────────────────────────────────
+// ─── ML service call ───────────────────────────────────────────────────────────
 
-function buildUserText({
-  tags, birthdate, gender, relationshipIntent,
-  jobTitle, educationLevel, smoking, drinking, activityLevel, religion,
-}: UserEmbedInput): string {
-  const parts: string[] = [];
+async function callMlEmbed(
+  entityType: "user" | "event" | "space",
+  payload: Record<string, unknown>,
+): Promise<number[]> {
+  const res = await fetch(`${ML_SERVICE_URL}/embed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ entity_type: entityType, [entityType]: payload }),
+  });
 
-  if (birthdate) {
-    const age = new Date().getFullYear() - new Date(birthdate).getFullYear();
-    parts.push(`Age: ${age}`);
-  }
-  if (gender)              parts.push(`Gender: ${gender}`);
-  if (jobTitle)            parts.push(`Job: ${jobTitle}`);
-  if (educationLevel)      parts.push(`Education: ${educationLevel}`);
-  if (relationshipIntent?.length) parts.push(`Looking for: ${relationshipIntent.join(", ")}`);
-  if (smoking)             parts.push(`Smoking: ${smoking}`);
-  if (drinking)            parts.push(`Drinking: ${drinking}`);
-  if (activityLevel)       parts.push(`Activity: ${activityLevel}`);
-  if (religion)            parts.push(`Religion: ${religion}`);
-
-  // Weighted interests: high-weight tags repeated to increase their influence
-  // weight >= 0.8 → mentioned 3×, >= 0.5 → 2×, < 0.5 → 1×
-  if (tags.length > 0) {
-    const weighted = tags.flatMap(({ tag, weight }) => {
-      const reps = weight >= 0.8 ? 3 : weight >= 0.5 ? 2 : 1;
-      return Array(reps).fill(tag);
-    });
-    parts.push(`Interests: ${weighted.join(", ")}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `ML service error ${res.status} for ${entityType}: ${body}`,
+    );
   }
 
-  return parts.join(". ");
-}
-
-function buildEventText({ title, description, tags }: EventEmbedInput): string {
-  const parts = [title];
-  if (description) parts.push(description);
-  if (tags?.length) parts.push(`Tags: ${tags.join(", ")}`);
-  return parts.join("\n");
-}
-
-function buildSpaceText({ name, description, tags }: SpaceEmbedInput): string {
-  const parts = [name];
-  if (description) parts.push(description);
-  if (tags?.length) parts.push(`Tags: ${tags.join(", ")}`);
-  return parts.join("\n");
+  const json = await res.json();
+  return json.embedding as number[];
 }
 
 // ─── DB persistence ────────────────────────────────────────────────────────────
@@ -110,15 +98,29 @@ async function upsertEmbedding(
 
 /**
  * Generate and save embedding for a user.
- * Call after creating a user or updating their interests.
+ * Call after creating a user or updating their profile / interests.
  */
 export async function embedUser(
   entityId: string,
   data: UserEmbedInput,
 ): Promise<void> {
-  const text = buildUserText(data);
-  if (!text.trim()) return;
-  const embedding = await generateEmbedding(text);
+  const tagWeights: Record<string, number> = {};
+  for (const { tag, weight } of data.tags) {
+    tagWeights[tag] = weight;
+  }
+
+  const embedding = await callMlEmbed("user", {
+    tag_weights:          tagWeights,
+    birthdate:            data.birthdate ?? null,
+    gender:               data.gender ?? null,
+    relationship_intent:  data.relationshipIntent ?? [],
+    smoking:              data.smoking ?? null,
+    drinking:             data.drinking ?? null,
+    activity_level:       data.activityLevel ?? null,
+    interaction_count:    data.interactionCount ?? 0,
+    conversation_count:   data.conversationCount ?? 0,
+  });
+
   await upsertEmbedding(entityId, "user", embedding);
 }
 
@@ -130,9 +132,19 @@ export async function embedEvent(
   entityId: string,
   data: EventEmbedInput,
 ): Promise<void> {
-  const text = buildEventText(data);
-  if (!text.trim()) return;
-  const embedding = await generateEmbedding(text);
+  const daysUntilEvent = data.startsAt
+    ? Math.round((new Date(data.startsAt).getTime() - Date.now()) / 86_400_000)
+    : null;
+
+  const embedding = await callMlEmbed("event", {
+    tags:               data.tags ?? [],
+    avg_attendee_age:   data.avgAttendeeAge ?? null,
+    attendee_count:     data.attendeeCount ?? 0,
+    days_until_event:   daysUntilEvent,
+    max_attendees:      data.maxAttendees ?? null,
+    is_paid:            data.isPaid ?? false,
+  });
+
   await upsertEmbedding(entityId, "event", embedding);
 }
 
@@ -144,9 +156,13 @@ export async function embedSpace(
   entityId: string,
   data: SpaceEmbedInput,
 ): Promise<void> {
-  const text = buildSpaceText(data);
-  if (!text.trim()) return;
-  const embedding = await generateEmbedding(text);
+  const embedding = await callMlEmbed("space", {
+    tags:            data.tags ?? [],
+    member_count:    data.memberCount ?? 0,
+    avg_member_age:  data.avgMemberAge ?? null,
+    event_count:     data.eventCount ?? 0,
+  });
+
   await upsertEmbedding(entityId, "space", embedding);
 }
 

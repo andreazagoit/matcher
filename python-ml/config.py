@@ -14,7 +14,7 @@ if os.path.exists(_env_path):
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/matcher")
 
 # ─── Model ─────────────────────────────────────────────────────────────────────
-EMBED_DIM = 64
+EMBED_DIM = 256
 HIDDEN_DIM = 128
 LEARNING_RATE = 0.001
 EPOCHS = 50

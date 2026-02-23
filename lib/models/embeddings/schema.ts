@@ -16,7 +16,7 @@ import { vector } from "drizzle-orm/pg-core/columns/vector_extension/vector";
  * via cosine similarity using pgvector (HNSW index for ANN search).
  */
 
-export const EMBEDDING_DIMENSIONS = 1536; // OpenAI text-embedding-3-small; change to 64 when switching to ML model
+export const EMBEDDING_DIMENSIONS = 256; // HGT-lite ML model (256-dim behavioural embeddings)
 
 export const entityTypeEnum = ["user", "event", "space"] as const;
 

@@ -23,8 +23,7 @@
     "ml:export": "npx tsx lib/db/scripts/export-ml-data.ts",
     "ml:generate": "python-ml/.venv/bin/python python-ml/generate_synthetic.py",
     "ml:train": "python-ml/.venv/bin/python python-ml/train.py",
-    "ml:reembed": "python-ml/.venv/bin/python python-ml/reembed.py",
-    "ml:update-embeddings": "npx tsx lib/db/scripts/update-embeddings.ts",
+    "ml:embed-all": "python-ml/.venv/bin/python python-ml/embed_all.py",
     "ml:serve": "python-ml/.venv/bin/uvicorn server:app --app-dir python-ml --host 0.0.0.0 --port 8000 --reload"
   },
   "dependencies": {
