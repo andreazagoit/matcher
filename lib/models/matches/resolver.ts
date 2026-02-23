@@ -6,7 +6,7 @@ import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 import { getUserInterests } from "@/lib/models/interests/operations";
 import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
-import { getProfileItems } from "@/lib/models/profileitems/operations";
+import { getUserItems } from "@/lib/models/profileitems/operations";
 import { findMatches } from "./operations";
 import type { Gender } from "@/lib/graphql/__generated__/graphql";
 
@@ -66,7 +66,7 @@ export const matchResolvers = {
   },
   MatchUser: {
     userItems: async (parent: { id: string }) => {
-      return getProfileItems(parent.id);
+      return getUserItems(parent.id);
     },
   },
 };

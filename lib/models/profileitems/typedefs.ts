@@ -1,11 +1,12 @@
-export const profileItemTypeDefs = `#graphql
+
+export const userItemTypeDefs = `#graphql
   """
   A single item on a user's profile — either a photo or a prompt answer.
   """
   type ProfileItem {
     id: ID!
     userId: ID!
-    type: ProfileItemType!
+    type: UserItemType!
     promptKey: String
     content: String!
     displayOrder: Int!
@@ -13,31 +14,31 @@ export const profileItemTypeDefs = `#graphql
     updatedAt: DateTime!
   }
 
-  enum ProfileItemType {
+  enum UserItemType {
     photo
     prompt
   }
 
-  input AddProfileItemInput {
-    type: ProfileItemType!
+  input AddUserItemInput {
+    type: UserItemType!
     promptKey: String
     content: String!
     displayOrder: Int
   }
 
-  input UpdateProfileItemInput {
+  input UpdateUserItemInput {
     content: String
     promptKey: String
   }
 
   extend type Query {
-    profileItems(userId: ID!): [ProfileItem!]!
+    userItems(userId: ID!): [ProfileItem!]!
   }
 
   extend type Mutation {
-    addProfileItem(input: AddProfileItemInput!): ProfileItem!
-    updateProfileItem(itemId: ID!, input: UpdateProfileItemInput!): ProfileItem!
-    deleteProfileItem(itemId: ID!): Boolean!
-    reorderProfileItems(itemIds: [ID!]!): [ProfileItem!]!
+    addUserItem(input: AddUserItemInput!): ProfileItem!
+    updateUserItem(itemId: ID!, input: UpdateUserItemInput!): ProfileItem!
+    deleteUserItem(itemId: ID!): Boolean!
+    reorderUserItems(itemIds: [ID!]!): [ProfileItem!]!
   }
 `;

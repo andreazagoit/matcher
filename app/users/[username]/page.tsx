@@ -108,7 +108,7 @@ export default async function UserProfilePage({
     const age = user.birthdate ? getAge(user.birthdate) : null;
     const initials = (user.name ?? "").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
-    const profileItems: UserItemData[] = user.userItems
+    const userItems: UserItemData[] = user.userItems
         .slice()
         .sort((a, b) => a.displayOrder - b.displayOrder);
 
@@ -230,12 +230,12 @@ export default async function UserProfilePage({
             {/* ── Container stretto: foto + prompt ──────────────────────── */}
             <div className="mx-auto max-w-xl space-y-4">
 
-                {profileItems.length === 0 ? (
+                {userItems.length === 0 ? (
                     <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground text-sm">
                         {tProfile("noContent")}
                     </div>
                 ) : (
-                    profileItems.map((item) => (
+                    userItems.map((item) => (
                         <div key={item.id}>
                             {item.type === "photo" ? (
                                 <PhotoCard url={item.content} alt={`Foto di ${user.name}`} />

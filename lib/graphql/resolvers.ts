@@ -5,7 +5,7 @@ import { interestResolvers } from "../models/interests/resolver";
 import { matchResolvers } from "../models/matches/resolver";
 import { memberResolvers } from "../models/members/resolver";
 import { postResolvers } from "../models/posts/resolver";
-import { profileItemResolvers } from "../models/profileitems/resolver";
+import { userItemResolvers } from "../models/profileitems/resolver";
 import { spaceResolvers } from "../models/spaces/resolver";
 import { tagResolvers } from "../models/tags/resolver";
 import { tierResolvers } from "../models/tiers/resolver";
@@ -22,7 +22,7 @@ export const resolvers = {
     ...interestResolvers.Query,
     ...matchResolvers.Query,
     ...postResolvers.Query,
-    ...profileItemResolvers.Query,
+    ...userItemResolvers.Query,
     ...spaceResolvers.Query,
     ...tagResolvers.Query,
     ...userResolvers.Query,
@@ -35,7 +35,7 @@ export const resolvers = {
     ...interestResolvers.Mutation,
     ...memberResolvers.Mutation,
     ...postResolvers.Mutation,
-    ...profileItemResolvers.Mutation,
+    ...userItemResolvers.Mutation,
     ...spaceResolvers.Mutation,
     ...userResolvers.Mutation,
     ...notificationResolvers.Mutation,

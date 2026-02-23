@@ -1,9 +1,9 @@
 import {
-  getProfileItems,
-  addProfileItem,
-  updateProfileItem,
-  deleteProfileItem,
-  reorderProfileItems,
+  getUserItems,
+  addUserItem,
+  updateUserItem,
+  deleteUserItem,
+  reorderUserItems,
 } from "./operations";
 import type { GraphQLContext } from "@/lib/graphql/context";
 
@@ -14,48 +14,48 @@ class AuthError extends Error {
   }
 }
 
-export const profileItemResolvers = {
+export const userItemResolvers = {
   Query: {
-    profileItems: async (_: unknown, { userId }: { userId: string }) => {
-      return getProfileItems(userId);
+    userItems: async (_: unknown, { userId }: { userId: string }) => {
+      return getUserItems(userId);
     },
   },
 
   Mutation: {
-    addProfileItem: async (
+    addUserItem: async (
       _: unknown,
       { input }: { input: { type: "photo" | "prompt"; promptKey?: string; content: string; displayOrder?: number } },
       context: GraphQLContext
     ) => {
       if (!context.auth.user) throw new AuthError("Authentication required");
-      return addProfileItem(context.auth.user.id, input);
+      return addUserItem(context.auth.user.id, input);
     },
 
-    updateProfileItem: async (
+    updateUserItem: async (
       _: unknown,
       { itemId, input }: { itemId: string; input: { content?: string; promptKey?: string } },
       context: GraphQLContext
     ) => {
       if (!context.auth.user) throw new AuthError("Authentication required");
-      return updateProfileItem(itemId, context.auth.user.id, input);
+      return updateUserItem(itemId, context.auth.user.id, input);
     },
 
-    deleteProfileItem: async (
+    deleteUserItem: async (
       _: unknown,
       { itemId }: { itemId: string },
       context: GraphQLContext
     ) => {
       if (!context.auth.user) throw new AuthError("Authentication required");
-      return deleteProfileItem(itemId, context.auth.user.id);
+      return deleteUserItem(itemId, context.auth.user.id);
     },
 
-    reorderProfileItems: async (
+    reorderUserItems: async (
       _: unknown,
       { itemIds }: { itemIds: string[] },
       context: GraphQLContext
     ) => {
       if (!context.auth.user) throw new AuthError("Authentication required");
-      return reorderProfileItems(context.auth.user.id, itemIds);
+      return reorderUserItems(context.auth.user.id, itemIds);
     },
   },
 };

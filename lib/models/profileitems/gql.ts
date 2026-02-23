@@ -16,7 +16,7 @@ export const PROFILE_ITEM_FRAGMENT = gql`
 export const GET_PROFILE_ITEMS = gql`
   ${PROFILE_ITEM_FRAGMENT}
   query GetProfileItems($userId: ID!) {
-    profileItems(userId: $userId) {
+    userItems(userId: $userId) {
       ...ProfileItemFields
     }
   }
@@ -24,8 +24,8 @@ export const GET_PROFILE_ITEMS = gql`
 
 export const ADD_PROFILE_ITEM = gql`
   ${PROFILE_ITEM_FRAGMENT}
-  mutation AddProfileItem($input: AddProfileItemInput!) {
-    addProfileItem(input: $input) {
+  mutation AddUserItem($input: AddUserItemInput!) {
+    addUserItem(input: $input) {
       ...ProfileItemFields
     }
   }
@@ -33,23 +33,23 @@ export const ADD_PROFILE_ITEM = gql`
 
 export const UPDATE_PROFILE_ITEM = gql`
   ${PROFILE_ITEM_FRAGMENT}
-  mutation UpdateProfileItem($itemId: ID!, $input: UpdateProfileItemInput!) {
-    updateProfileItem(itemId: $itemId, input: $input) {
+  mutation UpdateUserItem($itemId: ID!, $input: UpdateUserItemInput!) {
+    updateUserItem(itemId: $itemId, input: $input) {
       ...ProfileItemFields
     }
   }
 `;
 
 export const DELETE_PROFILE_ITEM = gql`
-  mutation DeleteProfileItem($itemId: ID!) {
-    deleteProfileItem(itemId: $itemId)
+  mutation DeleteUserItem($itemId: ID!) {
+    deleteUserItem(itemId: $itemId)
   }
 `;
 
 export const REORDER_PROFILE_ITEMS = gql`
   ${PROFILE_ITEM_FRAGMENT}
-  mutation ReorderProfileItems($itemIds: [ID!]!) {
-    reorderProfileItems(itemIds: $itemIds) {
+  mutation ReorderUserItems($itemIds: [ID!]!) {
+    reorderUserItems(itemIds: $itemIds) {
       ...ProfileItemFields
     }
   }

@@ -5,7 +5,7 @@ import { eq, asc, and, gte } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 
 /** Fetch all items for a user, ordered by displayOrder. */
-export async function getProfileItems(userId: string): Promise<ProfileItem[]> {
+export async function getUserItems(userId: string): Promise<ProfileItem[]> {
   return db.query.profileItems.findMany({
     where: eq(profileItems.userId, userId),
     orderBy: [asc(profileItems.displayOrder)],
@@ -13,7 +13,7 @@ export async function getProfileItems(userId: string): Promise<ProfileItem[]> {
 }
 
 /** Add a new item at the end of the user's profile. */
-export async function addProfileItem(
+export async function addUserItem(
   userId: string,
   input: { type: "photo" | "prompt"; promptKey?: string; content: string; displayOrder?: number }
 ): Promise<ProfileItem> {
@@ -42,7 +42,7 @@ export async function addProfileItem(
 }
 
 /** Update content or promptKey of a specific item. */
-export async function updateProfileItem(
+export async function updateUserItem(
   itemId: string,
   userId: string,
   input: { content?: string; promptKey?: string }
@@ -69,7 +69,7 @@ export async function updateProfileItem(
 }
 
 /** Delete an item and reindex the remaining items' displayOrder. */
-export async function deleteProfileItem(itemId: string, userId: string): Promise<boolean> {
+export async function deleteUserItem(itemId: string, userId: string): Promise<boolean> {
   const existing = await db.query.profileItems.findFirst({
     where: and(eq(profileItems.id, itemId), eq(profileItems.userId, userId)),
   });
@@ -100,7 +100,7 @@ export async function deleteProfileItem(itemId: string, userId: string): Promise
 }
 
 /** Reorder all items for a user. itemIds must contain all existing item IDs. */
-export async function reorderProfileItems(
+export async function reorderUserItems(
   userId: string,
   itemIds: string[]
 ): Promise<ProfileItem[]> {
@@ -122,5 +122,5 @@ export async function reorderProfileItems(
       .where(and(eq(profileItems.id, itemIds[i]), eq(profileItems.userId, userId)));
   }
 
-  return getProfileItems(userId);
+  return getUserItems(userId);
 }

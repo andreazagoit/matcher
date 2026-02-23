@@ -24,11 +24,11 @@ export enum ActivityLevel {
   VeryActive = 'very_active'
 }
 
-export type AddProfileItemInput = {
+export type AddUserItemInput = {
   content: Scalars['String']['input'];
   displayOrder?: InputMaybe<Scalars['Int']['input']>;
   promptKey?: InputMaybe<Scalars['String']['input']>;
-  type: ProfileItemType;
+  type: UserItemType;
 };
 
 export enum AttendeeStatus {
@@ -256,7 +256,7 @@ export type Message = {
 
 export type Mutation = {
   __typename: 'Mutation';
-  addProfileItem: ProfileItem;
+  addUserItem: ProfileItem;
   approveMember: Member;
   archiveTier: Scalars['Boolean']['output'];
   /** Create a new event in a space. */
@@ -267,9 +267,9 @@ export type Mutation = {
   createUser: User;
   deleteNotification: Scalars['Boolean']['output'];
   deletePost: Scalars['Boolean']['output'];
-  deleteProfileItem: Scalars['Boolean']['output'];
   deleteSpace: Scalars['Boolean']['output'];
   deleteUser: Scalars['Boolean']['output'];
+  deleteUserItem: Scalars['Boolean']['output'];
   joinSpace: Member;
   leaveSpace: Scalars['Boolean']['output'];
   markAllNotificationsRead: Scalars['Boolean']['output'];
@@ -279,7 +279,7 @@ export type Mutation = {
   markEventCompleted: Event;
   markNotificationRead: Maybe<Notification>;
   removeMember: Scalars['Boolean']['output'];
-  reorderProfileItems: Array<ProfileItem>;
+  reorderUserItems: Array<ProfileItem>;
   /** Respond to an event (going, interested). */
   respondToEvent: EventAttendee;
   /** Accept or decline a message request. */
@@ -294,15 +294,15 @@ export type Mutation = {
   updateMemberRole: Member;
   /** Set the user's declared interests (replaces previous declared tags). */
   updateMyInterests: Array<UserInterest>;
-  updateProfileItem: ProfileItem;
   updateSpace: Space;
   updateTier: MembershipTier;
   updateUser: Maybe<User>;
+  updateUserItem: ProfileItem;
 };
 
 
-export type MutationAddProfileItemArgs = {
-  input: AddProfileItemInput;
+export type MutationAddUserItemArgs = {
+  input: AddUserItemInput;
 };
 
 
@@ -355,11 +355,6 @@ export type MutationDeletePostArgs = {
 };
 
 
-export type MutationDeleteProfileItemArgs = {
-  itemId: Scalars['ID']['input'];
-};
-
-
 export type MutationDeleteSpaceArgs = {
   id: Scalars['ID']['input'];
 };
@@ -367,6 +362,11 @@ export type MutationDeleteSpaceArgs = {
 
 export type MutationDeleteUserArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteUserItemArgs = {
+  itemId: Scalars['ID']['input'];
 };
 
 
@@ -402,7 +402,7 @@ export type MutationRemoveMemberArgs = {
 };
 
 
-export type MutationReorderProfileItemsArgs = {
+export type MutationReorderUserItemsArgs = {
   itemIds: Array<Scalars['ID']['input']>;
 };
 
@@ -456,12 +456,6 @@ export type MutationUpdateMyInterestsArgs = {
 };
 
 
-export type MutationUpdateProfileItemArgs = {
-  input: UpdateProfileItemInput;
-  itemId: Scalars['ID']['input'];
-};
-
-
 export type MutationUpdateSpaceArgs = {
   id: Scalars['ID']['input'];
   input: UpdateSpaceInput;
@@ -477,6 +471,12 @@ export type MutationUpdateTierArgs = {
 export type MutationUpdateUserArgs = {
   id: Scalars['ID']['input'];
   input: UpdateUserInput;
+};
+
+
+export type MutationUpdateUserItemArgs = {
+  input: UpdateUserItemInput;
+  itemId: Scalars['ID']['input'];
 };
 
 export type Notification = {
@@ -510,15 +510,10 @@ export type ProfileItem = {
   displayOrder: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
   promptKey: Maybe<Scalars['String']['output']>;
-  type: ProfileItemType;
+  type: UserItemType;
   updatedAt: Scalars['DateTime']['output'];
   userId: Scalars['ID']['output'];
 };
-
-export enum ProfileItemType {
-  Photo = 'photo',
-  Prompt = 'prompt'
-}
 
 export type ProfileStatus = {
   __typename: 'ProfileStatus';
@@ -560,7 +555,6 @@ export type Query = {
   /** Get the authenticated user's upcoming events. */
   myUpcomingEvents: Array<Event>;
   notifications: Array<Notification>;
-  profileItems: Array<ProfileItem>;
   /** Get the authenticated user's profile status. */
   profileStatus: ProfileStatus;
   /**
@@ -587,6 +581,7 @@ export type Query = {
   unreadNotificationsCount: Scalars['Int']['output'];
   user: Maybe<User>;
   userFeed: Array<Post>;
+  userItems: Array<ProfileItem>;
   users: Array<User>;
 };
 
@@ -638,11 +633,6 @@ export type QueryNotificationsArgs = {
 };
 
 
-export type QueryProfileItemsArgs = {
-  userId: Scalars['ID']['input'];
-};
-
-
 export type QueryRecommendedEventsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -678,6 +668,11 @@ export type QueryUserArgs = {
 export type QueryUserFeedArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryUserItemsArgs = {
+  userId: Scalars['ID']['input'];
 };
 
 export enum RelationshipStyle {
@@ -758,11 +753,6 @@ export type UpdateEventInput = {
   title?: InputMaybe<Scalars['String']['input']>;
 };
 
-export type UpdateProfileItemInput = {
-  content?: InputMaybe<Scalars['String']['input']>;
-  promptKey?: InputMaybe<Scalars['String']['input']>;
-};
-
 export type UpdateSpaceInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   image?: InputMaybe<Scalars['String']['input']>;
@@ -803,6 +793,11 @@ export type UpdateUserInput = {
   wantsChildren?: InputMaybe<WantsChildren>;
 };
 
+export type UpdateUserItemInput = {
+  content?: InputMaybe<Scalars['String']['input']>;
+  promptKey?: InputMaybe<Scalars['String']['input']>;
+};
+
 /** User — demographic, auth, and location data */
 export type User = {
   __typename: 'User';
@@ -841,6 +836,11 @@ export type UserInterest = {
   tag: Scalars['String']['output'];
   weight: Scalars['Float']['output'];
 };
+
+export enum UserItemType {
+  Photo = 'photo',
+  Prompt = 'prompt'
+}
 
 export enum WantsChildren {
   No = 'no',
@@ -979,7 +979,7 @@ export type GetFindMatchesQueryVariables = Exact<{
 }>;
 
 
-export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string, name: string, image: string | null, gender: string | null, birthdate: string, userItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, content: string, displayOrder: number }> } }> };
+export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string, name: string, image: string | null, gender: string | null, birthdate: string, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, content: string, displayOrder: number }> } }> };
 
 export type GetProfileStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1072,43 +1072,43 @@ export type DeletePostMutationVariables = Exact<{
 
 export type DeletePostMutation = { deletePost: boolean };
 
-export type ProfileItemFieldsFragment = { __typename: 'ProfileItem', id: string, userId: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown };
+export type ProfileItemFieldsFragment = { __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown };
 
 export type GetProfileItemsQueryVariables = Exact<{
   userId: Scalars['ID']['input'];
 }>;
 
 
-export type GetProfileItemsQuery = { profileItems: Array<{ __typename: 'ProfileItem', id: string, userId: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
+export type GetProfileItemsQuery = { userItems: Array<{ __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
 
-export type AddProfileItemMutationVariables = Exact<{
-  input: AddProfileItemInput;
+export type AddUserItemMutationVariables = Exact<{
+  input: AddUserItemInput;
 }>;
 
 
-export type AddProfileItemMutation = { addProfileItem: { __typename: 'ProfileItem', id: string, userId: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
+export type AddUserItemMutation = { addUserItem: { __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
 
-export type UpdateProfileItemMutationVariables = Exact<{
+export type UpdateUserItemMutationVariables = Exact<{
   itemId: Scalars['ID']['input'];
-  input: UpdateProfileItemInput;
+  input: UpdateUserItemInput;
 }>;
 
 
-export type UpdateProfileItemMutation = { updateProfileItem: { __typename: 'ProfileItem', id: string, userId: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
+export type UpdateUserItemMutation = { updateUserItem: { __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
 
-export type DeleteProfileItemMutationVariables = Exact<{
+export type DeleteUserItemMutationVariables = Exact<{
   itemId: Scalars['ID']['input'];
 }>;
 
 
-export type DeleteProfileItemMutation = { deleteProfileItem: boolean };
+export type DeleteUserItemMutation = { deleteUserItem: boolean };
 
-export type ReorderProfileItemsMutationVariables = Exact<{
+export type ReorderUserItemsMutationVariables = Exact<{
   itemIds: Array<Scalars['ID']['input']> | Scalars['ID']['input'];
 }>;
 
 
-export type ReorderProfileItemsMutation = { reorderProfileItems: Array<{ __typename: 'ProfileItem', id: string, userId: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
+export type ReorderUserItemsMutation = { reorderUserItems: Array<{ __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
 
 export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean };
 
@@ -1211,7 +1211,7 @@ export type GetUserQueryVariables = Exact<{
 }>;
 
 
-export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, userItems: Array<{ __typename: 'ProfileItem', id: string, type: ProfileItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
+export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
 
 export type GetUserWithCardsQueryVariables = Exact<{
   username: Scalars['String']['input'];
