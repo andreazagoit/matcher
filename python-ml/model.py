@@ -78,15 +78,19 @@ class HGTAttentionLayer(nn.Module):
     aware of both node and edge heterogeneity.
 
     Edge types supported:
-        user  → event
-        user  → space
-        user  → user   (mutual match / conversation)
+        all pairwise combinations between {user, event, space}
     """
 
     EDGE_TYPES = [
+        ("user", "user"),
         ("user", "event"),
         ("user", "space"),
-        ("user", "user"),
+        ("event", "user"),
+        ("event", "event"),
+        ("event", "space"),
+        ("space", "user"),
+        ("space", "event"),
+        ("space", "space"),
     ]
 
     def __init__(self, hidden_dim: int = HIDDEN_DIM, num_heads: int = 4):
@@ -197,7 +201,8 @@ class HetEncoder(nn.Module):
 
     def forward(
         self,
-        anchor_feats: torch.Tensor,     # (B, USER_DIM)     — always user
+        anchor_feats: torch.Tensor,     # (B, anchor_dim)
+        anchor_types: list[str],        # length B
         item_feats: torch.Tensor,       # (B, item_dim)
         item_types: list[str],          # length B
         use_graph: bool = True,
@@ -205,39 +210,42 @@ class HetEncoder(nn.Module):
         """
         Returns (anchor_emb, item_emb), each (B, EMBED_DIM), L2-normalised.
 
-        When use_graph=True one hop of HGT attention is applied:
-          - anchor (user) attends over item
+        When use_graph=True one hop of HGT attention is applied in both directions:
+          - anchor attends over item
           - item attends back over anchor
         """
-        h_anchor = self._encode_hidden("user", anchor_feats)
+        # Anchors/items may have mixed types and padded dims; we encode per type.
+        h_anchor = torch.zeros(len(anchor_types), HIDDEN_DIM, device=anchor_feats.device)
+        for atype in set(anchor_types):
+            mask = torch.tensor([t == atype for t in anchor_types], device=anchor_feats.device)
+            dim = _DIM_MAP[atype]
+            h_anchor[mask] = self._encode_hidden(atype, anchor_feats[mask][:, :dim])
 
-        # Items may have different types and dims.
-        # _collate pads all items to the widest dim in the batch, so we must
-        # slice each group back to its true input dimension before encoding.
-        unique_types = list(set(item_types))
-        if len(unique_types) == 1:
-            dim    = _DIM_MAP[unique_types[0]]
-            h_item = self._encode_hidden(unique_types[0], item_feats[:, :dim])
-        else:
-            h_item = torch.zeros(len(item_types), HIDDEN_DIM, device=anchor_feats.device)
-            for etype in unique_types:
-                mask = torch.tensor([t == etype for t in item_types], device=anchor_feats.device)
-                dim  = _DIM_MAP[etype]
-                h_item[mask] = self._encode_hidden(etype, item_feats[mask][:, :dim])
+        h_item = torch.zeros(len(item_types), HIDDEN_DIM, device=anchor_feats.device)
+        for itype in set(item_types):
+            mask = torch.tensor([t == itype for t in item_types], device=anchor_feats.device)
+            dim = _DIM_MAP[itype]
+            h_item[mask] = self._encode_hidden(itype, item_feats[mask][:, :dim])
 
         if use_graph:
-            # For mixed item types we apply attention per-type group
+            # Apply one-hop attention pair-wise by (anchor_type, item_type).
             h_anchor_refined = h_anchor.clone()
-            for etype in set(item_types):
-                mask = torch.tensor([t == etype for t in item_types], device=anchor_feats.device)
-                h_anchor_refined[mask] = self.hgt(
-                    src_h=h_item[mask], dst_h=h_anchor[mask],
-                    src_type=etype, dst_type="user",
-                )
-                h_item[mask] = self.hgt(
-                    src_h=h_anchor[mask], dst_h=h_item[mask],
-                    src_type="user", dst_type=etype,
-                )
+            for atype in set(anchor_types):
+                for itype in set(item_types):
+                    mask = torch.tensor(
+                        [(a == atype and i == itype) for a, i in zip(anchor_types, item_types)],
+                        device=anchor_feats.device,
+                    )
+                    if not mask.any():
+                        continue
+                    h_anchor_refined[mask] = self.hgt(
+                        src_h=h_item[mask], dst_h=h_anchor[mask],
+                        src_type=itype, dst_type=atype,
+                    )
+                    h_item[mask] = self.hgt(
+                        src_h=h_anchor[mask], dst_h=h_item[mask],
+                        src_type=atype, dst_type=itype,
+                    )
             h_anchor = h_anchor_refined
 
         anchor_emb = F.normalize(self._hidden_to_embed(h_anchor), dim=-1)
@@ -321,7 +329,7 @@ def contrastive_loss(
 class TripletDataset(Dataset):
     """
     Stores heterogeneous training triplets.
-    Each triplet: (anchor_vec, item_vec, item_type, label, weight)
+    Each triplet: (anchor_type, anchor_vec, item_type, item_vec, label, weight)
     """
 
     def __init__(self, triplets: list[tuple]):
@@ -331,29 +339,35 @@ class TripletDataset(Dataset):
         return len(self.triplets)
 
     def __getitem__(self, idx: int):
-        anchor_vec, item_vec, item_type, label, weight = self.triplets[idx]
+        anchor_type, anchor_vec, item_type, item_vec, label, weight = self.triplets[idx]
         return (
+            anchor_type,
             torch.tensor(anchor_vec, dtype=torch.float32),
-            torch.tensor(item_vec,   dtype=torch.float32),
             item_type,
+            torch.tensor(item_vec,   dtype=torch.float32),
             float(label),
             float(weight),
         )
 
 
 def _collate(batch):
-    anchors   = torch.stack([b[0] for b in batch])
-    item_type = [b[2] for b in batch]
-    labels    = torch.tensor([b[3] for b in batch], dtype=torch.float32)
-    weights   = torch.tensor([b[4] for b in batch], dtype=torch.float32)
+    anchor_types = [b[0] for b in batch]
+    item_types = [b[2] for b in batch]
+    labels = torch.tensor([b[4] for b in batch], dtype=torch.float32)
+    weights = torch.tensor([b[5] for b in batch], dtype=torch.float32)
 
-    # Items may have different dims — pad to max dim in batch
-    max_dim = max(b[1].size(0) for b in batch)
-    items = torch.zeros(len(batch), max_dim)
+    # Anchors/items may have different dims — pad each side independently.
+    max_anchor_dim = max(b[1].size(0) for b in batch)
+    anchors = torch.zeros(len(batch), max_anchor_dim)
     for i, b in enumerate(batch):
-        items[i, : b[1].size(0)] = b[1]
+        anchors[i, : b[1].size(0)] = b[1]
 
-    return anchors, items, item_type, labels, weights
+    max_item_dim = max(b[3].size(0) for b in batch)
+    items = torch.zeros(len(batch), max_item_dim)
+    for i, b in enumerate(batch):
+        items[i, : b[3].size(0)] = b[3]
+
+    return anchors, anchor_types, items, item_types, labels, weights
 
 
 # ─── Batch encoding ────────────────────────────────────────────────────────────
@@ -397,7 +411,7 @@ def mine_hard_negatives(
     model: HetEncoder,
     user_features: dict[str, list[float]],
     item_features: dict[str, tuple[str, list[float]]],
-    positive_set: set[tuple[str, str]],
+    positive_set: set[tuple[str, str, str]],
     n_per_user: int = 3,
     max_users: int = 2_000,
 ) -> list[tuple]:
@@ -407,7 +421,7 @@ def mine_hard_negatives(
     Encodes all items and sampled users in batch, then for each user selects
     the top-N most similar non-interacted items as hard negatives (label=0, weight=1.0).
 
-    Returns list of 5-tuples (anchor_vec, item_vec, item_type, 0, 1.0).
+    Returns list of 6-tuples ("user", anchor_vec, item_type, item_vec, 0, 1.0).
     """
     # Encode all items once
     all_item_embs  = encode_all(model, item_features)
@@ -426,9 +440,11 @@ def mine_hard_negatives(
 
     # Build per-user positive set (fast lookup)
     user_positives: dict[str, set[str]] = defaultdict(set)
-    for uid, iid in positive_set:
-        if uid in all_user_embs:
-            user_positives[uid].add(iid)
+    for anchor_type, anchor_id, iid in positive_set:
+        if anchor_type != "user":
+            continue
+        if anchor_id in all_user_embs:
+            user_positives[anchor_id].add(iid)
 
     hard_neg_triplets: list[tuple] = []
     for uid in uid_list:
@@ -449,7 +465,7 @@ def mine_hard_negatives(
         for idx in top_idxs:
             iid         = item_ids[idx]
             itype, ivec = item_features[iid]
-            hard_neg_triplets.append((u_feat, ivec, itype, 0, 1.0))
+            hard_neg_triplets.append(("user", u_feat, itype, ivec, 0, 1.0))
 
     return hard_neg_triplets
 
@@ -461,71 +477,177 @@ def evaluate_recall_ndcg(
     val_data: dict,
     k: int = 10,
     max_users: int = 500,
+    allowed_item_types: Optional[set[str]] = None,
 ) -> dict:
     """
     Compute Recall@K and NDCG@K on held-out validation pairs.
 
-    For each user in val_data, ranks ALL items in the corpus by cosine similarity
-    to the user's embedding, then checks how many held-out positive items appear
-    in the top-K results.
+    Supports both legacy user-only validation and typed multi-anchor validation.
 
     Args:
-        val_data:  dict from build_training_data — {user_features, item_features, val_pairs}
+        val_data:  dict from build_training_data — {anchor_features, item_features, val_pairs}
         k:         ranking cut-off (default 10)
         max_users: sample this many val users for speed (default 500)
+        allowed_item_types: optional candidate filter (e.g. {"event", "space"})
 
     Returns:
-        {"recall@k": float, "ndcg@k": float, "k": int, "n_users": int}
+        {
+          "recall@k": float, "ndcg@k": float,
+          "macro_recall@k": float, "macro_ndcg@k": float,
+          "micro_recall@k": float, "micro_ndcg@k": float,
+          "per_task": dict, "k": int, "n_anchors": int
+        }
     """
-    user_features = val_data["user_features"]
     item_features = val_data["item_features"]
-    val_pairs     = val_data["val_pairs"]
+    raw_pairs = val_data["val_pairs"]
 
-    # Group held-out pairs by user
-    user_holdouts: dict[str, set[str]] = defaultdict(set)
-    for uid, iid in val_pairs:
-        user_holdouts[uid].add(iid)
+    # Backward compatibility: legacy schema {user_features, val_pairs=(uid,iid)}.
+    if "anchor_features" in val_data:
+        anchor_features = val_data["anchor_features"]
+        val_pairs = raw_pairs
+        seen_train_by_anchor = {
+            key: set(items)
+            for key, items in (val_data.get("seen_train_by_anchor") or {}).items()
+        }
+    else:
+        anchor_features = {("user", uid): feats for uid, feats in val_data["user_features"].items()}
+        val_pairs = [("user", uid, "unknown", iid) for uid, iid in raw_pairs]
+        seen_train_by_anchor = {
+            ("user", uid): set(items)
+            for uid, items in (val_data.get("seen_train_by_user") or {}).items()
+        }
 
-    eval_users = [uid for uid in user_holdouts if uid in user_features]
-    if len(eval_users) > max_users:
-        eval_users = random.sample(eval_users, max_users)
+    # Group held-out pairs by (anchor_type, anchor_id, target_type)
+    anchor_holdouts_by_task: dict[tuple[str, str], dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    for atype, aid, itype, iid in val_pairs:
+        target_type = itype
+        if target_type == "unknown" and iid in item_features:
+            target_type = item_features[iid][0]
+        anchor_holdouts_by_task[(atype, aid)][target_type].add(iid)
 
-    if not eval_users:
+    eval_anchors = [akey for akey in anchor_holdouts_by_task if akey in anchor_features]
+    if len(eval_anchors) > max_users:
+        eval_anchors = random.sample(eval_anchors, max_users)
+
+    if not eval_anchors:
         return {"recall@k": 0.0, "ndcg@k": 0.0, "k": k, "n_users": 0}
 
-    # Encode all corpus items in batch
+    if allowed_item_types:
+        item_features = {
+            iid: (itype, ivec)
+            for iid, (itype, ivec) in item_features.items()
+            if itype in allowed_item_types
+        }
+    if not item_features:
+        return {"recall@k": 0.0, "ndcg@k": 0.0, "k": k, "n_users": 0}
+
+    # Encode candidate corpus items in batch
     all_item_embs = encode_all(model, item_features)
-    item_ids      = list(item_features.keys())
-    item_emb_mat  = torch.stack([all_item_embs[iid] for iid in item_ids])  # (n_items, EMBED_DIM)
+    item_ids = list(item_features.keys())
+    item_id_to_idx = {iid: i for i, iid in enumerate(item_ids)}
+    item_emb_mat = torch.stack([all_item_embs[iid] for iid in item_ids])  # (n_items, EMBED_DIM)
 
-    recalls: list[float] = []
+    recalls: list[float] = []  # aggregate per-anchor across all targets
     ndcgs:   list[float] = []
+    per_task_recalls: dict[tuple[str, str], list[float]] = defaultdict(list)
+    per_task_ndcgs: dict[tuple[str, str], list[float]] = defaultdict(list)
 
-    for uid in eval_users:
-        holdout_ids = user_holdouts[uid]
-        u_emb = model.encode("user", user_features[uid]).unsqueeze(0)  # (1, EMBED_DIM)
-        sims  = F.cosine_similarity(u_emb, item_emb_mat)               # (n_items,)
+    for anchor_key in eval_anchors:
+        atype, aid = anchor_key
+        holdouts_by_type = {
+            t: {iid for iid in ids if iid in item_id_to_idx}
+            for t, ids in anchor_holdouts_by_task[anchor_key].items()
+        }
+        all_holdout_ids = set().union(*holdouts_by_type.values()) if holdouts_by_type else set()
+        if not all_holdout_ids:
+            continue
+        a_emb = model.encode(atype, anchor_features[anchor_key]).unsqueeze(0)  # (1, EMBED_DIM)
+        sims = F.cosine_similarity(a_emb, item_emb_mat)                         # (n_items,)
+
+        # Exclude trivial candidates: self + items already seen in train.
+        for seen_id in seen_train_by_anchor.get(anchor_key, set()):
+            idx = item_id_to_idx.get(seen_id)
+            if idx is not None:
+                sims[idx] = -float("inf")
+        if atype in ("user", "event", "space"):
+            self_idx = item_id_to_idx.get(aid)
+            if self_idx is not None:
+                sims[self_idx] = -float("inf")
 
         top_k_idxs = torch.topk(sims, k=min(k, len(item_ids))).indices.tolist()
         top_k_ids  = {item_ids[i] for i in top_k_idxs}
 
-        hits   = len(top_k_ids & holdout_ids)
-        recall = hits / len(holdout_ids)
+        # Overall anchor metric across all target types.
+        hits = len(top_k_ids & all_holdout_ids)
+        recall = hits / len(all_holdout_ids)
         recalls.append(recall)
-
         dcg = sum(
             1.0 / math.log2(rank + 2)
             for rank, idx in enumerate(top_k_idxs)
-            if item_ids[idx] in holdout_ids
+            if item_ids[idx] in all_holdout_ids
         )
-        ideal_dcg = sum(1.0 / math.log2(i + 2) for i in range(min(len(holdout_ids), k)))
-        ndcgs.append(dcg / ideal_dcg if ideal_dcg > 0 else 0.0)
+        ideal_dcg = sum(1.0 / math.log2(i + 2) for i in range(min(len(all_holdout_ids), k)))
+        ndcg = dcg / ideal_dcg if ideal_dcg > 0 else 0.0
+        ndcgs.append(ndcg)
+
+        # Per-task metrics by (anchor_type -> target_type).
+        for target_type, holdout_ids in holdouts_by_type.items():
+            if not holdout_ids:
+                continue
+            task_hits = len(top_k_ids & holdout_ids)
+            task_recall = task_hits / len(holdout_ids)
+            task_dcg = sum(
+                1.0 / math.log2(rank + 2)
+                for rank, idx in enumerate(top_k_idxs)
+                if item_ids[idx] in holdout_ids
+            )
+            task_ideal_dcg = sum(1.0 / math.log2(i + 2) for i in range(min(len(holdout_ids), k)))
+            task_ndcg = task_dcg / task_ideal_dcg if task_ideal_dcg > 0 else 0.0
+            key = (atype, target_type)
+            per_task_recalls[key].append(task_recall)
+            per_task_ndcgs[key].append(task_ndcg)
+
+    recall_at_k = (sum(recalls) / len(recalls)) if recalls else 0.0
+    ndcg_at_k = (sum(ndcgs) / len(ndcgs)) if ndcgs else 0.0
+
+    per_task = {
+        f"{src}->{dst}": {
+            "recall@k": sum(vals_r) / len(vals_r),
+            "ndcg@k": sum(per_task_ndcgs[(src, dst)]) / len(per_task_ndcgs[(src, dst)]),
+            "n_users": len(vals_r),
+        }
+        for (src, dst), vals_r in per_task_recalls.items()
+    }
+
+    macro_recall = (
+        sum(v["recall@k"] for v in per_task.values()) / len(per_task)
+        if per_task else recall_at_k
+    )
+    macro_ndcg = (
+        sum(v["ndcg@k"] for v in per_task.values()) / len(per_task)
+        if per_task else ndcg_at_k
+    )
+    total_n = sum(v["n_users"] for v in per_task.values())
+    micro_recall = (
+        sum(v["recall@k"] * v["n_users"] for v in per_task.values()) / total_n
+        if total_n > 0 else recall_at_k
+    )
+    micro_ndcg = (
+        sum(v["ndcg@k"] * v["n_users"] for v in per_task.values()) / total_n
+        if total_n > 0 else ndcg_at_k
+    )
 
     return {
-        "recall@k": sum(recalls) / len(recalls),
-        "ndcg@k":   sum(ndcgs)   / len(ndcgs),
-        "k":        k,
-        "n_users":  len(recalls),
+        "recall@k": recall_at_k,
+        "ndcg@k": ndcg_at_k,
+        "macro_recall@k": macro_recall,
+        "macro_ndcg@k": macro_ndcg,
+        "micro_recall@k": micro_recall,
+        "micro_ndcg@k": micro_ndcg,
+        "per_task": per_task,
+        "k": k,
+        "n_anchors": len(recalls),
+        "n_users": len(recalls),
     }
 
 
@@ -544,7 +666,8 @@ def train(
     checkpoint_every: int = 10,
 ) -> HetEncoder:
     """
-    Train HetEncoder from 5-tuple (anchor_vec, item_vec, item_type, label, weight) triplets.
+    Train HetEncoder from 6-tuple
+    (anchor_type, anchor_vec, item_type, item_vec, label, weight) triplets.
 
     Args:
         triplets:          training data from build_training_data()["train_triplets"]
@@ -554,7 +677,7 @@ def train(
         patience:          early stopping — stop if val Recall@K doesn't improve for
                            this many epochs (0 = disabled)
         eval_every:        evaluate validation metrics every N epochs
-        hard_neg_fn:       callable(model) → list of hard neg 5-tuples
+        hard_neg_fn:       callable(model) → list of hard neg 6-tuples
         hard_neg_every:    0 = disabled
         checkpoint_path:   path to save best checkpoint (None = no auto-save)
         checkpoint_every:  also save a periodic checkpoint every N epochs as crash recovery
@@ -619,7 +742,7 @@ def train(
         model.train()
         total_loss = total_pos = total_neg = total_info = 0.0
 
-        for batch_idx, (batch_anchors, batch_items, item_types, batch_labels, batch_weights) in enumerate(loader):
+        for batch_idx, (batch_anchors, anchor_types, batch_items, item_types, batch_labels, batch_weights) in enumerate(loader):
             batch_anchors  = batch_anchors.to(device)
             batch_items    = batch_items.to(device)
             batch_labels   = batch_labels.to(device)
@@ -628,7 +751,13 @@ def train(
             components: dict = {}
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=device.type, dtype=_AUTOCAST_DTYPE, enabled=_AUTOCAST_ENABLED):
-                anchor_emb, item_emb = model(batch_anchors, batch_items, item_types, use_graph=True)
+                anchor_emb, item_emb = model(
+                    batch_anchors,
+                    anchor_types,
+                    batch_items,
+                    item_types,
+                    use_graph=True,
+                )
                 loss = contrastive_loss(
                     anchor_emb, item_emb, batch_labels, batch_weights,
                     _components=components,
@@ -677,8 +806,8 @@ def train(
         # ── Validation ─────────────────────────────────────────────────────
         if val_data is not None and eval_every > 0 and (epoch + 1) % eval_every == 0:
             metrics = evaluate_recall_ndcg(model, val_data, k=10, max_users=300)
-            r_at_k  = metrics["recall@k"]
-            n_at_k  = metrics["ndcg@k"]
+            r_at_k = metrics.get("macro_recall@k", metrics["recall@k"])
+            n_at_k = metrics.get("macro_ndcg@k", metrics["ndcg@k"])
 
             is_best = r_at_k > best_recall
             star    = "  ★ best" if is_best else ""
@@ -689,9 +818,19 @@ def train(
                 f"  {epoch_time:.1f}s{eta_str}"
                 f"  Recall@10: {r_at_k:.4f}"
                 f"  NDCG@10: {n_at_k:.4f}"
-                f"  (n={metrics['n_users']}){star}",
+                f"  (n={metrics.get('n_anchors', metrics['n_users'])}){star}",
                 flush=True,
             )
+            per_task = metrics.get("per_task") or {}
+            if per_task:
+                parts = []
+                for task_name in sorted(per_task.keys()):
+                    task = per_task[task_name]
+                    parts.append(
+                        f"{task_name} R@10:{task['recall@k']:.4f} "
+                        f"N@10:{task['ndcg@k']:.4f} (n={task['n_users']})"
+                    )
+                print(f"       {' | '.join(parts)}", flush=True)
 
             if is_best:
                 best_recall   = r_at_k
@@ -699,7 +838,6 @@ def train(
                 no_improve_ep = 0
                 if checkpoint_path:
                     torch.save(best_weights, checkpoint_path)
-                    print(f"       ✓ Saved best checkpoint → {checkpoint_path}", flush=True)
             else:
                 no_improve_ep += eval_every
                 if patience > 0 and no_improve_ep >= patience:
@@ -735,7 +873,6 @@ def train(
         ):
             _recovery_path = checkpoint_path + ".latest"
             torch.save(model.state_dict(), _recovery_path)
-            print(f"  ⟳  Recovery checkpoint → {_recovery_path}", flush=True)
 
     # Restore best checkpoint
     if best_weights is not None:

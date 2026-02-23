@@ -11,10 +11,9 @@ File format (see lib/db/scripts/export-ml-data.ts):
   training-data/spaces.json       — spaces + member/event stats
   training-data/interactions.json — positive pairs with recency weights
 
-Triplet format (5-tuple):
-  (anchor_vec, item_vec, item_type, label, weight)
-  - anchor is always a user (USER_DIM floats)
-  - item_type: "user" | "event" | "space"
+Triplet format (6-tuple):
+  (anchor_type, anchor_vec, item_type, item_vec, label, weight)
+  - anchor_type/item_type: "user" | "event" | "space"
   - label: 1 = positive interaction, 0 = sampled negative
   - weight: recency-weighted interaction strength [0.05, 1.0] for positives,
             1.0 for negatives (push all negatives equally hard)
@@ -104,6 +103,113 @@ def spaces_to_features(records: list[dict]) -> dict[str, list[float]]:
     return result
 
 
+def _jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    if inter == 0:
+        return 0.0
+    return inter / len(a | b)
+
+
+def _build_user_user_edges(
+    interactions_raw: list[dict],
+    max_users_per_item: int = 80,
+    min_shared_items: int = 2,
+    top_k_per_user: int = 20,
+) -> list[dict]:
+    """
+    Build explicit user↔user positives from co-engagement.
+    Keeps only strong overlap and top-k neighbors per user.
+    """
+    users_by_item: dict[str, set[str]] = defaultdict(set)
+    for r in interactions_raw:
+        uid = r.get("user_id")
+        iid = r.get("item_id")
+        if uid and iid:
+            users_by_item[iid].add(uid)
+
+    pair_counts: dict[tuple[str, str], int] = defaultdict(int)
+    for users in users_by_item.values():
+        ulist = list(users)
+        if len(ulist) > max_users_per_item:
+            ulist = random.sample(ulist, max_users_per_item)
+        ulist.sort()
+        for i in range(len(ulist)):
+            ui = ulist[i]
+            for j in range(i + 1, len(ulist)):
+                uj = ulist[j]
+                pair_counts[(ui, uj)] += 1
+
+    neighbors: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for (u1, u2), cnt in pair_counts.items():
+        if cnt < min_shared_items:
+            continue
+        neighbors[u1].append((u2, cnt))
+        neighbors[u2].append((u1, cnt))
+
+    edges: list[dict] = []
+    for uid, peers in neighbors.items():
+        peers.sort(key=lambda x: x[1], reverse=True)
+        for peer_id, cnt in peers[:top_k_per_user]:
+            weight = min(1.0, 0.35 + 0.12 * cnt)
+            edges.append({
+                "anchor_type": "user",
+                "anchor_id": uid,
+                "item_type": "user",
+                "item_id": peer_id,
+                "weight": weight,
+            })
+    return edges
+
+
+def _build_same_type_tag_edges(
+    records: list[dict],
+    entity_type: str,
+    min_jaccard: float,
+    top_k_per_entity: int,
+) -> list[dict]:
+    """
+    Build same-type edges (event↔event, space↔space) from tag overlap.
+    """
+    ids = [r["id"] for r in records if r.get("id")]
+    tags_by_id = {
+        r["id"]: set(r.get("tags") or [])
+        for r in records
+        if r.get("id")
+    }
+    neighbors: dict[str, list[tuple[str, float]]] = defaultdict(list)
+
+    for i in range(len(ids)):
+        a = ids[i]
+        ta = tags_by_id.get(a, set())
+        if not ta:
+            continue
+        for j in range(i + 1, len(ids)):
+            b = ids[j]
+            tb = tags_by_id.get(b, set())
+            if not tb:
+                continue
+            jac = _jaccard(ta, tb)
+            if jac < min_jaccard:
+                continue
+            neighbors[a].append((b, jac))
+            neighbors[b].append((a, jac))
+
+    edges: list[dict] = []
+    for eid, sims in neighbors.items():
+        sims.sort(key=lambda x: x[1], reverse=True)
+        for peer_id, jac in sims[:top_k_per_entity]:
+            edges.append({
+                "anchor_type": entity_type,
+                "anchor_id": eid,
+                "item_type": entity_type,
+                "item_id": peer_id,
+                "weight": min(1.0, 0.2 + jac),
+            })
+    return edges
+
+
 # ─── Training data builder ─────────────────────────────────────────────────────
 
 def build_training_data(
@@ -115,15 +221,15 @@ def build_training_data(
     Loads JSON exports and returns a dict with all data needed for training.
 
     Returns:
-        train_triplets:  list of (anchor_vec, item_vec, item_type, label, weight)
-        val_data:        dict for evaluation — {user_features, item_features, val_pairs}
+        train_triplets:  list of (anchor_type, anchor_vec, item_type, item_vec, label, weight)
+        val_data:        dict for evaluation — {anchor_features, item_features, val_pairs}
         user_features:   {user_id: vec}  — needed for hard neg mining
         item_features:   {item_id: (type, vec)}  — ALL corpus items
-        positive_set:    set of (user_id, item_id)  — for negative sampling exclusion
+        positive_set:    set of (anchor_type, anchor_id, item_id)  — for negative sampling exclusion
 
     Val split:
-        Users with ≥ 3 positive interactions: val_ratio % held out (min 1).
-        Users with < 3 interactions: all triplets go to training.
+        Anchors with ≥ 3 positive interactions: val_ratio % held out (min 1).
+        Anchors with < 3 interactions: all triplets go to training.
     """
     users_raw        = _read(data_dir, "users.json")
     events_raw       = _read(data_dir, "events.json")
@@ -145,56 +251,148 @@ def build_training_data(
 
     all_item_ids = list(all_item_features.keys())
 
-    # Full positive set — used to avoid picking positives as negatives
-    positive_set = {(r["user_id"], r["item_id"]) for r in interactions_raw}
+    def _feature_of(entity_type: str, entity_id: str) -> Optional[list[float]]:
+        if entity_type == "user":
+            return user_features.get(entity_id)
+        if entity_type == "event":
+            return event_features.get(entity_id)
+        if entity_type == "space":
+            return space_features.get(entity_id)
+        return None
 
-    # ── Train / val split per user ────────────────────────────────────────────
-    by_user: dict[str, list[dict]] = defaultdict(list)
+    # ── Build multi-anchor positive records ───────────────────────────────────
+    # Base supervision:
+    #   user ↔ event/space from interactions
+    #   event ↔ space from event.space_id
+    # Added explicit same-type links:
+    #   user ↔ user from co-engagement
+    #   event ↔ event from tag overlap
+    #   space ↔ space from tag overlap
+    all_positive_records: list[dict] = []
+
     for r in interactions_raw:
-        by_user[r["user_id"]].append(r)
+        uid = r["user_id"]
+        iid = r["item_id"]
+        itype = r["item_type"]
+        w = float(r.get("weight") or 1.0)
+        all_positive_records.append({
+            "anchor_type": "user",
+            "anchor_id": uid,
+            "item_type": itype,
+            "item_id": iid,
+            "weight": w,
+        })
+        all_positive_records.append({
+            "anchor_type": itype,
+            "anchor_id": iid,
+            "item_type": "user",
+            "item_id": uid,
+            "weight": w,
+        })
+
+    for e in events_raw:
+        eid = e.get("id")
+        sid = e.get("space_id")
+        if not eid or not sid:
+            continue
+        if eid not in event_features or sid not in space_features:
+            continue
+        all_positive_records.append({
+            "anchor_type": "event",
+            "anchor_id": eid,
+            "item_type": "space",
+            "item_id": sid,
+            "weight": 1.0,
+        })
+        all_positive_records.append({
+            "anchor_type": "space",
+            "anchor_id": sid,
+            "item_type": "event",
+            "item_id": eid,
+            "weight": 1.0,
+        })
+
+    # Same-type positives (explicitly requested by product behavior).
+    all_positive_records.extend(_build_user_user_edges(interactions_raw))
+    all_positive_records.extend(
+        _build_same_type_tag_edges(
+            records=events_raw,
+            entity_type="event",
+            min_jaccard=0.5,
+            top_k_per_entity=8,
+        )
+    )
+    all_positive_records.extend(
+        _build_same_type_tag_edges(
+            records=spaces_raw,
+            entity_type="space",
+            min_jaccard=0.45,
+            top_k_per_entity=10,
+        )
+    )
+
+    # Deduplicate directed edges and keep the strongest weight.
+    dedup: dict[tuple[str, str, str, str], dict] = {}
+    for r in all_positive_records:
+        key = (r["anchor_type"], r["anchor_id"], r["item_type"], r["item_id"])
+        prev = dedup.get(key)
+        if prev is None or float(r["weight"]) > float(prev["weight"]):
+            dedup[key] = r
+    all_positive_records = list(dedup.values())
+
+    # Full positive set — used to avoid picking positives as negatives
+    positive_set = {
+        (r["anchor_type"], r["anchor_id"], r["item_id"])
+        for r in all_positive_records
+    }
+
+    # ── Train / val split per anchor ──────────────────────────────────────────
+    by_anchor: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for r in all_positive_records:
+        by_anchor[(r["anchor_type"], r["anchor_id"])].append(r)
 
     train_records: list[dict] = []
-    val_pairs: list[tuple[str, str]] = []   # (user_id, item_id) held-out positives
-    seen_train_by_user: dict[str, set[str]] = defaultdict(set)
+    val_pairs: list[tuple[str, str, str, str]] = []   # (anchor_type, anchor_id, item_type, item_id)
+    seen_train_by_anchor: dict[tuple[str, str], set[str]] = defaultdict(set)
 
-    for uid, records in by_user.items():
+    for anchor_key, records in by_anchor.items():
         if len(records) >= 3:
-            n_val     = max(1, round(len(records) * val_ratio))
-            val_recs  = random.sample(records, n_val)
-            val_set   = {id(r) for r in val_recs}
+            n_val = max(1, round(len(records) * val_ratio))
+            val_recs = random.sample(records, n_val)
+            val_set = {id(r) for r in val_recs}
             train_recs = [r for r in records if id(r) not in val_set]
         else:
-            val_recs   = []
+            val_recs = []
             train_recs = records
 
         train_records.extend(train_recs)
         for r in train_recs:
-            seen_train_by_user[uid].add(r["item_id"])
-        val_pairs.extend((uid, r["item_id"]) for r in val_recs)
+            seen_train_by_anchor[anchor_key].add(r["item_id"])
+        val_pairs.extend(
+            (r["anchor_type"], r["anchor_id"], r["item_type"], r["item_id"])
+            for r in val_recs
+        )
 
-    # ── Build 5-tuple triplets from train_records ─────────────────────────────
+    # ── Build 6-tuple triplets from train_records ─────────────────────────────
     train_triplets: list[tuple] = []
 
     for record in train_records:
-        uid_      = record["user_id"]
-        item_id   = record["item_id"]
+        anchor_type = record["anchor_type"]
+        anchor_id = record["anchor_id"]
         item_type = record["item_type"]
-        weight    = float(record.get("weight") or 1.0)
+        item_id = record["item_id"]
+        weight = float(record.get("weight") or 1.0)
 
-        user_vec = user_features.get(uid_)
-        if user_vec is None:
+        anchor_vec = _feature_of(anchor_type, anchor_id)
+        if anchor_vec is None:
             continue
 
-        item_vec = (
-            event_features.get(item_id) if item_type == "event"
-            else space_features.get(item_id) if item_type == "space"
-            else user_features.get(item_id)
-        )
+        item_vec = _feature_of(item_type, item_id)
         if item_vec is None:
             continue
 
         # Positive triplet
-        train_triplets.append((user_vec, item_vec, item_type, 1, weight))
+        train_triplets.append((anchor_type, anchor_vec, item_type, item_vec, 1, weight))
 
         # Random negatives (weight 1.0 — push all negatives equally)
         sampled  = 0
@@ -202,26 +400,31 @@ def build_training_data(
         while sampled < negative_samples and attempts < negative_samples * 10:
             attempts += 1
             neg_id = random.choice(all_item_ids)
-            if (uid_, neg_id) in positive_set or neg_id == uid_:
+            if (
+                (anchor_type, anchor_id, neg_id) in positive_set
+                or (anchor_type in ("user", "event", "space") and neg_id == anchor_id)
+            ):
                 continue
             neg_type, neg_vec = all_item_features[neg_id]
-            train_triplets.append((user_vec, neg_vec, neg_type, 0, 1.0))
+            train_triplets.append((anchor_type, anchor_vec, neg_type, neg_vec, 0, 1.0))
             sampled += 1
 
     random.shuffle(train_triplets)
 
     # ── Val data for Recall@K / NDCG@K evaluation ────────────────────────────
-    val_user_ids = {uid for uid, _ in val_pairs}
+    val_anchor_keys = {(atype, aid) for atype, aid, _itype, _iid in val_pairs}
     val_data = {
-        "user_features": {
-            uid: user_features[uid]
-            for uid in val_user_ids
-            if uid in user_features
+        "anchor_features": {
+            (atype, aid): _feature_of(atype, aid)
+            for atype, aid in val_anchor_keys
+            if _feature_of(atype, aid) is not None
         },
         "item_features": all_item_features,   # rank against full corpus
         "val_pairs": val_pairs,
         # Exclude train positives during eval to avoid trivial re-recommendations.
-        "seen_train_by_user": {uid: list(items) for uid, items in seen_train_by_user.items()},
+        "seen_train_by_anchor": {
+            anchor_key: list(items) for anchor_key, items in seen_train_by_anchor.items()
+        },
     }
 
     return {
@@ -239,7 +442,8 @@ def build_training_triplets(
 ) -> list[tuple]:
     """
     Backward-compatible wrapper — returns just the training triplets.
-    Each triplet is a 5-tuple: (anchor_vec, item_vec, item_type, label, weight).
+    Each triplet is a 6-tuple:
+    (anchor_type, anchor_vec, item_type, item_vec, label, weight).
     """
     result = build_training_data(data_dir=data_dir, negative_samples=negative_samples)
     return result["train_triplets"]

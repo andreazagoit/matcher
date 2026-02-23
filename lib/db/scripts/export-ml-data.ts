@@ -80,6 +80,7 @@ async function exportEvents() {
   const rows = await client`
     SELECT
       e.id::text,
+      e.space_id::text,
       e.tags,
       e.starts_at::text,
       e.max_attendees,
@@ -97,7 +98,7 @@ async function exportEvents() {
            ON ea_going.event_id = e.id AND ea_going.status = 'going'
     LEFT JOIN users u_going
            ON u_going.id = ea_going.user_id AND u_going.birthdate IS NOT NULL
-    GROUP BY e.id, e.tags, e.starts_at, e.max_attendees, e.price
+    GROUP BY e.id, e.space_id, e.tags, e.starts_at, e.max_attendees, e.price
   `;
 
   return rows.map((e) => {
@@ -107,6 +108,7 @@ async function exportEvents() {
 
     return {
       id:               e.id,
+      space_id:         e.space_id ?? null,
       tags:             e.tags ?? [],
       starts_at:        e.starts_at ?? null,
       max_attendees:    e.max_attendees ? Number(e.max_attendees) : null,

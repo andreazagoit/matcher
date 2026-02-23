@@ -112,10 +112,14 @@ def main() -> None:
     pos   = sum(1 for *_, label, _w in train_triplets if label == 1)
     neg   = len(train_triplets) - pos
     n_val = len(val_data["val_pairs"])
-    n_val_users = len(val_data["user_features"])
+    n_val_users = (
+        len(val_data["anchor_features"])
+        if "anchor_features" in val_data
+        else len(val_data["user_features"])
+    )
 
     print(f"  Train triplets : {len(train_triplets):>10,}  ({pos:,} pos / {neg:,} neg)")
-    print(f"  Val pairs      : {n_val:>10,}  from {n_val_users:,} users")
+    print(f"  Val pairs      : {n_val:>10,}  from {n_val_users:,} anchors")
     print(f"  Corpus items   : {len(item_features):>10,}")
     print(f"  Loaded in {time.time() - t0:.1f}s\n")
 
@@ -157,9 +161,21 @@ def main() -> None:
         from model import evaluate_recall_ndcg
         metrics = evaluate_recall_ndcg(model, val_data, k=10, max_users=1000)
         print(f"\nFinal metrics:")
-        print(f"  Recall@10  : {metrics['recall@k']:.4f}")
-        print(f"  NDCG@10    : {metrics['ndcg@k']:.4f}")
-        print(f"  (evaluated on {metrics['n_users']} users)")
+        print(f"  Recall@10  : {metrics.get('macro_recall@k', metrics['recall@k']):.4f} (macro)")
+        print(f"  NDCG@10    : {metrics.get('macro_ndcg@k', metrics['ndcg@k']):.4f} (macro)")
+        if "micro_recall@k" in metrics:
+            print(f"  Recall@10  : {metrics['micro_recall@k']:.4f} (micro)")
+            print(f"  NDCG@10    : {metrics['micro_ndcg@k']:.4f} (micro)")
+        print(f"  (evaluated on {metrics.get('n_anchors', metrics['n_users'])} anchors)")
+        per_task = metrics.get("per_task") or {}
+        for task_name in sorted(per_task.keys()):
+            task = per_task[task_name]
+            print(
+                f"  {task_name:>12}  "
+                f"R@10={task['recall@k']:.4f}  "
+                f"N@10={task['ndcg@k']:.4f}  "
+                f"(n={task['n_users']})"
+            )
 
     save_model(model)
     print("\nDone. Run 'npm run ml:embed-all' to regenerate entity embeddings.")
