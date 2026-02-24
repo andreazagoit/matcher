@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { query } from "@/lib/graphql/apollo-client";
-import { GET_FIND_MATCHES } from "@/lib/models/matches/gql";
+import { GET_RECOMMENDED_USERS } from "@/lib/models/users/gql";
 import { Page } from "@/components/page";
 import { UserCard } from "@/components/user-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowRightIcon, UsersIcon } from "lucide-react";
-import type { GetFindMatchesQuery, GetFindMatchesQueryVariables } from "@/lib/graphql/__generated__/graphql";
+import type { GetRecommendedUsersQuery, GetRecommendedUsersQueryVariables } from "@/lib/graphql/__generated__/graphql";
 
-const UNLIMITED_RADIUS_KM = 1_000_000;
 const PAGE_SIZE = 12;
 
 function parsePage(value: string | undefined): number {
@@ -28,18 +27,14 @@ export default async function UsersPage({
   const offset = (page - 1) * PAGE_SIZE;
   await cookies();
 
-  const response = await query<GetFindMatchesQuery, GetFindMatchesQueryVariables>({
-    query: GET_FIND_MATCHES,
-    variables: {
-      maxDistance: UNLIMITED_RADIUS_KM,
-      limit: PAGE_SIZE + 1, // fetch one extra to detect next page
-      offset,
-    },
-  }).catch(() => ({ data: { findMatches: [] as GetFindMatchesQuery["findMatches"] } }));
+  const response = await query<GetRecommendedUsersQuery, GetRecommendedUsersQueryVariables>({
+    query: GET_RECOMMENDED_USERS,
+    variables: { limit: PAGE_SIZE + 1, offset },
+  }).catch(() => ({ data: { me: null } }));
 
-  const allMatches = response.data?.findMatches ?? [];
-  const hasNextPage = allMatches.length > PAGE_SIZE;
-  const matches = hasNextPage ? allMatches.slice(0, PAGE_SIZE) : allMatches;
+  const allUsers = response.data?.me?.recommendedUserUsers ?? [];
+  const hasNextPage = allUsers.length > PAGE_SIZE;
+  const users = hasNextPage ? allUsers.slice(0, PAGE_SIZE) : allUsers;
   const hasPrevPage = page > 1;
 
   return (
@@ -49,26 +44,26 @@ export default async function UsersPage({
         <div className="space-y-1">
           <h1 className="text-4xl font-extrabold tracking-tight">Utenti consigliati</h1>
           <p className="text-muted-foreground">
-            Persone simili a te senza limiti di distanza
+            Persone simili a te in base ai tuoi interessi
           </p>
         </div>
       )}
     >
-      {matches.length === 0 ? (
+      {users.length === 0 ? (
         <Card className="border-dashed py-10 bg-muted/20">
           <CardContent className="flex flex-col items-center justify-center text-center gap-3">
             <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
             <p className="font-medium">Nessun utente consigliato trovato</p>
             <p className="text-sm text-muted-foreground">
-              Prova ad aumentare il raggio o completa il profilo per migliorare i suggerimenti.
+              Completa il profilo e sincronizza gli embedding per ricevere suggerimenti.
             </p>
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {matches.map((match) => (
-              <UserCard key={match.user.id} user={match.user} compatibility={match.score} />
+            {users.map((user) => (
+              <UserCard key={user.id} user={user} />
             ))}
           </div>
 

@@ -1,13 +1,15 @@
 """
 Train the HGT model on the heterogeneous graph.
 
-Standard approach: BPR loss only for the ranking task (user→event, user→space).
-The HGT message-passing layers already propagate tag, social, and structural signals
-through the full graph — no auxiliary InfoNCE terms needed.
+Loss: BPR (Bayesian Personalized Ranking) — pairwise ranking loss for
+full-graph training. For each positive (user, item) edge we sample 1 random
+negative; BPR pushes pos_score > neg_score via logsigmoid of their difference.
+BCE works better for mini-batch (as in the PyG example), but BPR is more
+robust for full-graph setups where embeddings are recomputed every step.
 
 Usage:
   python -m ml.train
-  python -m ml.train --epochs 100 --lr 3e-4 --patience 20 --eval-every 5
+  python -m ml.train --epochs 100 --lr 1e-3 --patience 30 --eval-every 5
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ from ml.model import HetEncoder, save_model, load_model, device, _AUTOCAST, _DTY
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-# Edges used for BPR ranking loss — the only training signal.
+# Edges used for BCE ranking loss — the only training signal.
 # All other edge types still contribute via HGT message passing.
 _BPR_EDGES: list[tuple[str, str, str]] = [
     ("user", "attends", "event"),
@@ -78,7 +80,7 @@ def _train_step(
         if edges.size(1) == 0:
             continue
 
-        n = min(_EDGES_PER_TYPE, edges.size(1))
+        n   = min(_EDGES_PER_TYPE, edges.size(1))
         idx = torch.randperm(edges.size(1), device=device)[:n]
 
         a_emb = F.normalize(emb[src_t][edges[0, idx]], dim=-1)
@@ -218,7 +220,6 @@ def evaluate(
 def train(
     epochs: int = EPOCHS,
     lr: float = LEARNING_RATE,
-    patience: int = 20,
     eval_every: int = 5,
     resume: bool = False,
     data_dir: str = TRAINING_DATA_DIR,
@@ -258,7 +259,6 @@ def train(
 
     best_score = -1.0
     best_state = None
-    no_improve = 0
     t0         = time.time()
 
     for ep in range(1, epochs + 1):
@@ -284,14 +284,8 @@ def train(
             if ev["primary_recall"] > best_score:
                 best_score = ev["primary_recall"]
                 best_state = copy.deepcopy(model.state_dict())
-                no_improve = 0
                 save_model(model, weights_path)
                 print(f"  ✓ New best R@10 = {best_score:.4f}")
-            else:
-                no_improve += eval_every
-                if no_improve >= patience:
-                    print(f"Early stopping after {ep} epochs (no improvement for {patience} epochs).")
-                    break
         else:
             if ep % max(1, eval_every // 5) == 0:
                 print(f"[{ep:>4}/{epochs}] loss={loss:.4f}")
@@ -309,7 +303,6 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Train the HGT matcher model.")
     p.add_argument("--epochs",      type=int,   default=EPOCHS,         help="Max training epochs")
     p.add_argument("--lr",          type=float, default=LEARNING_RATE,  help="Learning rate")
-    p.add_argument("--patience",    type=int,   default=25,             help="Early-stop patience (epochs)")
     p.add_argument("--eval-every",  type=int,   default=5,              help="Evaluate every N epochs")
     p.add_argument("--resume",      action="store_true",                help="Resume from saved weights")
     p.add_argument("--data-dir",    default=TRAINING_DATA_DIR,          help="Training data directory")
@@ -319,7 +312,6 @@ def main() -> None:
     train(
         epochs=args.epochs,
         lr=args.lr,
-        patience=args.patience,
         eval_every=args.eval_every,
         resume=args.resume,
         data_dir=args.data_dir,

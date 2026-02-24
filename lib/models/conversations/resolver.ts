@@ -13,7 +13,6 @@ import {
   sendMessage,
   getMessages,
 } from "./operations";
-import { users } from "../users/schema";
 import type { Conversation } from "./schema";
 
 function requireAuth(context: GraphQLContext) {

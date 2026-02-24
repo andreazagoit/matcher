@@ -27,23 +27,63 @@ DROPOUT = 0.2
 NUM_WORKERS = 0          # 0 = single-threaded (safest on MPS); set to 2-4 on CUDA
 
 # ─── Tag vocabulary (must match lib/models/tags/data.ts) ───────────────────────
+# Order must stay in sync: same categories, same per-category order.
 TAG_VOCAB: list[str] = [
-    # outdoor
-    "trekking", "camping", "climbing", "cycling", "beach", "mountains", "gardening",
-    # culture
-    "cinema", "theater", "live_music", "museums", "reading", "photography", "art",
-    # food
+    # outdoor (20)
+    "trekking", "camping", "climbing", "cycling", "beach", "mountains",
+    "gardening", "surfing", "skiing", "kayaking", "fishing", "trail_running",
+    "snowboarding", "skateboarding", "horse_riding", "sailing", "scuba_diving",
+    "paragliding", "bouldering", "canyoning",
+    # culture (20)
+    "cinema", "theater", "live_music", "museums", "reading", "photography",
+    "art", "opera", "ballet", "comedy_shows", "podcasts", "architecture",
+    "vintage", "anime", "comics", "street_art", "literary_clubs", "calligraphy",
+    "sculpture", "ceramics",
+    # food_drink (20)
     "cooking", "restaurants", "wine", "craft_beer", "street_food", "coffee",
-    # sports
-    "running", "gym", "yoga", "swimming", "football", "tennis", "padel", "basketball",
-    # creative
-    "music", "drawing", "writing", "diy", "gaming", "coding",
-    # social
+    "veganism", "sushi", "cocktails", "baking", "tea", "barbecue",
+    "food_festivals", "cheese", "sake", "mixology", "foraging", "fermentation",
+    "ramen", "pastry",
+    # sports (20)
+    "running", "gym", "yoga", "swimming", "football", "tennis", "padel",
+    "basketball", "volleyball", "boxing", "martial_arts", "pilates", "crossfit",
+    "golf", "rugby", "archery", "dance", "rowing", "hockey", "badminton",
+    # creative (20)
+    "music", "drawing", "writing", "diy", "gaming", "coding", "painting",
+    "pottery", "knitting", "woodworking", "film_making", "singing", "djing",
+    "digital_art", "cosplay", "jewelry_making", "embroidery", "leathercraft",
+    "printmaking", "glass_blowing",
+    # wellness (20)
+    "meditation", "mindfulness", "journaling", "spa", "breathwork", "nutrition",
+    "therapy", "cold_exposure", "sound_healing", "ayurveda", "reiki",
+    "stretching", "sleep_hygiene", "herbal_medicine", "qi_gong", "forest_bathing",
+    "intermittent_fasting", "positive_psychology", "aromatherapy",
+    "somatic_practices",
+    # tech_science (20)
+    "ai", "blockchain", "cybersecurity", "robotics", "vr_ar", "open_source",
+    "data_science", "smart_home", "esports", "astronomy", "chemistry", "biology",
+    "engineering", "drones", "quantum_computing", "3d_printing",
+    "space_exploration", "neuroscience", "environmental_science", "biohacking",
+    # music_genres (20)
+    "jazz", "classical_music", "hip_hop", "electronic_music", "rock",
+    "indie_music", "reggae", "pop_music", "metal", "country_music", "blues",
+    "r_and_b", "folk_music", "gospel", "bossa_nova", "afrobeat", "techno",
+    "house_music", "punk", "soul",
+    # social (20)
     "travel", "volunteering", "languages", "pets", "parties", "board_games",
+    "networking", "karaoke", "escape_rooms", "trivia_nights", "activism",
+    "mentoring", "astrology", "tarot", "stand_up", "improv", "storytelling",
+    "cultural_exchange", "language_exchange", "community_events",
+    # lifestyle (20)
+    "fashion", "interior_design", "sustainability", "minimalism", "van_life",
+    "urban_exploration", "thrifting", "luxury_lifestyle", "tattoos",
+    "personal_growth", "entrepreneurship", "parenting", "spirituality",
+    "digital_nomad", "homesteading", "zero_waste", "slow_living", "nightlife",
+    "brunch_culture", "self_improvement",
 ]
 
 TAG_TO_IDX: dict[str, int] = {tag: i for i, tag in enumerate(TAG_VOCAB)}
-NUM_TAGS = len(TAG_VOCAB)  # 40
+NUM_TAGS = len(TAG_VOCAB)  # 200
 TAG_DIM  = NUM_TAGS        # tag node feature size (identity matrix)
 
 # ─── Profile enum vocabularies ────────────────────────────────────────────────
@@ -63,37 +103,37 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 
 # ─── Feature vector layouts ────────────────────────────────────────────────────
 #
-# User (USER_DIM = 60):
-#   [0:40]  tags multi-hot         (NUM_TAGS)  — 1.0 if tag declared, else 0.0
-#   [40]    age norm               (1)
-#   [41:44] gender one-hot         (3)
-#   [44:48] rel_intent multi-hot   (4)
-#   [48:51] smoking one-hot        (3)
-#   [51:54] drinking one-hot       (3)
-#   [54:59] activity one-hot       (5)
-#   [59]    interaction count norm (1) — events attended + spaces joined
+# User (USER_DIM = NUM_TAGS + 20 = 220):
+#   [0:NUM_TAGS]  tags multi-hot         (NUM_TAGS) — 1.0 if tag declared, else 0.0
+#   [NUM_TAGS]    age norm               (1)
+#   [+1:+4]       gender one-hot         (3)
+#   [+4:+8]       rel_intent multi-hot   (4)
+#   [+8:+11]      smoking one-hot        (3)
+#   [+11:+14]     drinking one-hot       (3)
+#   [+14:+19]     activity one-hot       (5)
+#   [+19]         interaction count norm (1) — events attended + spaces joined
 #
-# Event (EVENT_DIM = 51):
-#   [0:40]  tags multi-hot         (NUM_TAGS)
-#   [40]    avg attendee age norm  (1)
-#   [41]    attendee count norm    (1)
-#   [42]    days until event norm  (1)
-#   [43]    capacity fill rate     (1) — attendee_count / max_attendees, 0.5 if unbounded
-#   [44]    is_paid                (1) — 1.0 if price > 0, else 0.0
-#   [45]    price log norm         (1) — normalized log1p(price_cents)
-#   [46:48] start hour cyclical    (2) — sin/cos(hour of day)
-#   [48:50] start weekday cyclical (2) — sin/cos(day of week)
-#   [50]    is_weekend             (1)
+# Event (EVENT_DIM = NUM_TAGS + 11 = 211):
+#   [0:NUM_TAGS]  tags multi-hot         (NUM_TAGS)
+#   [NUM_TAGS]    avg attendee age norm  (1)
+#   [+1]          attendee count norm    (1)
+#   [+2]          days until event norm  (1)
+#   [+3]          capacity fill rate     (1)
+#   [+4]          is_paid                (1)
+#   [+5]          price log norm         (1)
+#   [+6:+8]       start hour cyclical    (2)
+#   [+8:+10]      start weekday cyclical (2)
+#   [+10]         is_weekend             (1)
 #
-# Space (SPACE_DIM = 43):
-#   [0:40]  tags multi-hot         (NUM_TAGS)
-#   [40]    avg member age norm    (1)
-#   [41]    member count norm      (1)
-#   [42]    event count norm       (1) — events in this space
+# Space (SPACE_DIM = NUM_TAGS + 3 = 203):
+#   [0:NUM_TAGS]  tags multi-hot         (NUM_TAGS)
+#   [NUM_TAGS]    avg member age norm    (1)
+#   [+1]          member count norm      (1)
+#   [+2]          event count norm       (1)
 
-USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1  # 60
-EVENT_DIM = NUM_TAGS + 1 + 1 + 1 + 1 + 1 + 1 + 5  # tags + age + count + days + fill + paid + price + time(5) = 51
-SPACE_DIM = NUM_TAGS + 1 + 1 + 1                    # tags + age + member_count + event_count = 43
+USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1
+EVENT_DIM = NUM_TAGS + 1 + 1 + 1 + 1 + 1 + 1 + 5  # tags + age + count + days + fill + paid + price + time(5)
+SPACE_DIM = NUM_TAGS + 1 + 1 + 1                    # tags + age + member_count + event_count
 
 # Entity types
 ENTITY_TYPES = ["user", "event", "space"]

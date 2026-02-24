@@ -2,12 +2,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import type { GetFindMatchesQuery } from "@/lib/graphql/__generated__/graphql";
-
-type MatchUserCard = GetFindMatchesQuery["findMatches"][number]["user"];
-
 interface UserCardProps {
-    user: MatchUserCard;
+    user: {
+        id: string;
+        username?: string | null;
+        name: string;
+        image?: string | null;
+        birthdate: string;
+        gender?: string | null;
+        userItems?: { id: string; type: string; content: string; displayOrder: number }[] | null;
+    };
     compatibility?: number;
 }
 

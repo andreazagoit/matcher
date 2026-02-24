@@ -292,8 +292,7 @@ export type Mutation = {
   updateEvent: Event;
   updateLocation: User;
   updateMemberRole: Member;
-  /** Set the user's declared interests (replaces previous declared tags). */
-  updateMyInterests: Array<UserInterest>;
+  updateMyTags: User;
   updateSpace: Space;
   updateTier: MembershipTier;
   updateUser: Maybe<User>;
@@ -451,7 +450,7 @@ export type MutationUpdateMemberRoleArgs = {
 };
 
 
-export type MutationUpdateMyInterestsArgs = {
+export type MutationUpdateMyTagsArgs = {
   tags: Array<Scalars['String']['input']>;
 };
 
@@ -549,9 +548,8 @@ export type Query = {
   messageRequests: Array<Conversation>;
   /** Get messages for a conversation. */
   messages: Array<Message>;
-  /** Get the authenticated user's interests with weights. */
-  myInterests: Array<UserInterest>;
   mySpaces: Array<Space>;
+  myTags: Array<Scalars['String']['output']>;
   /** Get the authenticated user's upcoming events. */
   myUpcomingEvents: Array<Event>;
   notifications: Array<Notification>;
@@ -813,28 +811,58 @@ export type User = {
   heightCm: Maybe<Scalars['Int']['output']>;
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
-  interests: Array<UserInterest>;
   jobTitle: Maybe<Scalars['String']['output']>;
   languages: Array<Scalars['String']['output']>;
   location: Maybe<Location>;
   locationUpdatedAt: Maybe<Scalars['DateTime']['output']>;
   name: Scalars['String']['output'];
+  /** Events closest to user embedding. Only visible to own profile. */
+  recommendedEvents: Array<Event>;
+  /** Spaces closest to user embedding. Only visible to own profile. */
+  recommendedSpaces: Array<Space>;
+  /** Tags recommended based on embedding similarity. Only visible to own profile. */
+  recommendedUserTags: Array<Scalars['String']['output']>;
+  /** Users with similar embeddings. Only visible to own profile. */
+  recommendedUserUsers: Array<User>;
   relationshipIntent: Array<Scalars['String']['output']>;
   relationshipStyle: Maybe<RelationshipStyle>;
   religion: Maybe<Religion>;
   schoolName: Maybe<Scalars['String']['output']>;
   sexualOrientation: Array<Scalars['String']['output']>;
   smoking: Maybe<Smoking>;
+  tags: Array<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   userItems: Array<ProfileItem>;
   username: Maybe<Scalars['String']['output']>;
   wantsChildren: Maybe<WantsChildren>;
 };
 
-export type UserInterest = {
-  __typename: 'UserInterest';
-  tag: Scalars['String']['output'];
-  weight: Scalars['Float']['output'];
+
+/** User — demographic, auth, and location data */
+export type UserRecommendedEventsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** User — demographic, auth, and location data */
+export type UserRecommendedSpacesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** User — demographic, auth, and location data */
+export type UserRecommendedUserTagsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** User — demographic, auth, and location data */
+export type UserRecommendedUserUsersArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export enum UserItemType {
@@ -961,13 +989,6 @@ export type MarkEventCompletedMutationVariables = Exact<{
 
 
 export type MarkEventCompletedMutation = { markEventCompleted: { __typename: 'Event', id: string, status: EventStatus } };
-
-export type UpdateMyInterestsMutationVariables = Exact<{
-  tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
-}>;
-
-
-export type UpdateMyInterestsMutation = { updateMyInterests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> };
 
 export type GetFindMatchesQueryVariables = Exact<{
   maxDistance?: Scalars['Float']['input'];
@@ -1199,26 +1220,26 @@ export type ArchiveTierMutationVariables = Exact<{
 
 export type ArchiveTierMutation = { archiveTier: boolean };
 
-export type UserFieldsFragment = { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null };
+export type UserFieldsFragment = { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null };
 
 export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMeQuery = { me: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null } | null };
+export type GetMeQuery = { me: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null } | null };
 
 export type GetUserQueryVariables = Exact<{
   username: Scalars['String']['input'];
 }>;
 
 
-export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }>, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
+export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
 
 export type GetUserWithCardsQueryVariables = Exact<{
   username: Scalars['String']['input'];
 }>;
 
 
-export type GetUserWithCardsQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
+export type GetUserWithCardsQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null } | null };
 
 export type CheckUsernameQueryVariables = Exact<{
   username: Scalars['String']['input'];
@@ -1233,7 +1254,29 @@ export type UpdateUserMutationVariables = Exact<{
 }>;
 
 
-export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, interests: Array<{ __typename: 'UserInterest', tag: string, weight: number }> } | null };
+export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null } | null };
+
+export type GetRecommendedTagsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GetRecommendedTagsQuery = { me: { __typename: 'User', id: string, recommendedUserTags: Array<string> } | null };
+
+export type GetRecommendedUsersQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GetRecommendedUsersQuery = { me: { __typename: 'User', id: string, recommendedUserUsers: Array<{ __typename: 'User', id: string, username: string | null, name: string, image: string | null, birthdate: string, gender: Gender | null, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, content: string, displayOrder: number }> }> } | null };
+
+export type UpdateMyTagsMutationVariables = Exact<{
+  tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
+}>;
+
+
+export type UpdateMyTagsMutation = { updateMyTags: { __typename: 'User', id: string, tags: Array<string> } };
 
 export type UpdateLocationMutationVariables = Exact<{
   lat: Scalars['Float']['input'];

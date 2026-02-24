@@ -16,7 +16,8 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
-import { UPDATE_USER } from "@/lib/models/users/gql";
+import { UPDATE_USER, UPDATE_MY_TAGS } from "@/lib/models/users/gql";
+import { TAG_CATEGORIES } from "@/lib/models/tags/data";
 
 import {
     genderEnum,
@@ -45,6 +46,7 @@ export type EditableUser = Pick<
     | "hasChildren" | "wantsChildren"
     | "religion" | "smoking" | "drinking" | "activityLevel"
     | "jobTitle" | "educationLevel" | "schoolName" | "languages" | "ethnicity"
+    | "tags"
 >;
 
 type Props = {
@@ -103,6 +105,9 @@ export function EditProfileSheet({ user }: Props) {
     const [selectedIntents, setSelectedIntents] = useState<Set<string>>(
         new Set(user.relationshipIntent ?? [])
     );
+    const [selectedTags, setSelectedTags] = useState<Set<string>>(
+        new Set(user.tags ?? [])
+    );
     const [enumFields, setEnumFields] = useState<Record<EnumKey, string | null>>({
         gender:             user.gender ?? null,
         relationshipStyle:  user.relationshipStyle ?? null,
@@ -116,6 +121,7 @@ export function EditProfileSheet({ user }: Props) {
         ethnicity:          user.ethnicity ?? null,
     });
     const [updateUser, { loading: saving }] = useMutation(UPDATE_USER);
+    const [updateMyTags, { loading: savingTags }] = useMutation(UPDATE_MY_TAGS);
 
     function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) {
         setter((prev) => {
@@ -129,30 +135,33 @@ export function EditProfileSheet({ user }: Props) {
     function toggleLanguage(lang: string) { toggleSet(setSelectedLanguages, lang); }
     function toggleOrientation(v: string) { toggleSet(setSelectedOrientations, v); }
     function toggleIntent(v: string) { toggleSet(setSelectedIntents, v); }
+    function toggleTag(tag: string) { toggleSet(setSelectedTags, tag); }
     function setEnum(key: EnumKey, value: string) {
         setEnumFields((prev) => ({ ...prev, [key]: value === "__clear__" ? null : value }));
     }
 
     async function handleSave() {
-        await updateUser({
-            variables: {
-                id: user.id,
-                input: {
-                    heightCm: height ? parseInt(height, 10) : undefined,
-                    jobTitle: jobTitle.trim() || undefined,
-                    schoolName: schoolName.trim() || undefined,
-                    sexualOrientation: Array.from(selectedOrientations),
-                    relationshipIntent: Array.from(selectedIntents),
-                    languages: Array.from(selectedLanguages),
-                    ...Object.fromEntries(
-                        (Object.keys(enumFields) as EnumKey[])
-                            .map((k) => [k, enumFields[k] ?? undefined])
-                    ),
+        await Promise.all([
+            updateUser({
+                variables: {
+                    id: user.id,
+                    input: {
+                        heightCm: height ? parseInt(height, 10) : undefined,
+                        jobTitle: jobTitle.trim() || undefined,
+                        schoolName: schoolName.trim() || undefined,
+                        sexualOrientation: Array.from(selectedOrientations),
+                        relationshipIntent: Array.from(selectedIntents),
+                        languages: Array.from(selectedLanguages),
+                        ...Object.fromEntries(
+                            (Object.keys(enumFields) as EnumKey[])
+                                .map((k) => [k, enumFields[k] ?? undefined])
+                        ),
+                    },
                 },
-            },
-        });
+            }),
+            updateMyTags({ variables: { tags: Array.from(selectedTags) } }),
+        ]);
         setOpen(false);
-        // Reload to reflect server changes
         window.location.reload();
     }
 
@@ -265,6 +274,49 @@ export function EditProfileSheet({ user }: Props) {
 
                     <Separator />
 
+                    {/* ── Interessi ──────────────────────────────────────── */}
+                    <section className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold">Interessi</h3>
+                            {selectedTags.size > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                    {selectedTags.size} selezionati
+                                </span>
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
+                                <div key={category} className="space-y-2">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                        {tTagCats(category as Parameters<typeof tTagCats>[0])}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {tags.map((tag) => {
+                                            const active = selectedTags.has(tag);
+                                            return (
+                                                <button
+                                                    key={tag}
+                                                    type="button"
+                                                    onClick={() => toggleTag(tag)}
+                                                    className={[
+                                                        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                                                        active
+                                                            ? "bg-foreground text-background border-foreground"
+                                                            : "text-muted-foreground hover:border-foreground/40",
+                                                    ].join(" ")}
+                                                >
+                                                    {tTags(tag as Parameters<typeof tTags>[0])}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    <Separator />
+
                     {/* ── Lingue ─────────────────────────────────────────── */}
                     <section className="space-y-3">
                         <h3 className="text-sm font-semibold">
@@ -298,11 +350,11 @@ export function EditProfileSheet({ user }: Props) {
                 </div>
 
                 <DialogFooter className="px-6 py-4 border-t shrink-0">
-                    <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
+                    <Button variant="outline" onClick={() => setOpen(false)} disabled={saving || savingTags}>
                         Annulla
                     </Button>
-                    <Button onClick={handleSave} disabled={saving}>
-                        {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <Button onClick={handleSave} disabled={saving || savingTags}>
+                        {(saving || savingTags) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                         Salva
                     </Button>
                 </DialogFooter>

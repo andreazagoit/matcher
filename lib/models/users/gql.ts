@@ -15,6 +15,7 @@ export const USER_FRAGMENT = gql`
     image
     createdAt
     updatedAt
+    tags
     sexualOrientation
     heightCm
     relationshipIntent
@@ -51,10 +52,6 @@ export const GET_USER = gql`
   query GetUser($username: String!) {
     user(username: $username) {
       ...UserFields
-      interests {
-        tag
-        weight
-      }
       userItems {
         id
         type
@@ -71,10 +68,6 @@ export const GET_USER_WITH_CARDS = gql`
   query GetUserWithCards($username: String!) {
     user(username: $username) {
       ...UserFields
-      interests {
-        tag
-        weight
-      }
     }
   }
 `;
@@ -94,10 +87,46 @@ export const UPDATE_USER = gql`
   mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
     updateUser(id: $id, input: $input) {
       ...UserFields
-      interests {
-        tag
-        weight
+    }
+  }
+`;
+
+export const GET_RECOMMENDED_TAGS = gql`
+  query GetRecommendedTags($limit: Int) {
+    me {
+      id
+      recommendedUserTags(limit: $limit)
+    }
+  }
+`;
+
+export const GET_RECOMMENDED_USERS = gql`
+  query GetRecommendedUsers($limit: Int, $offset: Int) {
+    me {
+      id
+      recommendedUserUsers(limit: $limit, offset: $offset) {
+        id
+        username
+        name
+        image
+        birthdate
+        gender
+        userItems {
+          id
+          type
+          content
+          displayOrder
+        }
       }
+    }
+  }
+`;
+
+export const UPDATE_MY_TAGS = gql`
+  mutation UpdateMyTags($tags: [String!]!) {
+    updateMyTags(tags: $tags) {
+      id
+      tags
     }
   }
 `;

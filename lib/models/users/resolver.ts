@@ -14,12 +14,20 @@ import {
 import { users } from "./schema";
 import type { CreateUserInput, UpdateUserInput } from "./validator";
 import type { GraphQLContext } from "@/lib/graphql/context";
-import { embedUser, recommendTagsForUser } from "@/lib/models/embeddings/operations";
+import {
+  embedUser,
+  recommendEventsForUser,
+  recommendSpacesForUser,
+} from "@/lib/models/embeddings/operations";
+import { embeddings } from "@/lib/models/embeddings/schema";
 import { db } from "@/lib/db/drizzle";
-import { eq } from "drizzle-orm";
+import { eq, inArray, and, gte, sql } from "drizzle-orm";
 import { isValidTag } from "@/lib/models/tags/data";
 import { getUserItems } from "@/lib/models/profileitems/operations";
 import type { ProfileItem } from "@/lib/models/profileitems/schema";
+import { events, eventAttendees } from "@/lib/models/events/schema";
+import { spaces } from "@/lib/models/spaces/schema";
+import { members } from "@/lib/models/members/schema";
 import { GraphQLError } from "graphql";
 
 class AuthError extends Error {
@@ -38,19 +46,6 @@ export const userResolvers = {
         columns: { tags: true },
       });
       return u?.tags ?? [];
-    },
-
-    recommendedTags: async (
-      _: unknown,
-      { limit = 10 }: { limit?: number },
-      context: GraphQLContext,
-    ) => {
-      if (!context.auth.user) return [];
-      const u = await db.query.users.findFirst({
-        where: eq(users.id, context.auth.user.id),
-        columns: { tags: true },
-      });
-      return recommendTagsForUser(context.auth.user.id, u?.tags ?? [], limit);
     },
 
     user: async (
@@ -198,6 +193,124 @@ export const userResolvers = {
     tags: (parent: { tags?: string[] | null }) => parent.tags ?? [],
     userItems: (parent: { id: string }): Promise<ProfileItem[]> => {
       return getUserItems(parent.id);
+    },
+
+    recommendedUserTags: async (
+      parent: { id: string },
+      { limit = 10, offset = 0 }: { limit?: number; offset?: number },
+      context: GraphQLContext,
+    ) => {
+      if (context.auth.user?.id !== parent.id) return [];
+      const row = await db.query.embeddings.findFirst({
+        where: and(
+          eq(embeddings.entityId, parent.id),
+          eq(embeddings.entityType, "user"),
+        ),
+        columns: { embedding: true },
+      });
+      if (!row) return [];
+      const vec = `[${row.embedding.join(",")}]`;
+      const rows = await db.execute<{ entity_id: string }>(sql`
+        SELECT entity_id
+        FROM   embeddings
+        WHERE  entity_type = 'tag'
+        ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
+        LIMIT  ${sql.raw(String(limit))}
+        OFFSET ${sql.raw(String(offset))}
+      `);
+      return rows.map((r) => r.entity_id);
+    },
+
+    recommendedUserUsers: async (
+      parent: { id: string },
+      { limit = 10, offset = 0 }: { limit?: number; offset?: number },
+      context: GraphQLContext,
+    ) => {
+      if (context.auth.user?.id !== parent.id) return [];
+      const row = await db.query.embeddings.findFirst({
+        where: and(
+          eq(embeddings.entityId, parent.id),
+          eq(embeddings.entityType, "user"),
+        ),
+        columns: { embedding: true },
+      });
+      if (!row) return [];
+      const vec = `[${row.embedding.join(",")}]`;
+      const emb = await db.execute<{ entity_id: string }>(sql`
+        SELECT entity_id
+        FROM   embeddings
+        WHERE  entity_type = 'user'
+          AND  entity_id   != ${parent.id}
+        ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
+        LIMIT  ${sql.raw(String(limit))}
+        OFFSET ${sql.raw(String(offset))}
+      `);
+      const ids = emb.map((r) => r.entity_id);
+      if (!ids.length) return [];
+      const rows = await db.select().from(users).where(inArray(users.id, ids));
+      const map  = new Map(rows.map((u) => [u.id, u]));
+      return ids.map((id) => map.get(id)).filter(Boolean);
+    },
+
+    recommendedEvents: async (
+      parent: { id: string },
+      { limit = 10, offset = 0 }: { limit?: number; offset?: number },
+      context: GraphQLContext,
+    ) => {
+      if (context.auth.user?.id !== parent.id) return [];
+
+      // Exclude events already attended
+      const attended = await db
+        .select({ eventId: eventAttendees.eventId })
+        .from(eventAttendees)
+        .where(eq(eventAttendees.userId, parent.id));
+      const excludeIds = attended.map((a) => a.eventId);
+
+      const ids = await recommendEventsForUser(parent.id, limit, offset, excludeIds);
+      if (!ids.length) return [];
+
+      const rows = await db
+        .select()
+        .from(events)
+        .where(
+          and(
+            inArray(events.id, ids),
+            gte(events.startsAt, new Date()),
+          ),
+        );
+      const map = new Map(rows.map((e) => [e.id, e]));
+      return ids.map((id) => map.get(id)).filter(Boolean);
+    },
+
+    recommendedSpaces: async (
+      parent: { id: string },
+      { limit = 10, offset = 0 }: { limit?: number; offset?: number },
+      context: GraphQLContext,
+    ) => {
+      if (context.auth.user?.id !== parent.id) return [];
+
+      // Exclude spaces user already joined
+      const joined = await db
+        .select({ spaceId: members.spaceId })
+        .from(members)
+        .where(and(eq(members.userId, parent.id), eq(members.status, "active")));
+      const excludeIds = joined.map((m) => m.spaceId);
+
+      const ids = await recommendSpacesForUser(parent.id, limit, offset, excludeIds);
+      if (!ids.length) return [];
+
+      const rows = await db
+        .select()
+        .from(spaces)
+        .where(
+          and(
+            inArray(spaces.id, ids),
+            eq(spaces.visibility, "public"),
+            eq(spaces.isActive, true),
+          ),
+        );
+      const map = new Map(rows.map((s) => [s.id, s]));
+      return ids.map((id) => map.get(id)).filter(Boolean);
     },
   },
 };

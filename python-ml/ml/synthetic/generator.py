@@ -12,9 +12,9 @@ from __future__ import annotations
 # ┌─────────────────────────────────────────────────────────────────────────────
 # │ CONFIGURE HERE
 N_USERS        = 10_000
-N_EVENTS       = 1_000
-N_SPACES       = 500
-N_INTERACTIONS = 150_000   # positive pairs (split ~70% event, 30% space)
+N_EVENTS       = 1_400   # scaled +40% for 14 personas (was 1000 for 10 personas)
+N_SPACES       = 700     # scaled +40%
+N_INTERACTIONS = 210_000  # scaled +40%
 # └─────────────────────────────────────────────────────────────────────────────
 
 import argparse
@@ -29,13 +29,59 @@ from typing import Optional
 
 from ml.config import TAG_VOCAB, TRAINING_DATA_DIR
 
+# Clusters mirror the 10 TAG_CATEGORIES in config.py / data.ts.
+# Every tag in TAG_VOCAB belongs to exactly one cluster (0–9).
 TAG_CLUSTERS: list[list[str]] = [
-    ["trekking", "camping", "climbing", "cycling", "beach", "mountains", "gardening"],
-    ["cinema", "theater", "live_music", "museums", "reading", "photography", "art"],
-    ["cooking", "restaurants", "wine", "craft_beer", "street_food", "coffee"],
-    ["running", "gym", "yoga", "swimming", "football", "tennis", "padel", "basketball"],
-    ["music", "drawing", "writing", "diy", "gaming", "coding"],
-    ["travel", "volunteering", "languages", "pets", "parties", "board_games"],
+    # 0 outdoor
+    ["trekking", "camping", "climbing", "cycling", "beach", "mountains",
+     "gardening", "surfing", "skiing", "kayaking", "fishing", "trail_running",
+     "snowboarding", "skateboarding", "horse_riding", "sailing", "scuba_diving",
+     "paragliding", "bouldering", "canyoning"],
+    # 1 culture
+    ["cinema", "theater", "live_music", "museums", "reading", "photography",
+     "art", "opera", "ballet", "comedy_shows", "podcasts", "architecture",
+     "vintage", "anime", "comics", "street_art", "literary_clubs", "calligraphy",
+     "sculpture", "ceramics"],
+    # 2 food_drink
+    ["cooking", "restaurants", "wine", "craft_beer", "street_food", "coffee",
+     "veganism", "sushi", "cocktails", "baking", "tea", "barbecue",
+     "food_festivals", "cheese", "sake", "mixology", "foraging", "fermentation",
+     "ramen", "pastry"],
+    # 3 sports
+    ["running", "gym", "yoga", "swimming", "football", "tennis", "padel",
+     "basketball", "volleyball", "boxing", "martial_arts", "pilates", "crossfit",
+     "golf", "rugby", "archery", "dance", "rowing", "hockey", "badminton"],
+    # 4 creative
+    ["music", "drawing", "writing", "diy", "gaming", "coding", "painting",
+     "pottery", "knitting", "woodworking", "film_making", "singing", "djing",
+     "digital_art", "cosplay", "jewelry_making", "embroidery", "leathercraft",
+     "printmaking", "glass_blowing"],
+    # 5 wellness
+    ["meditation", "mindfulness", "journaling", "spa", "breathwork", "nutrition",
+     "therapy", "cold_exposure", "sound_healing", "ayurveda", "reiki",
+     "stretching", "sleep_hygiene", "herbal_medicine", "qi_gong", "forest_bathing",
+     "intermittent_fasting", "positive_psychology", "aromatherapy", "somatic_practices"],
+    # 6 tech_science
+    ["ai", "blockchain", "cybersecurity", "robotics", "vr_ar", "open_source",
+     "data_science", "smart_home", "esports", "astronomy", "chemistry", "biology",
+     "engineering", "drones", "quantum_computing", "3d_printing",
+     "space_exploration", "neuroscience", "environmental_science", "biohacking"],
+    # 7 music_genres
+    ["jazz", "classical_music", "hip_hop", "electronic_music", "rock",
+     "indie_music", "reggae", "pop_music", "metal", "country_music", "blues",
+     "r_and_b", "folk_music", "gospel", "bossa_nova", "afrobeat", "techno",
+     "house_music", "punk", "soul"],
+    # 8 social
+    ["travel", "volunteering", "languages", "pets", "parties", "board_games",
+     "networking", "karaoke", "escape_rooms", "trivia_nights", "activism",
+     "mentoring", "astrology", "tarot", "stand_up", "improv", "storytelling",
+     "cultural_exchange", "language_exchange", "community_events"],
+    # 9 lifestyle
+    ["fashion", "interior_design", "sustainability", "minimalism", "van_life",
+     "urban_exploration", "thrifting", "luxury_lifestyle", "tattoos",
+     "personal_growth", "entrepreneurship", "parenting", "spirituality",
+     "digital_nomad", "homesteading", "zero_waste", "slow_living", "nightlife",
+     "brunch_culture", "self_improvement"],
 ]
 
 # Fast lookup: tag → cluster index
@@ -54,71 +100,198 @@ TAG_TO_CLUSTER: dict[str, int] = {
 #  - gender_w:      weights over [man, woman, non_binary]
 
 PERSONAS = [
+    # ── cluster 0: outdoor ───────────────────────────────────────────────────
     {
-        "name":         "outdoor_adventurer",   # cluster 0
+        "name":         "outdoor_adventurer",
         "cluster":      0,
+        "tag_subpool":  ["trekking", "camping", "climbing", "cycling", "mountains",
+                         "surfing", "skiing", "trail_running", "kayaking"],
         "age_range":    (22, 32),
         "gender_w":     [0.40, 0.50, 0.10],
-        "rel_intent_w": [0.25, 0.40, 0.25, 0.10],  # casual > serious
-        "smoking_w":    [0.88, 0.10, 0.02],          # almost never smokes
+        "rel_intent_w": [0.25, 0.40, 0.25, 0.10],
+        "smoking_w":    [0.88, 0.10, 0.02],
         "drinking_w":   [0.25, 0.60, 0.15],
         "activity_choices": ["active", "very_active"],
         "activity_w":   [0.35, 0.65],
     },
+    # ── cluster 1: culture — split into 3 sub-personas ───────────────────────
     {
-        "name":         "culture_lover",        # cluster 1
+        "name":         "visual_culture_fan",   # cinema, photo, anime, comics
         "cluster":      1,
-        "age_range":    (26, 42),
-        "gender_w":     [0.35, 0.55, 0.10],
-        "rel_intent_w": [0.40, 0.25, 0.25, 0.10],  # serious > casual
-        "smoking_w":    [0.55, 0.32, 0.13],
-        "drinking_w":   [0.15, 0.52, 0.33],          # drinks more (aperitivo culture)
+        "tag_subpool":  ["cinema", "photography", "anime", "comics", "street_art",
+                         "vintage", "architecture"],
+        "age_range":    (20, 38),
+        "gender_w":     [0.38, 0.48, 0.14],
+        "rel_intent_w": [0.32, 0.30, 0.28, 0.10],
+        "smoking_w":    [0.52, 0.34, 0.14],
+        "drinking_w":   [0.18, 0.54, 0.28],
         "activity_choices": ["light", "moderate"],
-        "activity_w":   [0.40, 0.60],
+        "activity_w":   [0.45, 0.55],
     },
     {
-        "name":         "foodie",               # cluster 2
+        "name":         "performing_arts_fan",  # theater, opera, ballet, live music
+        "cluster":      1,
+        "tag_subpool":  ["theater", "opera", "ballet", "live_music", "comedy_shows",
+                         "museums", "architecture"],
+        "age_range":    (28, 48),
+        "gender_w":     [0.30, 0.60, 0.10],
+        "rel_intent_w": [0.45, 0.20, 0.25, 0.10],
+        "smoking_w":    [0.50, 0.36, 0.14],
+        "drinking_w":   [0.12, 0.50, 0.38],
+        "activity_choices": ["light", "moderate"],
+        "activity_w":   [0.42, 0.58],
+    },
+    {
+        "name":         "literary_craft_fan",   # reading, ceramics, sculpture
+        "cluster":      1,
+        "tag_subpool":  ["reading", "podcasts", "literary_clubs", "calligraphy",
+                         "sculpture", "ceramics", "art", "museums"],
+        "age_range":    (26, 45),
+        "gender_w":     [0.32, 0.58, 0.10],
+        "rel_intent_w": [0.42, 0.22, 0.28, 0.08],
+        "smoking_w":    [0.58, 0.28, 0.14],
+        "drinking_w":   [0.15, 0.55, 0.30],
+        "activity_choices": ["sedentary", "light", "moderate"],
+        "activity_w":   [0.22, 0.50, 0.28],
+    },
+    # ── cluster 2: food_drink ────────────────────────────────────────────────
+    {
+        "name":         "foodie",
         "cluster":      2,
+        "tag_subpool":  ["cooking", "restaurants", "wine", "coffee", "street_food",
+                         "baking", "cocktails", "craft_beer"],
         "age_range":    (24, 40),
         "gender_w":     [0.40, 0.50, 0.10],
         "rel_intent_w": [0.35, 0.30, 0.25, 0.10],
         "smoking_w":    [0.60, 0.28, 0.12],
-        "drinking_w":   [0.08, 0.47, 0.45],          # drinks the most (wine, beer)
+        "drinking_w":   [0.08, 0.47, 0.45],
         "activity_choices": ["light", "moderate"],
         "activity_w":   [0.50, 0.50],
     },
+    # ── cluster 3: sports — split into team vs fitness ───────────────────────
     {
-        "name":         "sports_enthusiast",    # cluster 3
+        "name":         "team_sports_fan",
         "cluster":      3,
+        "tag_subpool":  ["football", "basketball", "volleyball", "tennis", "padel",
+                         "rugby", "hockey", "badminton"],
         "age_range":    (18, 30),
-        "gender_w":     [0.62, 0.33, 0.05],
-        "rel_intent_w": [0.20, 0.45, 0.25, 0.10],  # casual > serious (young)
-        "smoking_w":    [0.93, 0.05, 0.02],          # almost never smokes
-        "drinking_w":   [0.32, 0.55, 0.13],
+        "gender_w":     [0.68, 0.28, 0.04],
+        "rel_intent_w": [0.18, 0.48, 0.24, 0.10],
+        "smoking_w":    [0.90, 0.08, 0.02],
+        "drinking_w":   [0.28, 0.58, 0.14],
+        "activity_choices": ["active", "very_active"],
+        "activity_w":   [0.30, 0.70],
+    },
+    {
+        "name":         "fitness_enthusiast",
+        "cluster":      3,
+        "tag_subpool":  ["running", "gym", "yoga", "swimming", "pilates",
+                         "crossfit", "boxing", "martial_arts"],
+        "age_range":    (20, 35),
+        "gender_w":     [0.50, 0.45, 0.05],
+        "rel_intent_w": [0.25, 0.40, 0.25, 0.10],
+        "smoking_w":    [0.95, 0.04, 0.01],
+        "drinking_w":   [0.35, 0.52, 0.13],
         "activity_choices": ["active", "very_active"],
         "activity_w":   [0.28, 0.72],
     },
+    # ── cluster 4: creative — split into digital vs craft ────────────────────
     {
-        "name":         "creative",             # cluster 4
+        "name":         "digital_creative",
         "cluster":      4,
-        "age_range":    (20, 36),
-        "gender_w":     [0.36, 0.46, 0.18],          # most non_binary
-        "rel_intent_w": [0.20, 0.35, 0.32, 0.13],
-        "smoking_w":    [0.42, 0.38, 0.20],           # smokes the most
-        "drinking_w":   [0.15, 0.52, 0.33],
+        "tag_subpool":  ["gaming", "coding", "digital_art", "film_making",
+                         "djing", "music", "cosplay", "singing"],
+        "age_range":    (18, 34),
+        "gender_w":     [0.48, 0.38, 0.14],
+        "rel_intent_w": [0.18, 0.38, 0.32, 0.12],
+        "smoking_w":    [0.50, 0.34, 0.16],
+        "drinking_w":   [0.18, 0.52, 0.30],
         "activity_choices": ["sedentary", "light", "moderate"],
-        "activity_w":   [0.20, 0.48, 0.32],
+        "activity_w":   [0.28, 0.48, 0.24],
     },
     {
-        "name":         "social_butterfly",     # cluster 5
+        "name":         "craft_creative",
+        "cluster":      4,
+        "tag_subpool":  ["drawing", "painting", "writing", "pottery", "knitting",
+                         "woodworking", "jewelry_making", "embroidery", "printmaking"],
+        "age_range":    (22, 40),
+        "gender_w":     [0.22, 0.60, 0.18],
+        "rel_intent_w": [0.28, 0.30, 0.32, 0.10],
+        "smoking_w":    [0.40, 0.40, 0.20],
+        "drinking_w":   [0.15, 0.55, 0.30],
+        "activity_choices": ["sedentary", "light", "moderate"],
+        "activity_w":   [0.18, 0.52, 0.30],
+    },
+    # ── cluster 5: wellness ──────────────────────────────────────────────────
+    {
+        "name":         "wellness_seeker",
         "cluster":      5,
+        "tag_subpool":  ["meditation", "mindfulness", "yoga", "breathwork",
+                         "journaling", "nutrition", "spa", "sound_healing"],
+        "age_range":    (26, 44),
+        "gender_w":     [0.22, 0.65, 0.13],
+        "rel_intent_w": [0.38, 0.25, 0.28, 0.09],
+        "smoking_w":    [0.90, 0.08, 0.02],
+        "drinking_w":   [0.35, 0.52, 0.13],
+        "activity_choices": ["light", "moderate", "active"],
+        "activity_w":   [0.25, 0.50, 0.25],
+    },
+    # ── cluster 6: tech_science ──────────────────────────────────────────────
+    {
+        "name":         "tech_geek",
+        "cluster":      6,
+        "tag_subpool":  ["ai", "coding", "data_science", "open_source",
+                         "cybersecurity", "robotics", "vr_ar", "blockchain"],
+        "age_range":    (20, 38),
+        "gender_w":     [0.70, 0.22, 0.08],
+        "rel_intent_w": [0.22, 0.38, 0.28, 0.12],
+        "smoking_w":    [0.78, 0.17, 0.05],
+        "drinking_w":   [0.28, 0.55, 0.17],
+        "activity_choices": ["sedentary", "light", "moderate"],
+        "activity_w":   [0.30, 0.45, 0.25],
+    },
+    # ── cluster 7: music_genres ──────────────────────────────────────────────
+    {
+        "name":         "music_lover",
+        "cluster":      7,
+        "tag_subpool":  ["jazz", "electronic_music", "hip_hop", "rock",
+                         "indie_music", "live_music", "classical_music", "r_and_b"],
+        "age_range":    (18, 36),
+        "gender_w":     [0.45, 0.45, 0.10],
+        "rel_intent_w": [0.22, 0.40, 0.28, 0.10],
+        "smoking_w":    [0.45, 0.38, 0.17],
+        "drinking_w":   [0.10, 0.50, 0.40],
+        "activity_choices": ["light", "moderate", "active"],
+        "activity_w":   [0.35, 0.45, 0.20],
+    },
+    # ── cluster 8: social ────────────────────────────────────────────────────
+    {
+        "name":         "social_butterfly",
+        "cluster":      8,
+        "tag_subpool":  ["travel", "parties", "board_games", "karaoke",
+                         "languages", "trivia_nights", "networking", "escape_rooms"],
         "age_range":    (20, 34),
         "gender_w":     [0.38, 0.52, 0.10],
-        "rel_intent_w": [0.18, 0.35, 0.32, 0.15],   # friendship + casual
+        "rel_intent_w": [0.18, 0.35, 0.32, 0.15],
         "smoking_w":    [0.48, 0.35, 0.17],
-        "drinking_w":   [0.05, 0.43, 0.52],           # drinks the most
+        "drinking_w":   [0.05, 0.43, 0.52],
         "activity_choices": ["moderate", "active"],
         "activity_w":   [0.55, 0.45],
+    },
+    # ── cluster 9: lifestyle ─────────────────────────────────────────────────
+    {
+        "name":         "lifestyle_explorer",
+        "cluster":      9,
+        "tag_subpool":  ["sustainability", "digital_nomad", "fashion",
+                         "travel", "entrepreneurship", "interior_design",
+                         "personal_growth", "minimalism"],
+        "age_range":    (22, 40),
+        "gender_w":     [0.30, 0.58, 0.12],
+        "rel_intent_w": [0.28, 0.33, 0.28, 0.11],
+        "smoking_w":    [0.55, 0.32, 0.13],
+        "drinking_w":   [0.12, 0.50, 0.38],
+        "activity_choices": ["light", "moderate", "active"],
+        "activity_w":   [0.30, 0.50, 0.20],
     },
 ]
 
@@ -145,9 +318,47 @@ SPACE_ARCHETYPES: list[dict] = [
     {"name": "yoga_wellness", "cluster": 3, "tag_pool": ["yoga", "running", "swimming", "gym", "meditation"]},
     {"name": "mountain_hikers", "cluster": 0, "tag_pool": ["trekking", "mountains", "camping", "travel", "climbing"]},
     {"name": "climbing_crew", "cluster": 0, "tag_pool": ["climbing", "mountains", "trekking", "camping", "gym"]},
-    {"name": "travel_backpackers", "cluster": 5, "tag_pool": ["travel", "languages", "beach", "mountains", "photography"]},
-    {"name": "pet_lovers_club", "cluster": 5, "tag_pool": ["pets", "volunteering", "travel", "coffee", "parties"]},
-    {"name": "language_exchange_lounge", "cluster": 5, "tag_pool": ["languages", "travel", "coffee", "parties", "reading"]},
+    {"name": "travel_backpackers", "cluster": 8, "tag_pool": ["travel", "languages", "beach", "mountains", "photography"]},
+    {"name": "pet_lovers_club", "cluster": 8, "tag_pool": ["pets", "volunteering", "travel", "coffee", "parties"]},
+    {"name": "language_exchange_lounge", "cluster": 8, "tag_pool": ["languages", "travel", "coffee", "parties", "reading"]},
+    # wellness cluster (5)
+    {"name": "wellness_studio", "cluster": 5, "tag_pool": ["meditation", "yoga", "breathwork", "mindfulness", "spa"]},
+    {"name": "mindfulness_center", "cluster": 5, "tag_pool": ["meditation", "mindfulness", "journaling", "qi_gong", "sound_healing"]},
+    {"name": "holistic_health_hub", "cluster": 5, "tag_pool": ["nutrition", "herbal_medicine", "ayurveda", "reiki", "meditation"]},
+    # tech_science cluster (6)
+    {"name": "maker_space", "cluster": 6, "tag_pool": ["coding", "3d_printing", "robotics", "drones", "diy"]},
+    {"name": "ai_research_lab", "cluster": 6, "tag_pool": ["ai", "data_science", "coding", "open_source", "quantum_computing"]},
+    {"name": "astronomy_club", "cluster": 6, "tag_pool": ["astronomy", "space_exploration", "biology", "environmental_science", "neuroscience"]},
+    # music_genres cluster (7)
+    {"name": "music_production_studio", "cluster": 7, "tag_pool": ["music", "djing", "electronic_music", "rock", "indie_music"]},
+    {"name": "jazz_lounge", "cluster": 7, "tag_pool": ["jazz", "blues", "soul", "live_music", "bossa_nova"]},
+    {"name": "vinyl_collectors_club", "cluster": 7, "tag_pool": ["music", "jazz", "rock", "indie_music", "folk_music"]},
+    # social cluster (8)
+    {"name": "debate_society", "cluster": 8, "tag_pool": ["activism", "languages", "storytelling", "networking", "cultural_exchange"]},
+    {"name": "improv_theater_group", "cluster": 8, "tag_pool": ["improv", "stand_up", "storytelling", "theater", "comedy_shows"]},
+    # lifestyle cluster (9)
+    {"name": "sustainable_living_co", "cluster": 9, "tag_pool": ["sustainability", "zero_waste", "homesteading", "veganism", "foraging"]},
+    {"name": "digital_nomad_hub", "cluster": 9, "tag_pool": ["digital_nomad", "travel", "networking", "coding", "entrepreneurship"]},
+    {"name": "fashion_collective", "cluster": 9, "tag_pool": ["fashion", "thrifting", "photography", "vintage", "interior_design"]},
+    # visual_culture_fan (cluster 1 sub)
+    {"name": "anime_comics_club", "cluster": 1, "tag_pool": ["anime", "comics", "cosplay", "gaming", "street_art"]},
+    {"name": "photo_cinema_society", "cluster": 1, "tag_pool": ["photography", "cinema", "vintage", "street_art", "architecture"]},
+    # performing_arts_fan (cluster 1 sub)
+    {"name": "theater_company", "cluster": 1, "tag_pool": ["theater", "opera", "ballet", "comedy_shows", "live_music"]},
+    # literary_craft_fan (cluster 1 sub)
+    {"name": "ceramics_pottery_studio", "cluster": 1, "tag_pool": ["ceramics", "sculpture", "pottery", "calligraphy", "art"]},
+    {"name": "creative_writing_circle", "cluster": 1, "tag_pool": ["reading", "writing", "literary_clubs", "podcasts", "calligraphy"]},
+    # team_sports_fan (cluster 3 sub)
+    {"name": "team_sports_club", "cluster": 3, "tag_pool": ["football", "basketball", "volleyball", "padel", "tennis"]},
+    {"name": "racket_sports_club", "cluster": 3, "tag_pool": ["tennis", "padel", "badminton", "volleyball", "running"]},
+    # fitness_enthusiast (cluster 3 sub)
+    {"name": "combat_sports_gym", "cluster": 3, "tag_pool": ["boxing", "martial_arts", "crossfit", "gym", "running"]},
+    # digital_creative (cluster 4 sub)
+    {"name": "cosplay_gaming_crew", "cluster": 4, "tag_pool": ["cosplay", "gaming", "anime", "digital_art", "comics"]},
+    {"name": "film_dj_collective", "cluster": 4, "tag_pool": ["film_making", "djing", "music", "digital_art", "singing"]},
+    # craft_creative (cluster 4 sub)
+    {"name": "craft_atelier", "cluster": 4, "tag_pool": ["drawing", "painting", "knitting", "embroidery", "jewelry_making"]},
+    {"name": "woodwork_print_studio", "cluster": 4, "tag_pool": ["woodworking", "printmaking", "pottery", "leathercraft", "glass_blowing"]},
 ]
 
 EVENT_ARCHETYPES: list[dict] = [
@@ -169,8 +380,43 @@ EVENT_ARCHETYPES: list[dict] = [
     {"name": "yoga_session", "cluster": 3, "tag_pool": ["yoga", "swimming", "running"], "price_choices": [0, 1000, 1500], "hour_choices": [7, 8, 19], "max_choices": [10, 20, 30]},
     {"name": "mountain_trek", "cluster": 0, "tag_pool": ["trekking", "mountains", "camping"], "price_choices": [0, 1500, 2500], "hour_choices": [7, 8, 9], "max_choices": [10, 20, 30]},
     {"name": "climbing_session", "cluster": 0, "tag_pool": ["climbing", "mountains", "gym"], "price_choices": [1000, 2000, 3000], "hour_choices": [17, 18, 19], "max_choices": [8, 16, 24]},
-    {"name": "city_trip", "cluster": 5, "tag_pool": ["travel", "languages", "photography"], "price_choices": [0, 2000, 4000], "hour_choices": [8, 9, 10], "max_choices": [12, 20, 35]},
-    {"name": "language_meetup", "cluster": 5, "tag_pool": ["languages", "travel", "coffee"], "price_choices": [0, 500, 1000], "hour_choices": [18, 19, 20], "max_choices": [12, 24, 40]},
+    {"name": "city_trip", "cluster": 8, "tag_pool": ["travel", "languages", "photography"], "price_choices": [0, 2000, 4000], "hour_choices": [8, 9, 10], "max_choices": [12, 20, 35]},
+    {"name": "language_meetup", "cluster": 8, "tag_pool": ["languages", "travel", "coffee"], "price_choices": [0, 500, 1000], "hour_choices": [18, 19, 20], "max_choices": [12, 24, 40]},
+    # wellness (5)
+    {"name": "meditation_session", "cluster": 5, "tag_pool": ["meditation", "mindfulness", "breathwork"], "price_choices": [0, 1000, 1500], "hour_choices": [7, 8, 19], "max_choices": [10, 20, 30]},
+    {"name": "nutrition_workshop", "cluster": 5, "tag_pool": ["nutrition", "cooking", "veganism"], "price_choices": [1000, 2000, 3000], "hour_choices": [18, 19], "max_choices": [12, 20, 30]},
+    {"name": "sound_healing_circle", "cluster": 5, "tag_pool": ["sound_healing", "meditation", "mindfulness"], "price_choices": [0, 1500, 2000], "hour_choices": [19, 20], "max_choices": [10, 16, 24]},
+    # tech_science (6)
+    {"name": "drone_racing", "cluster": 6, "tag_pool": ["drones", "engineering", "gaming"], "price_choices": [0, 1000, 2000], "hour_choices": [10, 14, 16], "max_choices": [12, 20, 40]},
+    {"name": "science_night", "cluster": 6, "tag_pool": ["astronomy", "biology", "chemistry"], "price_choices": [0, 1000, 1500], "hour_choices": [19, 20], "max_choices": [20, 40, 60]},
+    # music_genres (7)
+    {"name": "jazz_concert", "cluster": 7, "tag_pool": ["jazz", "live_music", "blues"], "price_choices": [500, 1500, 3000], "hour_choices": [20, 21], "max_choices": [30, 60, 120]},
+    {"name": "dj_workshop", "cluster": 7, "tag_pool": ["djing", "electronic_music", "house_music"], "price_choices": [1000, 2000, 3000], "hour_choices": [18, 19], "max_choices": [10, 16, 24]},
+    {"name": "singer_songwriter_night", "cluster": 7, "tag_pool": ["singing", "folk_music", "indie_music"], "price_choices": [0, 500, 1000], "hour_choices": [20, 21], "max_choices": [20, 40, 60]},
+    # social (8)
+    {"name": "storytelling_night", "cluster": 8, "tag_pool": ["storytelling", "improv", "stand_up"], "price_choices": [0, 500, 1000], "hour_choices": [19, 20, 21], "max_choices": [20, 40, 60]},
+    {"name": "cultural_exchange_dinner", "cluster": 8, "tag_pool": ["cultural_exchange", "languages", "cooking"], "price_choices": [0, 1500, 2500], "hour_choices": [19, 20], "max_choices": [12, 20, 30]},
+    # lifestyle (9)
+    {"name": "thrift_fair", "cluster": 9, "tag_pool": ["thrifting", "fashion", "vintage"], "price_choices": [0, 500, 1000], "hour_choices": [10, 11, 12], "max_choices": [50, 100, 200]},
+    {"name": "sustainability_workshop", "cluster": 9, "tag_pool": ["sustainability", "zero_waste", "homesteading"], "price_choices": [0, 1000, 1500], "hour_choices": [10, 18, 19], "max_choices": [20, 40, 60]},
+    # visual_culture_fan
+    {"name": "anime_screening", "cluster": 1, "tag_pool": ["anime", "comics", "cinema", "street_art"], "price_choices": [0, 500, 1000], "hour_choices": [18, 19, 20], "max_choices": [20, 40, 80]},
+    {"name": "street_photography_walk", "cluster": 1, "tag_pool": ["photography", "street_art", "architecture", "vintage"], "price_choices": [0, 800], "hour_choices": [9, 10, 16], "max_choices": [10, 20, 30]},
+    # performing_arts_fan
+    {"name": "theater_show", "cluster": 1, "tag_pool": ["theater", "opera", "ballet", "comedy_shows"], "price_choices": [500, 1500, 3000], "hour_choices": [20, 21], "max_choices": [30, 80, 200]},
+    # literary_craft_fan
+    {"name": "ceramics_workshop", "cluster": 1, "tag_pool": ["ceramics", "sculpture", "pottery", "calligraphy"], "price_choices": [1500, 2500, 4000], "hour_choices": [10, 17, 18], "max_choices": [6, 10, 16]},
+    {"name": "writing_workshop", "cluster": 1, "tag_pool": ["writing", "reading", "literary_clubs", "podcasts"], "price_choices": [0, 1000, 2000], "hour_choices": [18, 19], "max_choices": [10, 20, 30]},
+    # team_sports_fan
+    {"name": "team_sports_match", "cluster": 3, "tag_pool": ["football", "basketball", "volleyball", "padel"], "price_choices": [0, 500, 1000], "hour_choices": [9, 15, 18], "max_choices": [10, 20, 40]},
+    # fitness_enthusiast
+    {"name": "martial_arts_class", "cluster": 3, "tag_pool": ["boxing", "martial_arts", "crossfit", "gym"], "price_choices": [1000, 1500, 2500], "hour_choices": [7, 18, 19], "max_choices": [8, 16, 24]},
+    # digital_creative
+    {"name": "cosplay_contest", "cluster": 4, "tag_pool": ["cosplay", "gaming", "anime", "digital_art"], "price_choices": [0, 1000, 2000], "hour_choices": [14, 15, 16], "max_choices": [30, 80, 200]},
+    {"name": "film_screening_indie", "cluster": 4, "tag_pool": ["film_making", "cinema", "music", "digital_art"], "price_choices": [0, 500, 1000], "hour_choices": [19, 20, 21], "max_choices": [20, 40, 80]},
+    # craft_creative
+    {"name": "craft_fair", "cluster": 4, "tag_pool": ["knitting", "embroidery", "jewelry_making", "drawing", "painting"], "price_choices": [0, 500, 1000], "hour_choices": [10, 11], "max_choices": [30, 60, 120]},
+    {"name": "life_drawing_session", "cluster": 4, "tag_pool": ["drawing", "painting", "art", "museums"], "price_choices": [1000, 1500, 2500], "hour_choices": [18, 19], "max_choices": [8, 12, 20]},
 ]
 
 SPACE_EVENT_COMPATIBILITY: dict[str, list[str]] = {
@@ -194,6 +440,43 @@ SPACE_EVENT_COMPATIBILITY: dict[str, list[str]] = {
     "travel_backpackers": ["city_trip", "language_meetup", "photo_walk"],
     "pet_lovers_club": ["city_trip", "coffee_cupping", "board_game_night"],
     "language_exchange_lounge": ["language_meetup", "city_trip", "book_discussion"],
+    # wellness
+    "wellness_studio": ["meditation_session", "yoga_session", "sound_healing_circle", "nutrition_workshop"],
+    "mindfulness_center": ["meditation_session", "sound_healing_circle", "yoga_session"],
+    "holistic_health_hub": ["nutrition_workshop", "meditation_session", "cooking_class"],
+    # tech_science
+    "maker_space": ["drone_racing", "hackathon", "ai_workshop"],
+    "ai_research_lab": ["ai_workshop", "hackathon", "science_night"],
+    "astronomy_club": ["science_night", "city_trip", "photo_walk"],
+    # music_genres
+    "music_production_studio": ["dj_workshop", "open_mic_live", "singer_songwriter_night"],
+    "jazz_lounge": ["jazz_concert", "open_mic_live", "singer_songwriter_night"],
+    "vinyl_collectors_club": ["jazz_concert", "singer_songwriter_night", "open_mic_live"],
+    # social
+    "debate_society": ["storytelling_night", "language_meetup", "book_discussion"],
+    "improv_theater_group": ["storytelling_night", "open_mic_live", "movie_screening"],
+    # lifestyle
+    "sustainable_living_co": ["sustainability_workshop", "nutrition_workshop", "cooking_class"],
+    "digital_nomad_hub": ["hackathon", "ai_workshop", "language_meetup"],
+    "fashion_collective": ["thrift_fair", "photo_walk", "art_workshop"],
+    # visual_culture sub-spaces
+    "anime_comics_club": ["anime_screening", "cosplay_contest", "movie_screening"],
+    "photo_cinema_society": ["street_photography_walk", "photo_walk", "movie_screening"],
+    # performing_arts sub-spaces
+    "theater_company": ["theater_show", "open_mic_live", "movie_screening"],
+    # literary_craft sub-spaces
+    "ceramics_pottery_studio": ["ceramics_workshop", "art_workshop", "photo_walk"],
+    "creative_writing_circle": ["writing_workshop", "book_discussion", "language_meetup"],
+    # sports sub-spaces
+    "team_sports_club": ["team_sports_match", "running_session", "city_trip"],
+    "racket_sports_club": ["team_sports_match", "running_session", "yoga_session"],
+    "combat_sports_gym": ["martial_arts_class", "running_session", "yoga_session"],
+    # digital_creative sub-spaces
+    "cosplay_gaming_crew": ["cosplay_contest", "esports_tournament", "anime_screening"],
+    "film_dj_collective": ["film_screening_indie", "dj_workshop", "open_mic_live"],
+    # craft_creative sub-spaces
+    "craft_atelier": ["craft_fair", "life_drawing_session", "art_workshop"],
+    "woodwork_print_studio": ["craft_fair", "ceramics_workshop", "life_drawing_session"],
 }
 
 PERSONA_SPACE_PREFS: dict[str, list[str]] = {
@@ -201,25 +484,65 @@ PERSONA_SPACE_PREFS: dict[str, list[str]] = {
         "mountain_hikers", "climbing_crew", "travel_backpackers", "urban_runners",
         "yoga_wellness", "pet_lovers_club", "language_exchange_lounge", "coffee_explorers",
     ],
-    "culture_lover": [
-        "cinephile_collective", "book_cafe_club", "modern_art_collective", "street_photo_crew",
-        "live_music_tribe", "language_exchange_lounge", "coffee_explorers", "travel_backpackers",
+    # culture sub-personas
+    "visual_culture_fan": [
+        "anime_comics_club", "photo_cinema_society", "cinephile_collective",
+        "street_photo_crew", "modern_art_collective", "live_music_tribe",
+        "coffee_explorers", "travel_backpackers",
+    ],
+    "performing_arts_fan": [
+        "theater_company", "live_music_tribe", "cinephile_collective",
+        "jazz_lounge", "vinyl_collectors_club", "improv_theater_group",
+        "book_cafe_club", "coffee_explorers",
+    ],
+    "literary_craft_fan": [
+        "ceramics_pottery_studio", "creative_writing_circle", "book_cafe_club",
+        "modern_art_collective", "coffee_explorers", "language_exchange_lounge",
+        "street_photo_crew", "mindfulness_center",
     ],
     "foodie": [
         "foodie_circle", "wine_tasting_society", "coffee_explorers", "language_exchange_lounge",
         "book_cafe_club", "live_music_tribe", "travel_backpackers", "pet_lovers_club",
     ],
-    "sports_enthusiast": [
-        "urban_runners", "yoga_wellness", "mountain_hikers", "climbing_crew",
-        "travel_backpackers", "nerd_hub", "language_exchange_lounge", "foodie_circle",
+    # sports sub-personas
+    "team_sports_fan": [
+        "team_sports_club", "racket_sports_club", "urban_runners",
+        "travel_backpackers", "language_exchange_lounge", "nerd_hub", "foodie_circle",
     ],
-    "creative": [
-        "modern_art_collective", "live_music_tribe", "street_photo_crew", "book_cafe_club",
-        "cinephile_collective", "language_exchange_lounge", "indie_gaming_club", "coffee_explorers",
+    "fitness_enthusiast": [
+        "combat_sports_gym", "urban_runners", "yoga_wellness",
+        "mountain_hikers", "climbing_crew", "wellness_studio", "coffee_explorers",
+    ],
+    # creative sub-personas
+    "digital_creative": [
+        "cosplay_gaming_crew", "film_dj_collective", "nerd_hub",
+        "indie_gaming_club", "music_production_studio", "ai_builders_lab",
+        "anime_comics_club", "live_music_tribe",
+    ],
+    "craft_creative": [
+        "craft_atelier", "woodwork_print_studio", "modern_art_collective",
+        "ceramics_pottery_studio", "book_cafe_club", "street_photo_crew",
+        "fashion_collective", "language_exchange_lounge",
+    ],
+    "wellness_seeker": [
+        "wellness_studio", "mindfulness_center", "holistic_health_hub", "yoga_wellness",
+        "mountain_hikers", "coffee_explorers", "book_cafe_club", "pet_lovers_club",
+    ],
+    "tech_geek": [
+        "maker_space", "ai_research_lab", "astronomy_club", "nerd_hub",
+        "tech_founders_circle", "ai_builders_lab", "indie_gaming_club", "board_games_society",
+    ],
+    "music_lover": [
+        "music_production_studio", "jazz_lounge", "vinyl_collectors_club", "live_music_tribe",
+        "film_dj_collective", "modern_art_collective", "coffee_explorers", "language_exchange_lounge",
     ],
     "social_butterfly": [
         "language_exchange_lounge", "pet_lovers_club", "travel_backpackers", "board_games_society",
         "foodie_circle", "live_music_tribe", "coffee_explorers", "urban_runners",
+    ],
+    "lifestyle_explorer": [
+        "sustainable_living_co", "digital_nomad_hub", "fashion_collective", "travel_backpackers",
+        "coffee_explorers", "pet_lovers_club", "language_exchange_lounge", "book_cafe_club",
     ],
 }
 
@@ -292,31 +615,44 @@ def power_law_popularity(n: int, exponent: float = 1.8) -> list[float]:
 
 def sample_user_tags(persona: dict) -> dict[str, float]:
     """
-    Sample dense user interests:
-      - many low-weight tags from broad exploration (page visits)
-      - few high-weight core tags aligned with persona
+    Sample dense user interests biased toward the persona's tag_subpool.
+
+    Tier breakdown:
+      core (2-4):  almost exclusively from tag_subpool  → very high weight
+      mid  (4-7):  subpool remainder + cluster spillover + small secondary
+      low  (rest): random exploration across all tags   → low weight
     """
-    prim = TAG_CLUSTERS[persona["cluster"]]
+    prim    = TAG_CLUSTERS[persona["cluster"]]
+    subpool = persona.get("tag_subpool", prim)
     sec_pool = [t for t in TAG_VOCAB if t not in prim]
 
     n_total = random.randint(14, 24)
-    n_core = random.randint(2, 4)
-    n_mid = random.randint(4, 7)
-    n_low = max(0, n_total - n_core - n_mid)
+    n_core  = random.randint(2, 4)
+    n_mid   = random.randint(4, 7)
+    n_low   = max(0, n_total - n_core - n_mid)
 
-    core_tags = random.sample(prim, min(n_core, len(prim)))
-    remaining_prim = [t for t in prim if t not in core_tags]
-    mid_from_prim = random.sample(remaining_prim, min(len(remaining_prim), max(1, round(n_mid * 0.6))))
-    n_mid_sec = max(0, n_mid - len(mid_from_prim))
-    mid_from_sec = random.sample(sec_pool, min(n_mid_sec, len(sec_pool)))
+    # Core: drawn almost entirely from subpool
+    core_tags = random.sample(subpool, min(n_core, len(subpool)))
 
-    low_pool = [t for t in TAG_VOCAB if t not in set(core_tags + mid_from_prim + mid_from_sec)]
+    # Mid: subpool remainder first, then rest-of-cluster, then secondary
+    remaining_sub  = [t for t in subpool if t not in core_tags]
+    remaining_prim = [t for t in prim    if t not in core_tags and t not in subpool]
+
+    n_mid_sub  = min(len(remaining_sub),  max(0, round(n_mid * 0.55)))
+    n_mid_prim = min(len(remaining_prim), max(0, round(n_mid * 0.20)))
+    n_mid_sec  = max(0, n_mid - n_mid_sub - n_mid_prim)
+
+    mid_tags  = random.sample(remaining_sub,  n_mid_sub)
+    mid_tags += random.sample(remaining_prim, n_mid_prim)
+    mid_tags += random.sample(sec_pool, min(n_mid_sec, len(sec_pool)))
+
+    low_pool = [t for t in TAG_VOCAB if t not in set(core_tags + mid_tags)]
     low_tags = random.sample(low_pool, min(n_low, len(low_pool)))
 
     result: dict[str, float] = {}
     for tag in core_tags:
         result[tag] = round(random.uniform(0.75, 1.00), 2)
-    for tag in (mid_from_prim + mid_from_sec):
+    for tag in mid_tags:
         result[tag] = round(random.uniform(0.28, 0.65), 2)
     for tag in low_tags:
         result[tag] = round(random.uniform(0.03, 0.20), 2)
@@ -484,8 +820,8 @@ def gen_space(archetype: dict, popularity: float) -> dict:
 # ─── Interaction generation ────────────────────────────────────────────────────
 
 def compute_item_persona_affinity(tags: list[str]) -> list[float]:
-    """Returns a 6-dim vector: fraction of tags belonging to each cluster."""
-    counts = [0] * 6
+    """Returns a vector (one entry per cluster) with the fraction of tags belonging to each cluster."""
+    counts = [0] * len(TAG_CLUSTERS)
     for tag in tags:
         ci = TAG_TO_CLUSTER.get(tag)
         if ci is not None:
@@ -550,19 +886,21 @@ def assign_interactions(
     persona_space_pools: list[list[str]] = []
 
     for p_idx in range(n_personas):
+        ci   = PERSONAS[p_idx]["cluster"]   # cluster index (0-9) for affinity lookup
+        name = PERSONAS[p_idx]["name"]
         ev_sorted = sorted(
             events,
-            key=lambda e: (e["_affinity"][p_idx] * 0.7 + e["popularity"] * 0.3),
+            key=lambda e, ci=ci: (e["_affinity"][ci] * 0.7 + e["popularity"] * 0.3),
             reverse=True,
         )
         persona_event_pools.append([e["id"] for e in ev_sorted])
 
         sp_sorted = sorted(
             spaces,
-            key=lambda s: (
-                s["_affinity"][p_idx] * 0.6
+            key=lambda s, ci=ci, name=name: (
+                s["_affinity"][ci] * 0.6
                 + s["popularity"] * 0.25
-                + (0.15 if s.get("archetype") in PERSONA_SPACE_PREFS.get(PERSONAS[p_idx]["name"], []) else 0.0)
+                + (0.15 if s.get("archetype") in PERSONA_SPACE_PREFS.get(name, []) else 0.0)
             ),
             reverse=True,
         )
@@ -590,6 +928,7 @@ def assign_interactions(
             created_at = today - timedelta(days=days_back)
             user  = user_by_id[user_id]
             p_idx = user["persona_idx"]
+            ci    = PERSONAS[p_idx]["cluster"]  # cluster index for affinity lookup
             pref_factor = 1.0
             if itype == "event":
                 event = event_by_id[iid]
@@ -598,7 +937,7 @@ def assign_interactions(
                 except (TypeError, ValueError):
                     event_day = today
                 type_w = 1.0 if event_day < today else 0.7
-                pref_score = float(event.get("_affinity", [0.0] * len(PERSONAS))[p_idx])
+                pref_score = float(event.get("_affinity", [0.0] * len(TAG_CLUSTERS))[ci])
                 persona_factor = 0.35 + 0.65 * pref_score
                 tag_factor = _implicit_tag_preference_factor(user["tag_weights"], event["tags"])
                 pref_factor = persona_factor * tag_factor
@@ -606,7 +945,7 @@ def assign_interactions(
             else:
                 space = space_by_id[iid]
                 type_w = 0.9
-                pref_score = float(space.get("_affinity", [0.0] * len(PERSONAS))[p_idx])
+                pref_score = float(space.get("_affinity", [0.0] * len(TAG_CLUSTERS))[ci])
                 persona_factor = 0.35 + 0.65 * pref_score
                 tag_factor = _implicit_tag_preference_factor(user["tag_weights"], space["tags"])
                 pref_factor = persona_factor * tag_factor

@@ -1,3 +1,4 @@
+
 /**
  * Embeddings operations — generate and persist entity embeddings.
  *
@@ -164,7 +165,7 @@ export async function embedSpace(
  */
 export async function getStoredEmbedding(
   entityId: string,
-  entityType: "user" | "event" | "space",
+  entityType: "user" | "event" | "space" | "tag",
 ): Promise<number[] | null> {
   const row = await db.query.embeddings.findFirst({
     where: and(
@@ -175,39 +176,99 @@ export async function getStoredEmbedding(
   return row?.embedding ?? null;
 }
 
-/**
- * Recommend tags for a user using cosine similarity in the shared embedding space.
- *
- * Finds the user's embedding, then returns the tag names whose embeddings are
- * closest to it — ordered by similarity descending, excluding tags the user
- * already has.
- */
-export async function recommendTagsForUser(
-  userId: string,
-  existingTags: string[] = [],
-  limit = 10,
-): Promise<string[]> {
-  const userRow = await db.query.embeddings.findFirst({
+// ─── Internal helper ───────────────────────────────────────────────────────────
+
+async function _getUserVector(userId: string): Promise<string | null> {
+  const row = await db.query.embeddings.findFirst({
     where: and(
       eq(embeddings.entityId, userId),
       eq(embeddings.entityType, "user"),
     ),
+    columns: { embedding: true },
   });
+  return row ? `[${row.embedding.join(",")}]` : null;
+}
 
-  if (!userRow) return [];
+// ─── Public recommendation queries ────────────────────────────────────────────
 
-  const vectorLiteral = `[${userRow.embedding.join(",")}]`;
+/**
+ * Users with the most similar embeddings (excludes self).
+ */
+export async function recommendUsersForUser(
+  userId: string,
+  limit = 10,
+  offset = 0,
+): Promise<string[]> {
+  const vec = await _getUserVector(userId);
+  if (!vec) return [];
 
   const rows = await db.execute<{ entity_id: string }>(sql`
     SELECT entity_id
     FROM   embeddings
-    WHERE  entity_type = 'tag'
-    ORDER BY embedding <=> ${sql.raw(`'${vectorLiteral}'::vector`)}
-    LIMIT  ${sql.raw(String(limit + existingTags.length))}
+    WHERE  entity_type = 'user'
+      AND  entity_id   != ${userId}
+    ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
+    LIMIT  ${sql.raw(String(limit))}
+    OFFSET ${sql.raw(String(offset))}
+  `);
+
+  return rows.map((r) => r.entity_id);
+}
+
+/**
+ * Events closest to the user's embedding (by entity_id, caller applies business filters).
+ */
+export async function recommendEventsForUser(
+  userId: string,
+  limit = 10,
+  offset = 0,
+  excludeIds: string[] = [],
+): Promise<string[]> {
+  const vec = await _getUserVector(userId);
+  if (!vec) return [];
+
+  const excludeSet  = new Set(excludeIds);
+  const fetchExtra  = limit + excludeIds.length;
+  const rows = await db.execute<{ entity_id: string }>(sql`
+    SELECT entity_id
+    FROM   embeddings
+    WHERE  entity_type = 'event'
+    ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
+    LIMIT  ${sql.raw(String(fetchExtra))}
+    OFFSET ${sql.raw(String(offset))}
   `);
 
   return rows
     .map((r) => r.entity_id)
-    .filter((tag) => !existingTags.includes(tag))
+    .filter((id) => !excludeSet.has(id))
+    .slice(0, limit);
+}
+
+/**
+ * Spaces closest to the user's embedding (by entity_id, caller applies business filters).
+ */
+export async function recommendSpacesForUser(
+  userId: string,
+  limit = 10,
+  offset = 0,
+  excludeIds: string[] = [],
+): Promise<string[]> {
+  const vec = await _getUserVector(userId);
+  if (!vec) return [];
+
+  const excludeSet  = new Set(excludeIds);
+  const fetchExtra  = limit + excludeIds.length;
+  const rows = await db.execute<{ entity_id: string }>(sql`
+    SELECT entity_id
+    FROM   embeddings
+    WHERE  entity_type = 'space'
+    ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
+    LIMIT  ${sql.raw(String(fetchExtra))}
+    OFFSET ${sql.raw(String(offset))}
+  `);
+
+  return rows
+    .map((r) => r.entity_id)
+    .filter((id) => !excludeSet.has(id))
     .slice(0, limit);
 }

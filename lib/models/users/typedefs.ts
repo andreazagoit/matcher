@@ -21,6 +21,15 @@ export const userTypeDefs = `#graphql
     tags: [String!]!
     userItems: [ProfileItem!]!
 
+    """Tags recommended based on embedding similarity. Only visible to own profile."""
+    recommendedUserTags(limit: Int, offset: Int): [String!]!
+    """Users with similar embeddings. Only visible to own profile."""
+    recommendedUserUsers(limit: Int, offset: Int): [User!]!
+    """Events closest to user embedding. Only visible to own profile."""
+    recommendedEvents(limit: Int, offset: Int): [Event!]!
+    """Spaces closest to user embedding. Only visible to own profile."""
+    recommendedSpaces(limit: Int, offset: Int): [Space!]!
+
     # Orientation & identity
     sexualOrientation: [String!]!
     heightCm: Int
@@ -172,11 +181,6 @@ export const userTypeDefs = `#graphql
     me: User
     checkUsername(username: String!): Boolean!
     myTags: [String!]!
-    """
-    Tags recommended for the authenticated user based on embedding similarity.
-    Excludes tags the user already has. Requires ml:sync to have been run.
-    """
-    recommendedTags(limit: Int): [String!]!
   }
 
   extend type Mutation {
