@@ -170,5 +170,5 @@ HGT_HEADS  = 4
 HGT_LAYERS = 2
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
-MODEL_WEIGHTS_PATH  = os.path.join(_SERVICE_DIR, "model_weights.pt")
+MODEL_WEIGHTS_PATH  = os.path.join(_SERVICE_DIR, "hgt_weights.pt")
 TRAINING_DATA_DIR   = os.path.join(_SERVICE_DIR, "training-data")

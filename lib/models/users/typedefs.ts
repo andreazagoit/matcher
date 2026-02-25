@@ -12,14 +12,14 @@ export const userTypeDefs = `#graphql
     name: String!
     email: String!
     birthdate: String!
-    gender: Gender
     image: String
+    locationText: String
     location: Location
     locationUpdatedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
     tags: [String!]!
-    userItems: [ProfileItem!]!
+    userItems: [UserItem!]!
 
     """Tags recommended based on embedding similarity. Only visible to own profile."""
     recommendedUserTags(limit: Int, offset: Int): [String!]!
@@ -95,6 +95,7 @@ export const userTypeDefs = `#graphql
     schoolName: String
     languages: [String!]
     ethnicity: Ethnicity
+    locationText: String
   }
 
   enum Gender {
@@ -187,7 +188,7 @@ export const userTypeDefs = `#graphql
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
-    updateLocation(lat: Float!, lon: Float!): User!
+    updateLocation(lat: Float!, lon: Float!, locationText: String): User!
     updateMyTags(tags: [String!]!): User!
   }
 `;

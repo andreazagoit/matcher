@@ -16,10 +16,10 @@ function ChatPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    const conversationId = searchParams.get("id");
-    const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversationId);
+    const connectionId = searchParams.get("id");
+    const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(connectionId);
     const handleSelect = (id: string) => {
-        setSelectedConversationId(id);
+        setSelectedConnectionId(id);
         router.push(`/messages?id=${id}`);
     };
 
@@ -45,34 +45,34 @@ function ChatPageContent() {
             }
         >
             <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 h-[calc(100vh-200px)]">
-                {/* On mobile, hidden if conversation selected? Or list always visible? 
+                {/* On mobile, hidden if connection selected? Or list always visible? 
                 For MVP, standard 2-col on desktop. Mobile stack is tricky without responsive logic.
                 Assuming responsive is handled by columns (stack on mobile). 
                 If selected, show window.
             */}
-                <Card className={`flex flex-col border-r-0 md:border-r ${selectedConversationId ? 'hidden md:flex' : 'flex'}`}>
+                <Card className={`flex flex-col border-r-0 md:border-r ${selectedConnectionId ? 'hidden md:flex' : 'flex'}`}>
                     <div className="p-4 font-semibold border-b">
                         Inbox
                     </div>
                     <ChatList
-                        selectedId={selectedConversationId || undefined}
+                        selectedId={selectedConnectionId || undefined}
                         onSelect={handleSelect}
                     />
                 </Card>
 
-                <Card className={`flex flex-col overflow-hidden ${!selectedConversationId ? 'hidden md:flex' : 'flex'}`}>
-                    {selectedConversationId ? (
+                <Card className={`flex flex-col overflow-hidden ${!selectedConnectionId ? 'hidden md:flex' : 'flex'}`}>
+                    {selectedConnectionId ? (
                         <div className="h-full flex flex-col">
                             {/* Back button for mobile? */}
                             <div className="md:hidden p-2">
                                 <button onClick={() => handleSelect("")} className="text-sm text-primary">Back to list</button>
                             </div>
-                            <ChatWindow conversationId={selectedConversationId} />
+                            <ChatWindow connectionId={selectedConnectionId} />
                         </div>
                     ) : (
                         <div className="flex h-full items-center justify-center flex-col gap-4 text-muted-foreground">
                             <MessageSquare className="h-12 w-12 opacity-20" />
-                            <p>Select a conversation to start chatting</p>
+                            <p>Select a connection to start chatting</p>
                         </div>
                     )}
                 </Card>

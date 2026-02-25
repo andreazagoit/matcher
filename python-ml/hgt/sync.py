@@ -7,7 +7,7 @@ embedding back into the `embeddings` table.
 
 Usage:
   python -m ml.sync
-  python -m ml.sync --model-path python-ml/model_weights.pt
+  python -m ml.sync --model-path python-ml/hgt_weights.pt
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ import psycopg2.extras
 import torch
 from torch_geometric.data import HeteroData
 
-from ml.config import DATABASE_URL, MODEL_WEIGHTS_PATH, NUM_TAGS, TAG_TO_IDX, TAG_VOCAB
-from ml.features import build_user_features, build_event_features, build_space_features
-from ml.model import load_model, device
-from ml.utils import days_until
+from hgt.config import DATABASE_URL, MODEL_WEIGHTS_PATH, NUM_TAGS, TAG_TO_IDX, TAG_VOCAB
+from hgt.features import build_user_features, build_event_features, build_space_features
+from hgt.model import load_model, device
+from hgt.utils import days_until
 
 
 # ── DB connection ─────────────────────────────────────────────────────────────
@@ -53,8 +53,8 @@ def _read_users(cur) -> tuple[list[str], list[list[float]], dict[str, list[str]]
                ON ea.user_id = u.id AND ea.status = 'attended'
         LEFT JOIN members m
                ON m.user_id = u.id AND m.status = 'active'
-        GROUP BY u.id, u.birthdate, u.gender, u.relationship_intent,
                  u.smoking, u.drinking, u.activity_level, u.tags
+        ORDER BY u.id
     """)
     rows = cur.fetchall()
 
@@ -101,6 +101,7 @@ def _read_events(cur) -> tuple[list[str], list[list[float]], list[str], dict[str
         LEFT JOIN users u_going
                ON u_going.id = ea_going.user_id AND u_going.birthdate IS NOT NULL
         GROUP BY e.id, e.tags, e.starts_at, e.max_attendees, e.price, e.space_id
+        ORDER BY e.id
     """)
     ids, vecs, space_ids = [], [], []
     tags_by_event: dict[str, list[str]] = {}
@@ -141,6 +142,7 @@ def _read_spaces(cur) -> tuple[list[str], list[list[float]], dict[str, list[str]
         LEFT JOIN events e  ON e.space_id = s.id AND e.starts_at IS NOT NULL
         WHERE s.is_active = true
         GROUP BY s.id, s.tags
+        ORDER BY s.id
     """)
     ids, vecs = [], []
     tags_by_space: dict[str, list[str]] = {}

@@ -11,10 +11,10 @@ import {
 import { relations } from "drizzle-orm";
 import { users } from "@/lib/models/users/schema";
 
-export const profileItemTypeEnum = pgEnum("profile_item_type", ["photo", "prompt"]);
+export const userItemTypeEnum = pgEnum("profile_item_type", ["photo", "prompt"]);
 
-export const profileItems = pgTable(
-  "profile_items",
+export const userItems = pgTable(
+  "user_items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
@@ -22,7 +22,7 @@ export const profileItems = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    type: profileItemTypeEnum("type").notNull(),
+    type: userItemTypeEnum("type").notNull(),
 
     /**
      * For type=prompt: the prompt key from the predefined list (e.g. "controversial_opinion").
@@ -43,18 +43,18 @@ export const profileItems = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("profile_items_user_idx").on(table.userId),
-    index("profile_items_order_idx").on(table.userId, table.displayOrder),
-    unique("profile_items_user_order_unique").on(table.userId, table.displayOrder),
+    index("user_items_user_idx").on(table.userId),
+    index("user_items_order_idx").on(table.userId, table.displayOrder),
+    unique("user_items_user_order_unique").on(table.userId, table.displayOrder),
   ]
 );
 
-export const profileItemsRelations = relations(profileItems, ({ one }) => ({
+export const userItemsRelations = relations(userItems, ({ one }) => ({
   user: one(users, {
-    fields: [profileItems.userId],
+    fields: [userItems.userId],
     references: [users.id],
   }),
 }));
 
-export type ProfileItem = typeof profileItems.$inferSelect;
-export type NewProfileItem = typeof profileItems.$inferInsert;
+export type UserItem = typeof userItems.$inferSelect;
+export type NewUserItem = typeof userItems.$inferInsert;

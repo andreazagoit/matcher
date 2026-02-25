@@ -27,7 +27,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Optional
 
-from ml.config import TAG_VOCAB, TRAINING_DATA_DIR
+from hgt.config import TAG_VOCAB, TRAINING_DATA_DIR
 
 # Clusters mirror the 10 TAG_CATEGORIES in config.py / data.ts.
 # Every tag in TAG_VOCAB belongs to exactly one cluster (0–9).

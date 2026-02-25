@@ -23,12 +23,12 @@ from collections import defaultdict
 import torch
 import torch.nn.functional as F
 
-from ml.config import (
+from hgt.config import (
     LEARNING_RATE, EPOCHS,
     MODEL_WEIGHTS_PATH, TRAINING_DATA_DIR,
 )
-from ml.graph import build_graph_data
-from ml.model import HetEncoder, save_model, load_model, device, _AUTOCAST, _DTYPE
+from hgt.graph import build_graph_data
+from hgt.model import HetEncoder, save_model, load_model, device, _AUTOCAST, _DTYPE
 
 
 # ── Configuration ─────────────────────────────────────────────────────────────
@@ -36,8 +36,13 @@ from ml.model import HetEncoder, save_model, load_model, device, _AUTOCAST, _DTY
 # Edges used for BCE ranking loss — the only training signal.
 # All other edge types still contribute via HGT message passing.
 _BPR_EDGES: list[tuple[str, str, str]] = [
-    ("user", "attends", "event"),
-    ("user", "joins",   "space"),
+    ("user",  "attends",             "event"),
+    ("user",  "joins",               "space"),
+    ("user",  "similar_to",          "user"),
+    ("user",  "likes",               "tag"),
+    ("event", "hosted_by",           "space"),
+    ("event", "tagged_with",         "tag"),
+    ("space", "tagged_with_space",   "tag"),
 ]
 
 _EDGES_PER_TYPE = 512   # positive pairs sampled per edge type per step

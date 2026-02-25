@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@apollo/client/react";
-import { GET_CONVERSATIONS } from "@/lib/models/conversations/gql";
+import { GET_CONVERSATIONS } from "@/lib/models/connections/gql";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ interface Participant {
     image?: string;
 }
 
-interface Conversation {
+interface Connection {
     id: string;
     otherUser: Participant;
     lastMessage?: {
@@ -30,23 +30,23 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-    const { data, loading, error } = useQuery<{ conversations: Conversation[] }>(GET_CONVERSATIONS, {
+    const { data, loading, error } = useQuery<{ connections: Connection[] }>(GET_CONVERSATIONS, {
         pollInterval: 5000,
     });
 
     if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin" /></div>;
     if (error) return <div className="p-4 text-destructive">Error loading chats</div>;
 
-    const conversations = data?.conversations || [];
+    const connections = data?.connections || [];
 
-    if (conversations.length === 0) {
-        return <div className="p-4 text-center text-muted-foreground">No conversations yet</div>;
+    if (connections.length === 0) {
+        return <div className="p-4 text-center text-muted-foreground">No connections yet</div>;
     }
 
     return (
         <ScrollArea className="h-full">
             <div className="flex flex-col gap-2 p-4 pt-0">
-                {conversations.map((conv) => (
+                {connections.map((conv) => (
                     <button
                         key={conv.id}
                         onClick={() => onSelect(conv.id)}

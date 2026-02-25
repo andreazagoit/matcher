@@ -8,7 +8,7 @@ import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
 import { db } from "@/lib/db/drizzle";
 import { users } from "@/lib/models/users/schema";
 import { eq } from "drizzle-orm";
-import { getUserItems } from "@/lib/models/profileitems/operations";
+import { getUserItems } from "@/lib/models/useritems/operations";
 import { findMatches } from "./operations";
 import type { Gender } from "@/lib/graphql/__generated__/graphql";
 

@@ -29,9 +29,9 @@ from typing import Optional
 import torch
 from torch_geometric.data import HeteroData
 
-from ml.config import TRAINING_DATA_DIR, NUM_TAGS, TAG_TO_IDX
-from ml.features import build_user_features, build_event_features, build_space_features
-from ml.utils import days_until
+from hgt.config import TRAINING_DATA_DIR, NUM_TAGS, TAG_TO_IDX
+from hgt.features import build_user_features, build_event_features, build_space_features
+from hgt.utils import days_until
 
 
 # ── JSON loaders ──────────────────────────────────────────────────────────────

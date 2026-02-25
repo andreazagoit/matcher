@@ -5,15 +5,15 @@ import { eq, and, ne, desc, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 import {
-  sendMessageRequest,
+  sendConnectionRequest,
   respondToRequest,
   getMessageRequests,
-  getActiveConversations,
-  getConversationById,
+  getActiveConnections,
+  getConnectionById,
   sendMessage,
   getMessages,
 } from "./operations";
-import type { Conversation } from "./schema";
+import type { Connection } from "./schema";
 
 function requireAuth(context: GraphQLContext) {
   if (!context.auth.user) {
@@ -24,9 +24,9 @@ function requireAuth(context: GraphQLContext) {
   return context.auth.user;
 }
 
-export const conversationResolvers = {
+export const connectionResolvers = {
   Query: {
-    messageRequests: async (
+    connectionRequests: async (
       _: unknown,
       __: unknown,
       context: GraphQLContext,
@@ -35,59 +35,59 @@ export const conversationResolvers = {
       return getMessageRequests(user.id);
     },
 
-    conversations: async (
+    connections: async (
       _: unknown,
       __: unknown,
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      return getActiveConversations(user.id);
+      return getActiveConnections(user.id);
     },
 
-    conversation: async (
+    connection: async (
       _: unknown,
       { id }: { id: string },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      return getConversationById(id, user.id);
+      return getConnectionById(id, user.id);
     },
 
     messages: async (
       _: unknown,
-      { conversationId }: { conversationId: string },
+      { connectionId }: { connectionId: string },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const conversation = await getConversationById(conversationId, user.id);
-      if (!conversation) {
-        throw new GraphQLError("Conversation not found or access denied");
+      const connection = await getConnectionById(connectionId, user.id);
+      if (!connection) {
+        throw new GraphQLError("Connection not found or access denied");
       }
-      return getMessages(conversationId);
+      return getMessages(connectionId);
     },
   },
 
   Mutation: {
-    sendMessageRequest: async (
+    sendConnectionRequest: async (
       _: unknown,
       {
         recipientId,
-        content,
-        source,
-      }: { recipientId: string; content: string; source?: string },
+        targetUserItemId,
+        initialMessage,
+      }: { recipientId: string; targetUserItemId: string; initialMessage?: string },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
       if (user.id === recipientId) {
-        throw new GraphQLError("Cannot message yourself");
+        throw new GraphQLError("Cannot connect to yourself");
       }
 
       try {
-        return await sendMessageRequest(
+        return await sendConnectionRequest(
           user.id,
           recipientId,
-          content,
-          (source as "discovery" | "event" | "space") || "discovery",
+          targetUserItemId,
+          initialMessage || null,
         );
       } catch (err) {
         throw new GraphQLError(
@@ -98,13 +98,13 @@ export const conversationResolvers = {
 
     respondToRequest: async (
       _: unknown,
-      { conversationId, accept }: { conversationId: string; accept: boolean },
+      { connectionId, accept }: { connectionId: string; accept: boolean },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
 
       try {
-        const updated = await respondToRequest(conversationId, user.id, accept);
+        const updated = await respondToRequest(connectionId, user.id, accept);
 
 
         return updated;
@@ -117,12 +117,12 @@ export const conversationResolvers = {
 
     sendMessage: async (
       _: unknown,
-      { conversationId, content }: { conversationId: string; content: string },
+      { connectionId, content }: { connectionId: string; content: string },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
       try {
-        return await sendMessage(conversationId, user.id, content);
+        return await sendMessage(connectionId, user.id, content);
       } catch (err) {
         throw new GraphQLError(
           err instanceof Error ? err.message : "Failed to send message",
@@ -132,13 +132,13 @@ export const conversationResolvers = {
 
     markAsRead: async (
       _: unknown,
-      { conversationId }: { conversationId: string },
+      { connectionId }: { connectionId: string },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      const conversation = await getConversationById(conversationId, user.id);
-      if (!conversation) {
-        throw new GraphQLError("Conversation not found");
+      const connection = await getConnectionById(connectionId, user.id);
+      if (!connection) {
+        throw new GraphQLError("Connection not found");
       }
 
       await db
@@ -146,7 +146,7 @@ export const conversationResolvers = {
         .set({ readAt: new Date() })
         .where(
           and(
-            eq(messages.conversationId, conversationId),
+            eq(messages.connectionId, connectionId),
             ne(messages.senderId, user.id),
             sql`read_at IS NULL`,
           ),
@@ -156,21 +156,21 @@ export const conversationResolvers = {
     },
   },
 
-  Conversation: {
-    initiator: async (parent: Conversation) => {
+  Connection: {
+    initiator: async (parent: Connection) => {
       return db.query.users.findFirst({
         where: eq(users.id, parent.initiatorId),
       });
     },
 
-    recipient: async (parent: Conversation) => {
+    recipient: async (parent: Connection) => {
       return db.query.users.findFirst({
         where: eq(users.id, parent.recipientId),
       });
     },
 
     otherUser: async (
-      parent: Conversation,
+      parent: Connection,
       _: unknown,
       context: GraphQLContext,
     ) => {
@@ -180,15 +180,15 @@ export const conversationResolvers = {
       return db.query.users.findFirst({ where: eq(users.id, otherId) });
     },
 
-    lastMessage: async (parent: Conversation) => {
+    lastMessage: async (parent: Connection) => {
       return db.query.messages.findFirst({
-        where: eq(messages.conversationId, parent.id),
+        where: eq(messages.connectionId, parent.id),
         orderBy: [desc(messages.createdAt)],
       });
     },
 
     unreadCount: async (
-      parent: Conversation,
+      parent: Connection,
       _: unknown,
       context: GraphQLContext,
     ) => {
@@ -198,7 +198,7 @@ export const conversationResolvers = {
       return db.$count(
         messages,
         and(
-          eq(messages.conversationId, parent.id),
+          eq(messages.connectionId, parent.id),
           ne(messages.senderId, myId),
           sql`read_at IS NULL`,
         ),

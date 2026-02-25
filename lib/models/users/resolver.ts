@@ -23,8 +23,8 @@ import { embeddings } from "@/lib/models/embeddings/schema";
 import { db } from "@/lib/db/drizzle";
 import { eq, inArray, and, gte, sql } from "drizzle-orm";
 import { isValidTag } from "@/lib/models/tags/data";
-import { getUserItems } from "@/lib/models/profileitems/operations";
-import type { ProfileItem } from "@/lib/models/profileitems/schema";
+import { getUserItems } from "@/lib/models/useritems/operations";
+import type { UserItem } from "@/lib/models/useritems/schema";
 import { events, eventAttendees } from "@/lib/models/events/schema";
 import { spaces } from "@/lib/models/spaces/schema";
 import { members } from "@/lib/models/members/schema";
@@ -115,7 +115,7 @@ export const userResolvers = {
           drinking: updatedUser.drinking ?? null,
           activityLevel: updatedUser.activityLevel ?? null,
         });
-      })().catch(() => {});
+      })().catch(() => { });
 
       return updatedUser;
     },
@@ -138,14 +138,14 @@ export const userResolvers = {
 
     updateLocation: async (
       _: unknown,
-      { lat, lon }: { lat: number; lon: number },
+      { lat, lon, locationText }: { lat: number; lon: number; locationText?: string },
       context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
 
-      return await updateUserLocation(context.auth.user.id, lat, lon);
+      return await updateUserLocation(context.auth.user.id, lat, lon, locationText);
     },
 
     updateMyTags: async (
@@ -179,7 +179,7 @@ export const userResolvers = {
         smoking: updated.smoking ?? null,
         drinking: updated.drinking ?? null,
         activityLevel: updated.activityLevel ?? null,
-      }).catch(() => {});
+      }).catch(() => { });
 
       return updated;
     },
@@ -191,7 +191,7 @@ export const userResolvers = {
       return { lat: parent.location.y, lon: parent.location.x };
     },
     tags: (parent: { tags?: string[] | null }) => parent.tags ?? [],
-    userItems: (parent: { id: string }): Promise<ProfileItem[]> => {
+    userItems: (parent: { id: string }): Promise<UserItem[]> => {
       return getUserItems(parent.id);
     },
 
@@ -248,7 +248,7 @@ export const userResolvers = {
       const ids = emb.map((r) => r.entity_id);
       if (!ids.length) return [];
       const rows = await db.select().from(users).where(inArray(users.id, ids));
-      const map  = new Map(rows.map((u) => [u.id, u]));
+      const map = new Map(rows.map((u) => [u.id, u]));
       return ids.map((id) => map.get(id)).filter(Boolean);
     },
 

@@ -37,25 +37,26 @@ export enum AttendeeStatus {
   Interested = 'interested'
 }
 
-export type Conversation = {
-  __typename: 'Conversation';
+export type Connection = {
+  __typename: 'Connection';
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
+  initialMessage: Maybe<Scalars['String']['output']>;
   initiator: User;
   lastMessage: Maybe<Message>;
   lastMessageAt: Maybe<Scalars['DateTime']['output']>;
   otherUser: User;
   recipient: User;
-  source: Maybe<Scalars['String']['output']>;
-  status: ConversationStatus;
+  status: ConnectionStatus;
+  targetUserItem: UserItem;
   unreadCount: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
-export enum ConversationStatus {
-  Active = 'active',
+export enum ConnectionStatus {
+  Accepted = 'accepted',
   Declined = 'declined',
-  Request = 'request'
+  Pending = 'pending'
 }
 
 export type CreateEventInput = {
@@ -216,7 +217,7 @@ export type MatchUser = {
   id: Scalars['ID']['output'];
   image: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
-  userItems: Array<ProfileItem>;
+  userItems: Array<UserItem>;
   username: Scalars['String']['output'];
 };
 
@@ -246,8 +247,8 @@ export type MembershipTier = {
 
 export type Message = {
   __typename: 'Message';
+  connectionId: Scalars['ID']['output'];
   content: Scalars['String']['output'];
-  conversationId: Scalars['ID']['output'];
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
   readAt: Maybe<Scalars['DateTime']['output']>;
@@ -256,7 +257,7 @@ export type Message = {
 
 export type Mutation = {
   __typename: 'Mutation';
-  addUserItem: ProfileItem;
+  addUserItem: UserItem;
   approveMember: Member;
   archiveTier: Scalars['Boolean']['output'];
   /** Create a new event in a space. */
@@ -273,21 +274,21 @@ export type Mutation = {
   joinSpace: Member;
   leaveSpace: Scalars['Boolean']['output'];
   markAllNotificationsRead: Scalars['Boolean']['output'];
-  /** Mark all messages in a conversation as read. */
+  /** Mark all messages in a connection as read. */
   markAsRead: Maybe<Scalars['Boolean']['output']>;
   /** Mark an event as completed. Attendees with status 'going' become 'attended'. */
   markEventCompleted: Event;
   markNotificationRead: Maybe<Notification>;
   removeMember: Scalars['Boolean']['output'];
-  reorderUserItems: Array<ProfileItem>;
+  reorderUserItems: Array<UserItem>;
   /** Respond to an event (going, interested). */
   respondToEvent: EventAttendee;
-  /** Accept or decline a message request. */
-  respondToRequest: Conversation;
-  /** Send a message in an existing conversation. */
+  /** Accept or decline a connection request. */
+  respondToRequest: Connection;
+  /** Send a connection request to another user by liking/commenting on their profile item. */
+  sendConnectionRequest: Connection;
+  /** Send a message in an existing connection. */
   sendMessage: Message;
-  /** Send a message request to another user. Creates a conversation with status=request. */
-  sendMessageRequest: Conversation;
   /** Update an existing event. */
   updateEvent: Event;
   updateLocation: User;
@@ -296,7 +297,7 @@ export type Mutation = {
   updateSpace: Space;
   updateTier: MembershipTier;
   updateUser: Maybe<User>;
-  updateUserItem: ProfileItem;
+  updateUserItem: UserItem;
 };
 
 
@@ -381,7 +382,7 @@ export type MutationLeaveSpaceArgs = {
 
 
 export type MutationMarkAsReadArgs = {
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
 };
 
 
@@ -414,20 +415,20 @@ export type MutationRespondToEventArgs = {
 
 export type MutationRespondToRequestArgs = {
   accept: Scalars['Boolean']['input'];
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
+};
+
+
+export type MutationSendConnectionRequestArgs = {
+  initialMessage?: InputMaybe<Scalars['String']['input']>;
+  recipientId: Scalars['ID']['input'];
+  targetUserItemId: Scalars['ID']['input'];
 };
 
 
 export type MutationSendMessageArgs = {
+  connectionId: Scalars['ID']['input'];
   content: Scalars['String']['input'];
-  conversationId: Scalars['ID']['input'];
-};
-
-
-export type MutationSendMessageRequestArgs = {
-  content: Scalars['String']['input'];
-  recipientId: Scalars['ID']['input'];
-  source?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -501,19 +502,6 @@ export type Post = {
   space: Space;
 };
 
-/** A single item on a user's profile — either a photo or a prompt answer. */
-export type ProfileItem = {
-  __typename: 'ProfileItem';
-  content: Scalars['String']['output'];
-  createdAt: Scalars['DateTime']['output'];
-  displayOrder: Scalars['Int']['output'];
-  id: Scalars['ID']['output'];
-  promptKey: Maybe<Scalars['String']['output']>;
-  type: UserItemType;
-  updatedAt: Scalars['DateTime']['output'];
-  userId: Scalars['ID']['output'];
-};
-
 export type ProfileStatus = {
   __typename: 'ProfileStatus';
   hasProfile: Scalars['Boolean']['output'];
@@ -525,10 +513,12 @@ export type Query = {
   /** Get all valid tags as a flat list. */
   allTags: Array<Scalars['String']['output']>;
   checkUsername: Scalars['Boolean']['output'];
-  /** Get a single conversation by ID. */
-  conversation: Maybe<Conversation>;
-  /** Get active conversations for the authenticated user. */
-  conversations: Array<Conversation>;
+  /** Get a single connection by ID. */
+  connection: Maybe<Connection>;
+  /** Get pending connection requests (inbox). */
+  connectionRequests: Array<Connection>;
+  /** Get accepted connections (Friends/Matches) for the authenticated user. */
+  connections: Array<Connection>;
   /** Get a single event by ID. */
   event: Maybe<Event>;
   /** Get attendees for an event. */
@@ -544,9 +534,7 @@ export type Query = {
    */
   findMatches: Array<Match>;
   me: Maybe<User>;
-  /** Get pending message requests (inbox). */
-  messageRequests: Array<Conversation>;
-  /** Get messages for a conversation. */
+  /** Get messages for a connection. */
   messages: Array<Message>;
   mySpaces: Array<Space>;
   myTags: Array<Scalars['String']['output']>;
@@ -579,7 +567,7 @@ export type Query = {
   unreadNotificationsCount: Scalars['Int']['output'];
   user: Maybe<User>;
   userFeed: Array<Post>;
-  userItems: Array<ProfileItem>;
+  userItems: Array<UserItem>;
   users: Array<User>;
 };
 
@@ -589,7 +577,7 @@ export type QueryCheckUsernameArgs = {
 };
 
 
-export type QueryConversationArgs = {
+export type QueryConnectionArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -621,7 +609,7 @@ export type QueryFindMatchesArgs = {
 
 
 export type QueryMessagesArgs = {
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
 };
 
 
@@ -832,7 +820,7 @@ export type User = {
   smoking: Maybe<Smoking>;
   tags: Array<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
-  userItems: Array<ProfileItem>;
+  userItems: Array<UserItem>;
   username: Maybe<Scalars['String']['output']>;
   wantsChildren: Maybe<WantsChildren>;
 };
@@ -865,6 +853,19 @@ export type UserRecommendedUserUsersArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** A single item on a user's profile — either a photo or a prompt answer. */
+export type UserItem = {
+  __typename: 'UserItem';
+  content: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  displayOrder: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  promptKey: Maybe<Scalars['String']['output']>;
+  type: UserItemType;
+  updatedAt: Scalars['DateTime']['output'];
+  userId: Scalars['ID']['output'];
+};
+
 export enum UserItemType {
   Photo = 'photo',
   Prompt = 'prompt'
@@ -876,51 +877,51 @@ export enum WantsChildren {
   Yes = 'yes'
 }
 
-export type ConversationFieldsFragment = { __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null };
+export type ConnectionFieldsFragment = { __typename: 'Connection', id: string, status: ConnectionStatus, initialMessage: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, targetUserItem: { __typename: 'UserItem', id: string, content: string, type: UserItemType }, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null };
 
-export type MessageFieldsFragment = { __typename: 'Message', id: string, conversationId: string, content: string, readAt: unknown | null, createdAt: unknown, sender: { __typename: 'User', id: string, name: string, image: string | null } };
+export type MessageFieldsFragment = { __typename: 'Message', id: string, connectionId: string, content: string, readAt: unknown | null, createdAt: unknown, sender: { __typename: 'User', id: string, name: string, image: string | null } };
 
-export type GetConversationsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type GetConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null }> };
-
-export type GetMessageRequestsQueryVariables = Exact<{ [key: string]: never; }>;
+export type GetConnectionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMessageRequestsQuery = { messageRequests: Array<{ __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null }> };
+export type GetConnectionsQuery = { connections: Array<{ __typename: 'Connection', id: string, status: ConnectionStatus, initialMessage: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, targetUserItem: { __typename: 'UserItem', id: string, content: string, type: UserItemType }, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null }> };
 
-export type GetRecentConversationsQueryVariables = Exact<{ [key: string]: never; }>;
+export type GetConnectionRequestsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetRecentConversationsQuery = { conversations: Array<{ __typename: 'Conversation', id: string, unreadCount: number | null, otherUser: { __typename: 'User', name: string } }> };
+export type GetConnectionRequestsQuery = { connectionRequests: Array<{ __typename: 'Connection', id: string, status: ConnectionStatus, initialMessage: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, targetUserItem: { __typename: 'UserItem', id: string, content: string, type: UserItemType }, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null }> };
+
+export type GetRecentConnectionsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetRecentConnectionsQuery = { connections: Array<{ __typename: 'Connection', id: string, unreadCount: number | null, otherUser: { __typename: 'User', name: string } }> };
 
 export type GetMessagesQueryVariables = Exact<{
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
 }>;
 
 
-export type GetMessagesQuery = { messages: Array<{ __typename: 'Message', id: string, conversationId: string, content: string, readAt: unknown | null, createdAt: unknown, sender: { __typename: 'User', id: string, name: string, image: string | null } }>, conversation: { __typename: 'Conversation', id: string, status: ConversationStatus, otherUser: { __typename: 'User', id: string, name: string, image: string | null } } | null };
+export type GetMessagesQuery = { messages: Array<{ __typename: 'Message', id: string, connectionId: string, content: string, readAt: unknown | null, createdAt: unknown, sender: { __typename: 'User', id: string, name: string, image: string | null } }>, connection: { __typename: 'Connection', id: string, status: ConnectionStatus, otherUser: { __typename: 'User', id: string, name: string, image: string | null } } | null };
 
-export type SendMessageRequestMutationVariables = Exact<{
+export type SendConnectionRequestMutationVariables = Exact<{
   recipientId: Scalars['ID']['input'];
-  content: Scalars['String']['input'];
-  source?: InputMaybe<Scalars['String']['input']>;
+  targetUserItemId: Scalars['ID']['input'];
+  initialMessage?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
-export type SendMessageRequestMutation = { sendMessageRequest: { __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null } };
+export type SendConnectionRequestMutation = { sendConnectionRequest: { __typename: 'Connection', id: string, status: ConnectionStatus, initialMessage: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, targetUserItem: { __typename: 'UserItem', id: string, content: string, type: UserItemType }, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null } };
 
 export type RespondToRequestMutationVariables = Exact<{
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
   accept: Scalars['Boolean']['input'];
 }>;
 
 
-export type RespondToRequestMutation = { respondToRequest: { __typename: 'Conversation', id: string, status: ConversationStatus, source: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null } };
+export type RespondToRequestMutation = { respondToRequest: { __typename: 'Connection', id: string, status: ConnectionStatus, initialMessage: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, targetUserItem: { __typename: 'UserItem', id: string, content: string, type: UserItemType }, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null } };
 
 export type SendMessageMutationVariables = Exact<{
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
   content: Scalars['String']['input'];
 }>;
 
@@ -928,7 +929,7 @@ export type SendMessageMutationVariables = Exact<{
 export type SendMessageMutation = { sendMessage: { __typename: 'Message', id: string, content: string, createdAt: unknown } };
 
 export type MarkAsReadMutationVariables = Exact<{
-  conversationId: Scalars['ID']['input'];
+  connectionId: Scalars['ID']['input'];
 }>;
 
 
@@ -1000,7 +1001,7 @@ export type GetFindMatchesQueryVariables = Exact<{
 }>;
 
 
-export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string, name: string, image: string | null, gender: string | null, birthdate: string, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, content: string, displayOrder: number }> } }> };
+export type GetFindMatchesQuery = { findMatches: Array<{ __typename: 'Match', score: number, distanceKm: number | null, sharedTags: Array<string>, sharedSpaceIds: Array<string>, sharedEventIds: Array<string>, user: { __typename: 'MatchUser', id: string, username: string, name: string, image: string | null, gender: string | null, birthdate: string, userItems: Array<{ __typename: 'UserItem', id: string, type: UserItemType, content: string, displayOrder: number }> } }> };
 
 export type GetProfileStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1093,44 +1094,6 @@ export type DeletePostMutationVariables = Exact<{
 
 export type DeletePostMutation = { deletePost: boolean };
 
-export type ProfileItemFieldsFragment = { __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown };
-
-export type GetProfileItemsQueryVariables = Exact<{
-  userId: Scalars['ID']['input'];
-}>;
-
-
-export type GetProfileItemsQuery = { userItems: Array<{ __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
-
-export type AddUserItemMutationVariables = Exact<{
-  input: AddUserItemInput;
-}>;
-
-
-export type AddUserItemMutation = { addUserItem: { __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
-
-export type UpdateUserItemMutationVariables = Exact<{
-  itemId: Scalars['ID']['input'];
-  input: UpdateUserItemInput;
-}>;
-
-
-export type UpdateUserItemMutation = { updateUserItem: { __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
-
-export type DeleteUserItemMutationVariables = Exact<{
-  itemId: Scalars['ID']['input'];
-}>;
-
-
-export type DeleteUserItemMutation = { deleteUserItem: boolean };
-
-export type ReorderUserItemsMutationVariables = Exact<{
-  itemIds: Array<Scalars['ID']['input']> | Scalars['ID']['input'];
-}>;
-
-
-export type ReorderUserItemsMutation = { reorderUserItems: Array<{ __typename: 'ProfileItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
-
 export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, image: string | null, tags: Array<string>, visibility: string, joinPolicy: string, createdAt: unknown, isActive: boolean | null, membersCount: number | null, type: string | null, stripeAccountEnabled: boolean };
 
 export type GetAllSpacesQueryVariables = Exact<{ [key: string]: never; }>;
@@ -1220,6 +1183,44 @@ export type ArchiveTierMutationVariables = Exact<{
 
 export type ArchiveTierMutation = { archiveTier: boolean };
 
+export type UserItemFieldsFragment = { __typename: 'UserItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown };
+
+export type GetUserItemsQueryVariables = Exact<{
+  userId: Scalars['ID']['input'];
+}>;
+
+
+export type GetUserItemsQuery = { userItems: Array<{ __typename: 'UserItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
+
+export type AddUserItemMutationVariables = Exact<{
+  input: AddUserItemInput;
+}>;
+
+
+export type AddUserItemMutation = { addUserItem: { __typename: 'UserItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
+
+export type UpdateUserItemMutationVariables = Exact<{
+  itemId: Scalars['ID']['input'];
+  input: UpdateUserItemInput;
+}>;
+
+
+export type UpdateUserItemMutation = { updateUserItem: { __typename: 'UserItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown } };
+
+export type DeleteUserItemMutationVariables = Exact<{
+  itemId: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteUserItemMutation = { deleteUserItem: boolean };
+
+export type ReorderUserItemsMutationVariables = Exact<{
+  itemIds: Array<Scalars['ID']['input']> | Scalars['ID']['input'];
+}>;
+
+
+export type ReorderUserItemsMutation = { reorderUserItems: Array<{ __typename: 'UserItem', id: string, userId: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number, createdAt: unknown, updatedAt: unknown }> };
+
 export type UserFieldsFragment = { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null };
 
 export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
@@ -1232,7 +1233,7 @@ export type GetUserQueryVariables = Exact<{
 }>;
 
 
-export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
+export type GetUserQuery = { user: { __typename: 'User', id: string, username: string | null, name: string, email: string, birthdate: string, gender: Gender | null, image: string | null, createdAt: unknown, updatedAt: unknown, tags: Array<string>, sexualOrientation: Array<string>, heightCm: number | null, relationshipIntent: Array<string>, relationshipStyle: RelationshipStyle | null, hasChildren: HasChildren | null, wantsChildren: WantsChildren | null, religion: Religion | null, smoking: Smoking | null, drinking: Drinking | null, activityLevel: ActivityLevel | null, jobTitle: string | null, educationLevel: EducationLevel | null, schoolName: string | null, languages: Array<string>, ethnicity: Ethnicity | null, userItems: Array<{ __typename: 'UserItem', id: string, type: UserItemType, promptKey: string | null, content: string, displayOrder: number }> } | null };
 
 export type GetUserWithCardsQueryVariables = Exact<{
   username: Scalars['String']['input'];
@@ -1269,7 +1270,7 @@ export type GetRecommendedUsersQueryVariables = Exact<{
 }>;
 
 
-export type GetRecommendedUsersQuery = { me: { __typename: 'User', id: string, recommendedUserUsers: Array<{ __typename: 'User', id: string, username: string | null, name: string, image: string | null, birthdate: string, gender: Gender | null, userItems: Array<{ __typename: 'ProfileItem', id: string, type: UserItemType, content: string, displayOrder: number }> }> } | null };
+export type GetRecommendedUsersQuery = { me: { __typename: 'User', id: string, recommendedUserUsers: Array<{ __typename: 'User', id: string, username: string | null, name: string, image: string | null, birthdate: string, gender: Gender | null, userItems: Array<{ __typename: 'UserItem', id: string, type: UserItemType, content: string, displayOrder: number }> }> } | null };
 
 export type UpdateMyTagsMutationVariables = Exact<{
   tags: Array<Scalars['String']['input']> | Scalars['String']['input'];

@@ -17,7 +17,7 @@ export * from "../models/posts/schema";
 export * from "../models/events/schema";
 
 // 7. Chat System
-export * from "../models/conversations/schema";
+export * from "../models/connections/schema";
 export * from "../models/messages/schema";
 
 // 8. Impressions (ML training data)
@@ -27,7 +27,7 @@ export * from "../models/impressions/schema";
 export * from "../models/embeddings/schema";
 
 // 10. Profile Items
-export * from "../models/profileitems/schema";
+export * from "../models/useritems/schema";
 
 // 11. Notifications
 export * from "../models/notifications/schema";

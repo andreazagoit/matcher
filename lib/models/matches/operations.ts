@@ -8,13 +8,13 @@
  * 4. Geographic proximity
  * 5. Behavioral similarity (cosine similarity of behavior embeddings)
  *
- * Excludes users who already have a conversation with the current user.
+ * Excludes users who already have a connection with the current user.
  */
 
 import { db } from "@/lib/db/drizzle";
 import { users, type User } from "@/lib/models/users/schema";
 import { embeddings } from "@/lib/models/embeddings/schema";
-import { conversations } from "@/lib/models/conversations/schema";
+import { connections } from "@/lib/models/connections/schema";
 import { eq, ne, and, or, sql, notExists, inArray } from "drizzle-orm";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -113,20 +113,20 @@ export async function findMatches(
     .where(
       and(
         ne(users.id, userId),
-        // Exclude users who already have a conversation with the current user
+        // Exclude users who already have a connection with the current user
         notExists(
           db
             .select()
-            .from(conversations)
+            .from(connections)
             .where(
               or(
                 and(
-                  eq(conversations.initiatorId, userId),
-                  eq(conversations.recipientId, users.id),
+                  eq(connections.initiatorId, userId),
+                  eq(connections.recipientId, users.id),
                 ),
                 and(
-                  eq(conversations.initiatorId, users.id),
-                  eq(conversations.recipientId, userId),
+                  eq(connections.initiatorId, users.id),
+                  eq(connections.recipientId, userId),
                 ),
               ),
             ),

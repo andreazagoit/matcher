@@ -66,6 +66,7 @@ export const updateUserSchema = z.object({
   schoolName: z.string().max(150).optional(),
   languages: z.array(z.enum(SUPPORTED_LANGUAGES)).optional(),
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
+  locationText: z.string().max(255).optional(),
 });
 
 /**

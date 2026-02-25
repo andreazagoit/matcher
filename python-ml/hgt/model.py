@@ -20,7 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import HGTConv
 
-from ml.config import (
+from hgt.config import (
     USER_DIM, EVENT_DIM, SPACE_DIM, TAG_DIM,
     HIDDEN_DIM, EMBED_DIM, DROPOUT,
     NODE_TYPES, METADATA,

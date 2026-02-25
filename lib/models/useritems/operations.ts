@@ -1,14 +1,14 @@
 import { db } from "@/lib/db/drizzle";
-import { profileItems } from "./schema";
-import type { ProfileItem } from "./schema";
+import { userItems } from "./schema";
+import type { UserItem } from "./schema";
 import { eq, asc, and, gte } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 
 /** Fetch all items for a user, ordered by displayOrder. */
-export async function getUserItems(userId: string): Promise<ProfileItem[]> {
-  return db.query.profileItems.findMany({
-    where: eq(profileItems.userId, userId),
-    orderBy: [asc(profileItems.displayOrder)],
+export async function getUserItems(userId: string): Promise<UserItem[]> {
+  return db.query.userItems.findMany({
+    where: eq(userItems.userId, userId),
+    orderBy: [asc(userItems.displayOrder)],
   });
 }
 
@@ -16,19 +16,19 @@ export async function getUserItems(userId: string): Promise<ProfileItem[]> {
 export async function addUserItem(
   userId: string,
   input: { type: "photo" | "prompt"; promptKey?: string; content: string; displayOrder?: number }
-): Promise<ProfileItem> {
+): Promise<UserItem> {
   let order = input.displayOrder;
 
   if (order === undefined) {
-    const existing = await db.query.profileItems.findMany({
-      where: eq(profileItems.userId, userId),
-      orderBy: [asc(profileItems.displayOrder)],
+    const existing = await db.query.userItems.findMany({
+      where: eq(userItems.userId, userId),
+      orderBy: [asc(userItems.displayOrder)],
     });
     order = existing.length;
   }
 
   const [item] = await db
-    .insert(profileItems)
+    .insert(userItems)
     .values({
       userId,
       type: input.type,
@@ -46,9 +46,9 @@ export async function updateUserItem(
   itemId: string,
   userId: string,
   input: { content?: string; promptKey?: string }
-): Promise<ProfileItem> {
-  const existing = await db.query.profileItems.findFirst({
-    where: and(eq(profileItems.id, itemId), eq(profileItems.userId, userId)),
+): Promise<UserItem> {
+  const existing = await db.query.userItems.findFirst({
+    where: and(eq(userItems.id, itemId), eq(userItems.userId, userId)),
   });
 
   if (!existing) {
@@ -56,13 +56,13 @@ export async function updateUserItem(
   }
 
   const [updated] = await db
-    .update(profileItems)
+    .update(userItems)
     .set({
       ...(input.content !== undefined && { content: input.content }),
       ...(input.promptKey !== undefined && { promptKey: input.promptKey }),
       updatedAt: new Date(),
     })
-    .where(eq(profileItems.id, itemId))
+    .where(eq(userItems.id, itemId))
     .returning();
 
   return updated;
@@ -70,30 +70,30 @@ export async function updateUserItem(
 
 /** Delete an item and reindex the remaining items' displayOrder. */
 export async function deleteUserItem(itemId: string, userId: string): Promise<boolean> {
-  const existing = await db.query.profileItems.findFirst({
-    where: and(eq(profileItems.id, itemId), eq(profileItems.userId, userId)),
+  const existing = await db.query.userItems.findFirst({
+    where: and(eq(userItems.id, itemId), eq(userItems.userId, userId)),
   });
 
   if (!existing) {
     throw new GraphQLError("Item not found or not owned by user", { extensions: { code: "NOT_FOUND" } });
   }
 
-  await db.delete(profileItems).where(eq(profileItems.id, itemId));
+  await db.delete(userItems).where(eq(userItems.id, itemId));
 
   // Reindex items after the deleted one
-  const remaining = await db.query.profileItems.findMany({
+  const remaining = await db.query.userItems.findMany({
     where: and(
-      eq(profileItems.userId, userId),
-      gte(profileItems.displayOrder, existing.displayOrder)
+      eq(userItems.userId, userId),
+      gte(userItems.displayOrder, existing.displayOrder)
     ),
-    orderBy: [asc(profileItems.displayOrder)],
+    orderBy: [asc(userItems.displayOrder)],
   });
 
   for (let i = 0; i < remaining.length; i++) {
     await db
-      .update(profileItems)
+      .update(userItems)
       .set({ displayOrder: existing.displayOrder + i })
-      .where(eq(profileItems.id, remaining[i].id));
+      .where(eq(userItems.id, remaining[i].id));
   }
 
   return true;
@@ -103,9 +103,9 @@ export async function deleteUserItem(itemId: string, userId: string): Promise<bo
 export async function reorderUserItems(
   userId: string,
   itemIds: string[]
-): Promise<ProfileItem[]> {
-  const existing = await db.query.profileItems.findMany({
-    where: eq(profileItems.userId, userId),
+): Promise<UserItem[]> {
+  const existing = await db.query.userItems.findMany({
+    where: eq(userItems.userId, userId),
   });
 
   const existingIds = new Set(existing.map((i) => i.id));
@@ -117,9 +117,9 @@ export async function reorderUserItems(
 
   for (let i = 0; i < itemIds.length; i++) {
     await db
-      .update(profileItems)
+      .update(userItems)
       .set({ displayOrder: i, updatedAt: new Date() })
-      .where(and(eq(profileItems.id, itemIds[i]), eq(profileItems.userId, userId)));
+      .where(and(eq(userItems.id, itemIds[i]), eq(userItems.userId, userId)));
   }
 
   return getUserItems(userId);

@@ -1,10 +1,10 @@
-import { conversationResolvers } from "../models/conversations/resolver";
+import { connectionResolvers } from "../models/connections/resolver";
 import { notificationResolvers } from "../models/notifications/resolver";
 import { eventResolvers } from "../models/events/resolver";
 import { matchResolvers } from "../models/matches/resolver";
 import { memberResolvers } from "../models/members/resolver";
 import { postResolvers } from "../models/posts/resolver";
-import { userItemResolvers } from "../models/profileitems/resolver";
+import { userItemResolvers } from "../models/useritems/resolver";
 import { spaceResolvers } from "../models/spaces/resolver";
 import { tagResolvers } from "../models/tags/resolver";
 import { tierResolvers } from "../models/tiers/resolver";
@@ -16,7 +16,7 @@ export const resolvers = {
 
 
   Query: {
-    ...conversationResolvers.Query,
+    ...connectionResolvers.Query,
     ...eventResolvers.Query,
     ...matchResolvers.Query,
     ...postResolvers.Query,
@@ -28,7 +28,7 @@ export const resolvers = {
   },
 
   Mutation: {
-    ...conversationResolvers.Mutation,
+    ...connectionResolvers.Mutation,
     ...eventResolvers.Mutation,
     ...memberResolvers.Mutation,
     ...postResolvers.Mutation,
@@ -39,11 +39,11 @@ export const resolvers = {
   },
 
   // Relationship and specific type resolvers
-  Conversation: conversationResolvers.Conversation,
+  Connection: connectionResolvers.Connection,
   Event: eventResolvers.Event,
   EventAttendee: eventResolvers.EventAttendee,
   Member: { ...memberResolvers.Member, ...tierResolvers.Member },
-  Message: conversationResolvers.Message,
+  Message: connectionResolvers.Message,
   Post: postResolvers.Post,
   Space: {
     ...spaceResolvers.Space,

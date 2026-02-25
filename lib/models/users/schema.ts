@@ -128,6 +128,7 @@ export const users = pgTable(
     // LOCATION (PostGIS)
     // x = longitude, y = latitude (PostGIS convention)
     // ==========================================
+    locationText: text("location_text"),
     location: geometry("location", { type: "point", mode: "xy", srid: 4326 }),
     locationUpdatedAt: timestamp("location_updated_at"),
 

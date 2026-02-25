@@ -21,10 +21,14 @@
     "codegen": "graphql-codegen --config codegen.ts",
     "ml:setup": "python3 -m venv python-ml/.venv && python-ml/.venv/bin/pip install -q -r python-ml/requirements.txt && echo 'venv ready'",
     "ml:export": "npx tsx lib/db/scripts/export-ml-data.ts",
-    "ml:generate": "cd python-ml && .venv/bin/python -m ml.synthetic",
-    "ml:train": "cd python-ml && .venv/bin/python -m ml.train --eval-every 5",
-    "ml:sync": "cd python-ml && .venv/bin/python -m ml.sync",
-    "ml:serve": "cd python-ml && .venv/bin/uvicorn ml.serve:app --host 0.0.0.0 --port 8000 --reload"
+    "hgt:generate": "cd python-ml && .venv/bin/python -m hgt.synthetic",
+    "hgt:train": "cd python-ml && .venv/bin/python -m hgt.train --eval-every 5",
+    "hgt:sync": "cd python-ml && .venv/bin/python -m hgt.sync",
+    "hgt:serve": "cd python-ml && .venv/bin/uvicorn hgt.serve:app --host 0.0.0.0 --port 8000 --reload",
+    "mt:generate": "cd python-ml && .venv/bin/python -m mt.synthetic",
+    "mt:train": "cd python-ml && .venv/bin/python -m mt.train --eval-every 5",
+    "mt:sync": "cd python-ml && .venv/bin/python -m mt.sync",
+    "mt:serve": "cd python-ml && .venv/bin/uvicorn mt.serve:app --host 0.0.0.0 --port 8000 --reload"
   },
   "dependencies": {
     "@apollo/client": "^4.1.3",

@@ -20,7 +20,7 @@ export const matchTypeDefs = `#graphql
     image: String
     gender: String
     birthdate: String!
-    userItems: [ProfileItem!]!
+    userItems: [UserItem!]!
   }
 
   type ProfileStatus {

@@ -164,14 +164,21 @@ export async function updateUserLocation(
   id: string,
   lat: number,
   lon: number,
+  locationText?: string
 ): Promise<User> {
+  const updateData: Partial<User> = {
+    location: { x: lon, y: lat },
+    locationUpdatedAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (locationText !== undefined) {
+    updateData.locationText = locationText;
+  }
+
   const [updated] = await db
     .update(users)
-    .set({
-      location: { x: lon, y: lat },
-      locationUpdatedAt: new Date(),
-      updatedAt: new Date(),
-    })
+    .set(updateData)
     .where(eq(users.id, id))
     .returning();
 

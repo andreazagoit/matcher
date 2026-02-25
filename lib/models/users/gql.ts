@@ -31,6 +31,7 @@ export const USER_FRAGMENT = gql`
     schoolName
     languages
     ethnicity
+    locationText
   }
 `;
 
@@ -132,8 +133,8 @@ export const UPDATE_MY_TAGS = gql`
 `;
 
 export const UPDATE_LOCATION = gql`
-  mutation UpdateLocation($lat: Float!, $lon: Float!) {
-    updateLocation(lat: $lat, lon: $lon) {
+  mutation UpdateLocation($lat: Float!, $lon: Float!, $locationText: String) {
+    updateLocation(lat: $lat, lon: $lon, locationText: $locationText) {
       id
       location {
         lat

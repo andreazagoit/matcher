@@ -1,6 +1,6 @@
 import { pgTable, uuid, timestamp, text, index } from "drizzle-orm/pg-core";
 import { users } from "@/lib/models/users/schema";
-import { conversations } from "@/lib/models/conversations/schema";
+import { connections } from "@/lib/models/connections/schema";
 import { relations } from "drizzle-orm";
 
 export const messages = pgTable(
@@ -8,9 +8,9 @@ export const messages = pgTable(
     {
         id: uuid("id").primaryKey().defaultRandom(),
 
-        conversationId: uuid("conversation_id")
+        connectionId: uuid("connection_id")
             .notNull()
-            .references(() => conversations.id, { onDelete: "cascade" }),
+            .references(() => connections.id, { onDelete: "cascade" }),
 
         senderId: uuid("sender_id")
             .notNull()
@@ -23,15 +23,15 @@ export const messages = pgTable(
         createdAt: timestamp("created_at").defaultNow().notNull(),
     },
     (table) => [
-        index("messages_conversation_idx").on(table.conversationId),
+        index("messages_connection_idx").on(table.connectionId),
         index("messages_created_at_idx").on(table.createdAt),
     ]
 );
 
 export const messagesRelations = relations(messages, ({ one }) => ({
-    conversation: one(conversations, {
-        fields: [messages.conversationId],
-        references: [conversations.id],
+    connection: one(connections, {
+        fields: [messages.connectionId],
+        references: [connections.id],
     }),
     sender: one(users, {
         fields: [messages.senderId],

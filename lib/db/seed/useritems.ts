@@ -1,5 +1,5 @@
 import { db } from "../drizzle";
-import { profileItems } from "../../models/profileitems/schema";
+import { userItems } from "../../models/useritems/schema";
 
 const SAMPLE_PHOTO_URL = "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80";
 const SAMPLE_PHOTO_URLS = [
@@ -56,7 +56,7 @@ export async function seedProfileCards(userIds: string[]) {
     const userId = userIds[i];
     const template = CARD_TEMPLATES[i % CARD_TEMPLATES.length];
 
-    await db.insert(profileItems).values(
+    await db.insert(userItems).values(
       template.map((card) => ({
         userId,
         type: card.type,

@@ -13,13 +13,13 @@ See ml.config for exact layout documentation.
 from __future__ import annotations
 from typing import Optional
 
-from ml.config import (
+from hgt.config import (
     TAG_TO_IDX, NUM_TAGS,
     GENDER_TO_IDX, REL_INTENT_TO_IDX, SMOKING_TO_IDX, DRINKING_TO_IDX, ACTIVITY_TO_IDX,
     GENDER_VOCAB, REL_INTENT_VOCAB, SMOKING_VOCAB, DRINKING_VOCAB, ACTIVITY_VOCAB,
     USER_DIM, EVENT_DIM, SPACE_DIM,
 )
-from ml.utils import (
+from hgt.utils import (
     normalize_age, normalize_count, normalize_days, normalize_price_cents,
     time_cyclical_features, calculate_age, days_until,
 )

@@ -27,7 +27,7 @@ python-ml/
 ├── embed_all.py                ← entry point: batch-embed all DB entities
 ├── generate_synthetic.py       ← entry point: generate synthetic training data
 ├── training-data/              ← JSON exports (git-ignored)
-├── model_weights.pt            ← trained checkpoint (git-ignored)
+├── hgt_weights.pt            ← trained checkpoint (git-ignored)
 └── pyproject.toml
 ```
 
@@ -82,7 +82,7 @@ python train.py --hard-neg-every 10 --n-hard-neg 3
 python train.py --val-ratio 0.15 --eval-every 5
 ```
 
-Saves the best checkpoint to `model_weights.pt`.
+Saves the best checkpoint to `hgt_weights.pt`.
 
 ### 3. Embed all entities
 
@@ -164,7 +164,7 @@ SpaceEncoder (43-dim)  ─┘
 - Validation: Recall@10 / NDCG@10 per task (user→event, user→space, user→user, …)
 - Early stopping on micro-average Recall@10
 
-**Cold start:** Falls back to weighted Jaccard tag similarity when `model_weights.pt` is missing.
+**Cold start:** Falls back to weighted Jaccard tag similarity when `hgt_weights.pt` is missing.
 
 ---
 

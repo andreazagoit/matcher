@@ -121,6 +121,15 @@ export const auth = betterAuth({
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`\n\n=========================================`);
+          console.log(`[OTP BYPASS] 🚀 DEVELOPMENT MODE`);
+          console.log(`Login OTP for ${email} is: ${otp}`);
+          console.log(`=========================================\n\n`);
+          // We can skip actual email sending in dev to save resend limits
+          return;
+        }
+
         try {
           await sendOTPEmail(email, otp, type);
           console.log(`[OTP] Email sent to ${email} (type: ${type})`);

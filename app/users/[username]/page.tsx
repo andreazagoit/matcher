@@ -6,14 +6,15 @@ import { GET_USER } from "@/lib/models/users/gql";
 import { Page } from "@/components/page";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ProfileSettings } from "./profile-settings";
-import { EditProfileSheet } from "./edit-profile-sheet";
+import { LogoutButton } from "./logout-button";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import Image from "next/image";
 import {
     Briefcase, GraduationCap, Languages, Globe, BookOpen,
     Cigarette, Wine, Dumbbell, Baby, Users, Search, Sprout, Tag,
-    Cake, User, Heart, Ruler,
+    Cake, User, Heart, Ruler, Pencil
 } from "lucide-react";
 import type { GetUserQuery, GetUserQueryVariables } from "@/lib/graphql/__generated__/graphql";
 import type { LucideIcon } from "lucide-react";
@@ -150,114 +151,116 @@ export default async function UserProfilePage({
         <Page breadcrumbs={[{ label: isOwnProfile ? "Il mio profilo" : (user.name ?? "") }]}>
             <div className="pb-16 space-y-6">
 
-            {/* ── Container largo: header + caratteristiche ─────────────── */}
-            <div className="space-y-4">
+                {/* ── Container largo: header + caratteristiche ─────────────── */}
+                <div className="space-y-4">
 
-                {/* ── Hero header ──────────────────────────────────────────── */}
-                <div className="flex items-center gap-4 pb-2">
-                    <Avatar className="h-16 w-16 rounded-2xl border-2 border-background shadow-md shrink-0">
-                        <AvatarImage src={user.image ?? undefined} alt={user.name ?? ""} />
-                        <AvatarFallback className="rounded-2xl text-lg font-bold">{initials}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                            <h1 className="text-2xl font-bold tracking-tight truncate">{user.name}</h1>
-                        </div>
-                        {user.username && (
-                            <p className="text-xs text-muted-foreground font-mono mt-0.5">@{user.username}</p>
-                        )}
-                    </div>
-                    {isOwnProfile && <EditProfileSheet user={user} />}
-                </div>
-
-                {/* ── Info card (caratteristiche) ──────────────────────────── */}
-                {(chips.length > 0 || rows.length > 0 || isOwnProfile) && (
-                    <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                        {tProfile("sections.aboutMe")}
-                    </p>
-                    <div className="rounded-2xl border bg-card overflow-hidden">
-
-                        {/* Top row: age · gender · orientation · height */}
-                        {chips.length > 0 && (
-                            <div className="flex items-center gap-3 px-4 py-3 border-b flex-wrap">
-                                {chips.map((chip, i) => (
-                                    <span key={i} className="flex items-center gap-3">
-                                        {i > 0 && <span className="w-px h-4 bg-border shrink-0" />}
-                                        <Chip icon={chip.icon} label={chip.label} />
-                                    </span>
-                                ))}
+                    {/* ── Hero header ──────────────────────────────────────────── */}
+                    <div className="flex items-center gap-4 pb-2">
+                        <Avatar className="h-16 w-16 rounded-2xl border-2 border-background shadow-md shrink-0">
+                            <AvatarImage src={user.image ?? undefined} alt={user.name ?? ""} />
+                            <AvatarFallback className="rounded-2xl text-lg font-bold">{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                                <h1 className="text-2xl font-bold tracking-tight truncate">{user.name}</h1>
                             </div>
-                        )}
-
-
-                        {/* Hinge-style rows */}
-                        {rows.length > 0 && (
-                            <div className="px-4 divide-y">
-                                {rows.map(({ icon, value }, i) => (
-                                    <InfoRow key={i} icon={icon} value={value} />
-                                ))}
-                            </div>
-                        )}
-
-                    </div>
-                    </div>
-                )}
-
-                {/* ── Tags card ────────────────────────────────────────────── */}
-                {(user.tags?.length ?? 0) > 0 && (
-                    <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                        {tProfile("sections.interests")}
-                    </p>
-                    <div className="rounded-2xl border bg-card px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                            {user.tags!.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground"
-                                >
-                                    {tTags(tag as Parameters<typeof tTags>[0])}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                    </div>
-                )}
-
-            </div>{/* fine container largo */}
-
-            {/* ── Container stretto: foto + prompt ──────────────────────── */}
-            <div className="mx-auto max-w-xl space-y-4">
-
-                {userItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground text-sm">
-                        {tProfile("noContent")}
-                    </div>
-                ) : (
-                    userItems.map((item) => (
-                        <div key={item.id}>
-                            {item.type === "photo" ? (
-                                <PhotoCard url={item.content} alt={`Foto di ${user.name}`} />
-                            ) : (
-                                <PromptCard
-                                    question={item.promptKey ? tPrompts(item.promptKey as Parameters<typeof tPrompts>[0]) : ""}
-                                    answer={item.content}
-                                />
+                            {user.username && (
+                                <p className="text-xs text-muted-foreground font-mono mt-0.5">@{user.username}</p>
                             )}
                         </div>
-                    ))
-                )}
+                        {isOwnProfile && (
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/users/${user.username}/edit`}>
+                                        <Pencil className="w-4 h-4 mr-2" />
+                                        Modifica Profilo
+                                    </Link>
+                                </Button>
+                                <LogoutButton />
+                            </div>
+                        )}
+                    </div>
 
-            </div>{/* fine container stretto */}
+                    {/* ── Info card (caratteristiche) ──────────────────────────── */}
+                    {(chips.length > 0 || rows.length > 0 || isOwnProfile) && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                                {tProfile("sections.aboutMe")}
+                            </p>
+                            <div className="rounded-2xl border bg-card overflow-hidden">
 
-            {/* ── Settings ─────────────────────────────────────────────── */}
-            {isOwnProfile && (
-                <div>
-                    <Separator className="my-4" />
-                    <ProfileSettings initialUser={user} />
-                </div>
-            )}
+                                {/* Top row: age · gender · orientation · height */}
+                                {chips.length > 0 && (
+                                    <div className="flex items-center gap-3 px-4 py-3 border-b flex-wrap">
+                                        {chips.map((chip, i) => (
+                                            <span key={i} className="flex items-center gap-3">
+                                                {i > 0 && <span className="w-px h-4 bg-border shrink-0" />}
+                                                <Chip icon={chip.icon} label={chip.label} />
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+
+                                {/* Hinge-style rows */}
+                                {rows.length > 0 && (
+                                    <div className="px-4 divide-y">
+                                        {rows.map(({ icon, value }, i) => (
+                                            <InfoRow key={i} icon={icon} value={value} />
+                                        ))}
+                                    </div>
+                                )}
+
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Tags card ────────────────────────────────────────────── */}
+                    {(user.tags?.length ?? 0) > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                                {tProfile("sections.interests")}
+                            </p>
+                            <div className="rounded-2xl border bg-card px-4 py-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {user.tags!.map((tag) => (
+                                        <span
+                                            key={tag}
+                                            className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground"
+                                        >
+                                            {tTags(tag as Parameters<typeof tTags>[0])}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>{/* fine container largo */}
+
+                {/* ── Container stretto: foto + prompt ──────────────────────── */}
+                <div className="mx-auto max-w-xl space-y-4">
+
+                    {userItems.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground text-sm">
+                            {tProfile("noContent")}
+                        </div>
+                    ) : (
+                        userItems.map((item) => (
+                            <div key={item.id}>
+                                {item.type === "photo" ? (
+                                    <PhotoCard url={item.content} alt={`Foto di ${user.name}`} />
+                                ) : (
+                                    <PromptCard
+                                        question={item.promptKey ? tPrompts(item.promptKey as Parameters<typeof tPrompts>[0]) : ""}
+                                        answer={item.content}
+                                    />
+                                )}
+                            </div>
+                        ))
+                    )}
+
+                </div>{/* fine container stretto */}
 
             </div>{/* fine wrapper esterno */}
         </Page>

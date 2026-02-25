@@ -7,7 +7,7 @@ import math
 from datetime import date, datetime
 from typing import Optional
 
-from ml.config import AGE_MIN, AGE_MAX
+from hgt.config import AGE_MIN, AGE_MAX
 
 
 # ─── Normalization ──────────────────────────────────────────────────────────────

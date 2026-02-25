@@ -3,7 +3,7 @@ export const userItemTypeDefs = `#graphql
   """
   A single item on a user's profile — either a photo or a prompt answer.
   """
-  type ProfileItem {
+  type UserItem {
     id: ID!
     userId: ID!
     type: UserItemType!
@@ -32,13 +32,13 @@ export const userItemTypeDefs = `#graphql
   }
 
   extend type Query {
-    userItems(userId: ID!): [ProfileItem!]!
+    userItems(userId: ID!): [UserItem!]!
   }
 
   extend type Mutation {
-    addUserItem(input: AddUserItemInput!): ProfileItem!
-    updateUserItem(itemId: ID!, input: UpdateUserItemInput!): ProfileItem!
+    addUserItem(input: AddUserItemInput!): UserItem!
+    updateUserItem(itemId: ID!, input: UpdateUserItemInput!): UserItem!
     deleteUserItem(itemId: ID!): Boolean!
-    reorderUserItems(itemIds: [ID!]!): [ProfileItem!]!
+    reorderUserItems(itemIds: [ID!]!): [UserItem!]!
   }
 `;

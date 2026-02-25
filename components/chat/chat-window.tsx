@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "@apollo/client/react";
-import { GET_MESSAGES, SEND_MESSAGE } from "@/lib/models/conversations/gql";
+import { GET_MESSAGES, SEND_MESSAGE } from "@/lib/models/connections/gql";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -25,27 +25,27 @@ interface Message {
     sender: Participant;
 }
 
-interface Conversation {
+interface Connection {
     id: string;
     otherUser: Participant;
 }
 
 interface ChatWindowProps {
-    conversationId: string;
+    connectionId: string;
 }
 
-export function ChatWindow({ conversationId }: ChatWindowProps) {
+export function ChatWindow({ connectionId }: ChatWindowProps) {
     const { data: session } = useSession();
     const [content, setContent] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const { data, loading, error } = useQuery<{ messages: Message[], conversation: Conversation }>(GET_MESSAGES, {
-        variables: { conversationId },
+    const { data, loading, error } = useQuery<{ messages: Message[], connection: Connection }>(GET_MESSAGES, {
+        variables: { connectionId },
         pollInterval: 3000,
     });
 
     const [sendMessage, { loading: sending }] = useMutation(SEND_MESSAGE, {
-        refetchQueries: [GET_MESSAGES, "GetConversations"], // Refetch list too to update sorting
+        refetchQueries: [GET_MESSAGES, "GetConnections"], // Refetch list too to update sorting
     });
 
     // Scroll to bottom when messages change
@@ -61,7 +61,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
         try {
             await sendMessage({
-                variables: { conversationId, content: content.trim() }
+                variables: { connectionId, content: content.trim() }
             });
             setContent("");
         } catch (err) {
@@ -72,7 +72,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin" /></div>;
     if (error) return <div className="flex h-full items-center justify-center text-destructive">Error loading messages</div>;
 
-    const conversation = data?.conversation;
+    const connection = data?.connection;
     // Messages are returned newest first (DESC), so we reverse for display if we stack bottom-up
     // But wait, list display usually wants oldest at top, newest at bottom.
     // API returns [Newest, ..., Oldest]
@@ -83,11 +83,11 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             <div className="flex items-center p-4">
                 <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={conversation?.otherUser?.image} />
-                        <AvatarFallback>{conversation?.otherUser?.name?.[0]?.toUpperCase()}</AvatarFallback>
+                        <AvatarImage src={connection?.otherUser?.image} />
+                        <AvatarFallback>{connection?.otherUser?.name?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="font-semibold">
-                        {conversation?.otherUser?.name}
+                        {connection?.otherUser?.name}
                     </div>
                 </div>
             </div>

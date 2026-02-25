@@ -45,18 +45,19 @@ async function exportUsers() {
            ON m.user_id = u.id AND m.status = 'active'
     GROUP BY u.id, u.birthdate, u.gender, u.relationship_intent,
              u.smoking, u.drinking, u.activity_level, u.tags
+    ORDER BY u.id
   `;
 
   return rows.map((u) => ({
-    id:                   u.id,
-    birthdate:            u.birthdate ?? null,
-    gender:               u.gender ?? null,
-    relationship_intent:  u.relationship_intent ?? [],
-    smoking:              u.smoking ?? null,
-    drinking:             u.drinking ?? null,
-    activity_level:       u.activity_level ?? null,
-    interaction_count:    Number(u.interaction_count),
-    tags:                 u.tags ?? [],
+    id: u.id,
+    birthdate: u.birthdate ?? null,
+    gender: u.gender ?? null,
+    relationship_intent: u.relationship_intent ?? [],
+    smoking: u.smoking ?? null,
+    drinking: u.drinking ?? null,
+    activity_level: u.activity_level ?? null,
+    interaction_count: Number(u.interaction_count),
+    tags: u.tags ?? [],
   }));
 }
 
@@ -89,22 +90,23 @@ async function exportEvents() {
     LEFT JOIN users u_going
            ON u_going.id = ea_going.user_id AND u_going.birthdate IS NOT NULL
     GROUP BY e.id, e.space_id, e.tags, e.starts_at, e.max_attendees, e.price
+    ORDER BY e.id
   `;
 
   return rows.map((e) => {
-    const isCompleted    = !!e.starts_at && new Date(e.starts_at).getTime() < Date.now();
-    const attendeeCount  = Number(isCompleted ? e.attended_count : e.going_count) || 0;
-    const avgAge         = isCompleted ? e.avg_age_attended : e.avg_age_going;
+    const isCompleted = !!e.starts_at && new Date(e.starts_at).getTime() < Date.now();
+    const attendeeCount = Number(isCompleted ? e.attended_count : e.going_count) || 0;
+    const avgAge = isCompleted ? e.avg_age_attended : e.avg_age_going;
 
     return {
-      id:               e.id,
-      space_id:         e.space_id ?? null,
-      tags:             e.tags ?? [],
-      starts_at:        e.starts_at ?? null,
-      max_attendees:    e.max_attendees ? Number(e.max_attendees) : null,
-      is_paid:          e.price != null && Number(e.price) > 0,
-      price_cents:      e.price != null ? Number(e.price) : 0,
-      attendee_count:   attendeeCount,
+      id: e.id,
+      space_id: e.space_id ?? null,
+      tags: e.tags ?? [],
+      starts_at: e.starts_at ?? null,
+      max_attendees: e.max_attendees ? Number(e.max_attendees) : null,
+      is_paid: e.price != null && Number(e.price) > 0,
+      price_cents: e.price != null ? Number(e.price) : 0,
+      attendee_count: attendeeCount,
       avg_attendee_age: avgAge != null ? Number(avgAge) : null,
     };
   });
@@ -125,14 +127,15 @@ async function exportSpaces() {
               AND e.starts_at IS NOT NULL
     WHERE s.is_active = true
     GROUP BY s.id, s.tags
+    ORDER BY s.id
   `;
 
   return rows.map((s) => ({
-    id:             s.id,
-    tags:           s.tags ?? [],
-    member_count:   Number(s.member_count),
+    id: s.id,
+    tags: s.tags ?? [],
+    member_count: Number(s.member_count),
     avg_member_age: s.avg_member_age != null ? Number(s.avg_member_age) : null,
-    event_count:    Number(s.event_count),
+    event_count: Number(s.event_count),
   }));
 }
 
@@ -196,10 +199,10 @@ async function exportInteractions() {
   `;
 
   return rows.map((r) => ({
-    user_id:   r.user_id,
-    item_id:   r.item_id,
+    user_id: r.user_id,
+    item_id: r.item_id,
     item_type: r.item_type,
-    weight:    Number(r.weight),
+    weight: Number(r.weight),
   }));
 }
 
@@ -215,9 +218,9 @@ async function main() {
     exportInteractions(),
   ]);
 
-  write("users.json",        users);
-  write("events.json",       events);
-  write("spaces.json",       spaces);
+  write("users.json", users);
+  write("events.json", events);
+  write("spaces.json", spaces);
   write("interactions.json", interactions);
 
   console.log(`\nOutput: ${OUT_DIR}`);

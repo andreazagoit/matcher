@@ -20,9 +20,9 @@ from pydantic import BaseModel
 
 import torch
 
-from ml.config import EMBED_DIM
-from ml.features import build_user_features, build_event_features, build_space_features
-from ml.model import HetEncoder, load_model, device
+from hgt.config import EMBED_DIM
+from hgt.features import build_user_features, build_event_features, build_space_features
+from hgt.model import HetEncoder, load_model, device
 
 
 # ── State ─────────────────────────────────────────────────────────────────────

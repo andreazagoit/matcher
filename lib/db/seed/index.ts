@@ -3,7 +3,7 @@ import { seedUsers } from "./users";
 import { seedSpaces } from "./spaces";
 import { seedProfiles } from "./interests";
 import { seedEvents } from "./events";
-import { seedProfileCards } from "./profileitems";
+import { seedProfileCards } from "./useritems";
 
 async function seed() {
   console.log("🌱 Starting seed...\n");
