@@ -26,7 +26,6 @@ export interface UserEmbedInput {
   smoking?: string | null;
   drinking?: string | null;
   activityLevel?: string | null;
-  interactionCount?: number;
 }
 
 export interface EventEmbedInput {
@@ -92,17 +91,7 @@ export async function embedUser(
   entityId: string,
   data: UserEmbedInput,
 ): Promise<void> {
-  const embedding = await callMlEmbed("user", {
-    tags: data.tags,
-    birthdate: data.birthdate ?? null,
-    gender: data.gender ?? null,
-    relationship_intent: data.relationshipIntent ?? [],
-    smoking: data.smoking ?? null,
-    drinking: data.drinking ?? null,
-    activity_level: data.activityLevel ?? null,
-    interaction_count: data.interactionCount ?? 0,
-  });
-
+  const embedding = await callMlEmbed("user", { ...data });
   await upsertEmbedding(entityId, "user", embedding);
 }
 
@@ -119,14 +108,8 @@ export async function embedEvent(
     : null;
 
   const embedding = await callMlEmbed("event", {
-    tags: data.tags ?? [],
-    starts_at: data.startsAt ?? null,
-    price_cents: data.priceCents ?? null,
-    avg_attendee_age: data.avgAttendeeAge ?? null,
-    attendee_count: data.attendeeCount ?? 0,
-    days_until_event: daysUntilEvent,
-    max_attendees: data.maxAttendees ?? null,
-    is_paid: data.isPaid ?? false,
+    ...data,
+    daysUntilEvent,
   });
 
   await upsertEmbedding(entityId, "event", embedding);

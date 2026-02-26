@@ -186,9 +186,9 @@ export const userResolvers = {
   },
 
   User: {
-    location: (parent: { location?: { x: number; y: number } | null }) => {
-      if (!parent.location) return null;
-      return { lat: parent.location.y, lon: parent.location.x };
+    coordinates: (parent: { coordinates?: { x: number; y: number } | null }) => {
+      if (!parent.coordinates) return null;
+      return { lat: parent.coordinates.y, lon: parent.coordinates.x };
     },
     tags: (parent: { tags?: string[] | null }) => parent.tags ?? [],
     userItems: (parent: { id: string }): Promise<UserItem[]> => {

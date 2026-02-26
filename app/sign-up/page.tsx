@@ -164,7 +164,7 @@ function SignUpForm() {
         setLoading(false);
         return;
       }
-      // Account creato — better-auth ha già inviato l'OTP di verifica
+      // Account creato — better-auth ha già inviato l'OTP di verifica email
       next();
       setLoading(false);
     } catch (err) {
@@ -186,6 +186,7 @@ function SignUpForm() {
         setLoading(false);
         return;
       }
+
       if (data.initialInterests.length) {
         await fetch("/api/users/interests", {
           method: "POST",
@@ -541,7 +542,7 @@ function SignUpForm() {
               </form>
             )}
 
-            {/* ── Step 6: Verify ── */}
+            {/* ── Step 8: Verify ── */}
             {step === "verify" && (
               <form onSubmit={handleVerifyAndCreate} className="space-y-4">
                 <div className="space-y-2">

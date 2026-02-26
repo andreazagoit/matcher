@@ -121,7 +121,7 @@ export const eventResolvers = {
       const userTags = userRow?.tags ?? [];
       const userEmbedding = await getStoredEmbedding(userId, "user");
 
-      // Strategy 1: ML behavioral embedding (via Multi-Tower)
+      // Strategy 1: ML behavioral embedding (via HGT)
       if (userEmbedding) {
         const recommendedIds = await recommendEventsForUser(userId!, maxResults * 2);
         if (recommendedIds.length > 0) {

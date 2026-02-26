@@ -101,17 +101,17 @@ SMOKING_TO_IDX: dict[str, int]      = {v: i for i, v in enumerate(SMOKING_VOCAB)
 DRINKING_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(DRINKING_VOCAB)}
 ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB)}
 
-# ─── Feature vector layouts ────────────────────────────────────────────────────
+# ─── Feature vector layouts ────────────────────────────────────────────────────## Model Dimension Layouts
 #
-# User (USER_DIM = NUM_TAGS + 20 = 220):
-#   [0:NUM_TAGS]  tags multi-hot         (NUM_TAGS) — 1.0 if tag declared, else 0.0
+# User (USER_DIM = NUM_TAGS + 19 = 59):
+#   [0:NUM_TAGS]  tags multi-hot         (NUM_TAGS)
 #   [NUM_TAGS]    age norm               (1)
 #   [+1:+4]       gender one-hot         (3)
 #   [+4:+8]       rel_intent multi-hot   (4)
 #   [+8:+11]      smoking one-hot        (3)
 #   [+11:+14]     drinking one-hot       (3)
 #   [+14:+19]     activity one-hot       (5)
-#   [+19]         interaction count norm (1) — events attended + spaces joined
+USER_DIM  = NUM_TAGS + 19
 #
 # Event (EVENT_DIM = NUM_TAGS + 11 = 211):
 #   [0:NUM_TAGS]  tags multi-hot         (NUM_TAGS)
@@ -131,7 +131,7 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 #   [+1]          member count norm      (1)
 #   [+2]          event count norm       (1)
 
-USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1
+USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB)
 EVENT_DIM = NUM_TAGS + 1 + 1 + 1 + 1 + 1 + 1 + 5  # tags + age + count + days + fill + paid + price + time(5)
 SPACE_DIM = NUM_TAGS + 1 + 1 + 1                    # tags + age + member_count + event_count
 
@@ -153,9 +153,8 @@ EDGE_TYPES: list[tuple[str, str, str]] = [
     ("user",  "joins",                  "space"),
     ("space", "rev_joins",              "user"),
     ("event", "hosted_by",              "space"),
+    ("space", "rev_hosted_by",          "event"),
     ("user",  "similar_to",             "user"),
-    ("user",  "connects",               "user"),
-    ("user",  "rev_connects",           "user"),
     # tag edges
     ("user",  "likes",                  "tag"),
     ("tag",   "rev_likes",              "user"),

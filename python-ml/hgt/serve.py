@@ -54,29 +54,28 @@ class UserData(BaseModel):
     tags: list[str] = []
     birthdate: Optional[str] = None                  # "YYYY-MM-DD"
     gender: Optional[str] = None                     # "man" | "woman" | "non_binary"
-    relationship_intent: list[str] = []
+    relationshipIntent: list[str] = []
     smoking: Optional[str] = None
     drinking: Optional[str] = None
-    activity_level: Optional[str] = None
-    interaction_count: int = 0
+    activityLevel: Optional[str] = None
 
 
 class EventData(BaseModel):
     tags: list[str] = []
-    starts_at: Optional[str] = None
-    avg_attendee_age: Optional[float] = None
-    attendee_count: int = 0
-    days_until_event: Optional[int] = None
-    max_attendees: Optional[int] = None
-    is_paid: bool = False
-    price_cents: Optional[int] = None
+    startsAt: Optional[str] = None
+    avgAttendeeAge: Optional[float] = None
+    attendeeCount: int = 0
+    daysUntilEvent: Optional[int] = None
+    maxAttendees: Optional[int] = None
+    isPaid: bool = False
+    priceCents: Optional[int] = None
 
 
 class SpaceData(BaseModel):
     tags: list[str] = []
-    avg_member_age: Optional[float] = None
-    member_count: int = 0
-    event_count: int = 0
+    avgMemberAge: Optional[float] = None
+    memberCount: int = 0
+    eventCount: int = 0
 
 
 class EmbedRequest(BaseModel):
@@ -102,11 +101,10 @@ def _build_features(req: EmbedRequest) -> tuple[str, list[float]]:
             birthdate=req.user.birthdate,
             tags=req.user.tags,
             gender=req.user.gender,
-            relationship_intent=req.user.relationship_intent,
+            relationship_intent=req.user.relationshipIntent,
             smoking=req.user.smoking,
             drinking=req.user.drinking,
-            activity_level=req.user.activity_level,
-            interaction_count=req.user.interaction_count,
+            activity_level=req.user.activityLevel,
         )
 
     if req.entity_type == "event":
@@ -114,13 +112,13 @@ def _build_features(req: EmbedRequest) -> tuple[str, list[float]]:
             raise HTTPException(400, "event data required for entity_type=event")
         return "event", build_event_features(
             tags=req.event.tags,
-            starts_at=req.event.starts_at,
-            avg_attendee_age=req.event.avg_attendee_age,
-            attendee_count=req.event.attendee_count,
-            days_until_event=req.event.days_until_event,
-            max_attendees=req.event.max_attendees,
-            is_paid=req.event.is_paid,
-            price_cents=req.event.price_cents,
+            starts_at=req.event.startsAt,
+            avg_attendee_age=req.event.avgAttendeeAge,
+            attendee_count=req.event.attendeeCount,
+            days_until_event=req.event.daysUntilEvent,
+            max_attendees=req.event.maxAttendees,
+            is_paid=req.event.isPaid,
+            price_cents=req.event.priceCents,
         )
 
     if req.entity_type == "space":
@@ -128,9 +126,9 @@ def _build_features(req: EmbedRequest) -> tuple[str, list[float]]:
             raise HTTPException(400, "space data required for entity_type=space")
         return "space", build_space_features(
             tags=req.space.tags,
-            avg_member_age=req.space.avg_member_age,
-            member_count=req.space.member_count,
-            event_count=req.space.event_count,
+            avg_member_age=req.space.avgMemberAge,
+            member_count=req.space.memberCount,
+            event_count=req.space.eventCount,
         )
 
     raise HTTPException(400, "entity_type must be 'user', 'event', or 'space'")

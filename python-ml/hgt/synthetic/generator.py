@@ -761,11 +761,10 @@ def gen_user(persona_idx: int) -> dict:
         "persona_idx":         persona_idx,        # used internally for interaction generation
         "birthdate":           bd.isoformat(),
         "gender":              wc(GENDERS, p["gender_w"]),
-        "relationship_intent": ri,
+        "relationshipIntent": ri,
         "smoking":             wc(SMOKING,   p["smoking_w"])              if random.random() > 0.10 else None,
         "drinking":            wc(DRINKING,  p["drinking_w"])             if random.random() > 0.10 else None,
-        "activity_level":      wc(p["activity_choices"], p["activity_w"]) if random.random() > 0.10 else None,
-        "interaction_count":   0,
+        "activityLevel":      wc(p["activity_choices"], p["activity_w"]) if random.random() > 0.10 else None,
         "tag_weights":         (_tw := sample_user_tags(p)),  # internal only — used for interaction simulation
         "tags":                list(_tw.keys()),               # exported to JSON (same sample)
     }
@@ -791,14 +790,14 @@ def gen_event(space_id: str, status: str, preferred_cluster: int, popularity: fl
 
     return {
         "id":               uid(),
-        "space_id":         space_id,
+        "spaceId":         space_id,
         "tags":             sample_entity_tags(preferred_cluster),
-        "starts_at":        f"{starts} {start_hour:02d}:{start_minute:02d}:00",
-        "max_attendees":    max_att,
-        "is_paid":          price > 0,
-        "price_cents":      price * 100,
-        "attendee_count":   a_count,
-        "avg_attendee_age": avg_age,
+        "startsAt":        f"{starts} {start_hour:02d}:{start_minute:02d}:00",
+        "maxAttendees":    max_att,
+        "isPaid":          price > 0,
+        "priceCents":      price * 100,
+        "attendeeCount":   a_count,
+        "avgAttendeeAge": avg_age,
         "preferred_cluster": preferred_cluster,
         "popularity":        round(popularity, 3),
     }
@@ -808,9 +807,9 @@ def gen_space(archetype: dict, popularity: float) -> dict:
     return {
         "id":             uid(),
         "tags":           sample_space_tags(archetype),
-        "member_count":   0,
-        "avg_member_age": None,
-        "event_count":    0,
+        "memberCount":   0,
+        "avgMemberAge": None,
+        "eventCount":    0,
         "preferred_cluster": archetype["cluster"],
         "archetype":      archetype["name"],
         "popularity":        round(popularity, 3),
@@ -933,7 +932,7 @@ def assign_interactions(
             if itype == "event":
                 event = event_by_id[iid]
                 try:
-                    event_day = date.fromisoformat(str(event["starts_at"]).split(" ")[0])
+                    event_day = date.fromisoformat(str(event["startsAt"]).split(" ")[0])
                 except (TypeError, ValueError):
                     event_day = today
                 type_w = 1.0 if event_day < today else 0.7
@@ -952,9 +951,9 @@ def assign_interactions(
                 bump_user_tag_weights(user, space["tags"], strength=0.015 + 0.06 * pref_factor)
 
             interactions.append({
-                "user_id":    user_id,
-                "item_id":    iid,
-                "item_type":  itype,
+                "userId":     user_id,
+                "itemId":     iid,
+                "itemType":   itype,
                 "weight":     round(type_w * pref_factor * _recency(created_at), 4),
                 "created_at": created_at.isoformat(),
             })
@@ -999,17 +998,17 @@ def assign_interactions(
                 user_space_cnt[user_id] += 1
 
     for user in users:
-        user["interaction_count"] = user_event_cnt[user["id"]] + user_space_cnt[user["id"]]
+        pass # interaction count is deprecated
 
     for space in spaces:
         members = space_member_data[space["id"]]
-        space["member_count"] = len(members)
+        space["memberCount"] = len(members)
         ages = []
         for m in members:
             if m.get("birthdate"):
                 bd = date.fromisoformat(m["birthdate"])
                 ages.append((date.today() - bd).days / 365.25)
-        space["avg_member_age"] = round(sum(ages) / len(ages), 1) if ages else None
+        space["avgMemberAge"] = round(sum(ages) / len(ages), 1) if ages else None
 
     return interactions
 
@@ -1063,9 +1062,9 @@ def generate(
 
     event_counts: dict[str, int] = defaultdict(int)
     for e in events:
-        event_counts[e["space_id"]] += 1
+        event_counts[e["spaceId"]] += 1
     for space in spaces:
-        space["event_count"] = event_counts[space["id"]]
+        space["eventCount"] = event_counts[space["id"]]
 
     print("  Generating users...")
     users = []
@@ -1087,7 +1086,12 @@ def generate(
     _write("users.json",        [_clean_user(u) for u in users])
     _write("events.json",       [_clean_event(e) for e in events])
     _write("spaces.json",       [_clean_space(s) for s in spaces])
-    _write("interactions.json", interactions)
+    
+    event_attendees = [{"userId": ix["userId"], "eventId": ix["itemId"], "weight": ix["weight"], "created_at": ix["created_at"]} for ix in interactions if ix["itemType"] == "event"]
+    members = [{"userId": ix["userId"], "spaceId": ix["itemId"], "weight": ix["weight"], "created_at": ix["created_at"]} for ix in interactions if ix["itemType"] == "space"]
+
+    _write("event_attendees.json", event_attendees)
+    _write("members.json", members)
 
     n_pos = len(interactions)
     print(f"\n  positive pairs : {n_pos:,}  (target {n_interactions:,})")
@@ -1095,7 +1099,7 @@ def generate(
 
     by_type = defaultdict(int)
     for ix in interactions:
-        by_type[ix["item_type"]] += 1
+        by_type[ix["itemType"]] += 1
     print(f"\n  interaction breakdown:")
     for t, c in sorted(by_type.items()):
         print(f"    {t:<8}  {c:>8,}  ({100*c/n_pos:.1f}%)")

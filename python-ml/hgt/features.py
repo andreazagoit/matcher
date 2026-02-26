@@ -52,7 +52,6 @@ def build_user_features(
     smoking: Optional[str] = None,
     drinking: Optional[str] = None,
     activity_level: Optional[str] = None,
-    interaction_count: int = 0,
 ) -> list[float]:
     """
     Builds a 60-dim user feature vector.
@@ -65,7 +64,6 @@ def build_user_features(
         smoking:              users.smoking enum value or None
         drinking:             users.drinking enum value or None
         activity_level:       users.activity_level enum value or None
-        interaction_count:    events attended + spaces joined
     """
     # [0:40] tags multi-hot
     tags_vec = [0.0] * NUM_TAGS
@@ -92,10 +90,7 @@ def build_user_features(
     # [54:59] activity one-hot
     activity_vec = _onehot(ACTIVITY_TO_IDX, len(ACTIVITY_VOCAB), activity_level)
 
-    # [59] interaction count (events attended + spaces joined) — sqrt-normalized, scale=10
-    interaction_vec = [normalize_count(interaction_count, scale=10.0)]
-
-    vec = tags_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec + interaction_vec
+    vec = tags_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec
     assert len(vec) == USER_DIM, f"Expected {USER_DIM}, got {len(vec)}"
     return vec
 

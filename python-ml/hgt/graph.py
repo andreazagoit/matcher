@@ -48,34 +48,33 @@ def _user_vec(u: dict) -> list[float]:
         birthdate=u.get("birthdate"),
         tags=u.get("tags") or [],
         gender=u.get("gender"),
-        relationship_intent=u.get("relationship_intent") or [],
+        relationship_intent=u.get("relationshipIntent") or [],
         smoking=u.get("smoking"),
         drinking=u.get("drinking"),
-        activity_level=u.get("activity_level"),
-        interaction_count=int(u.get("interaction_count") or 0),
+        activity_level=u.get("activityLevel"),
     )
 
 
 def _event_vec(e: dict) -> list[float]:
-    starts_at = e.get("starts_at")
+    starts_at = e.get("startsAt")
     return build_event_features(
         tags=e.get("tags") or [],
         starts_at=starts_at,
-        avg_attendee_age=e.get("avg_attendee_age"),
-        attendee_count=int(e.get("attendee_count") or 0),
+        avg_attendee_age=e.get("avgAttendeeAge"),
+        attendee_count=int(e.get("attendeeCount") or 0),
         days_until_event=days_until(starts_at),
-        max_attendees=e.get("max_attendees"),
-        is_paid=bool(e.get("is_paid")),
-        price_cents=int(e.get("price_cents") or 0),
+        max_attendees=e.get("maxAttendees"),
+        is_paid=bool(e.get("isPaid")),
+        price_cents=int(e.get("priceCents") or 0),
     )
 
 
 def _space_vec(s: dict) -> list[float]:
     return build_space_features(
         tags=s.get("tags") or [],
-        avg_member_age=s.get("avg_member_age"),
-        member_count=int(s.get("member_count") or 0),
-        event_count=int(s.get("event_count") or 0),
+        avg_member_age=s.get("avgMemberAge"),
+        member_count=int(s.get("memberCount") or 0),
+        event_count=int(s.get("eventCount") or 0),
     )
 
 
@@ -94,7 +93,10 @@ def _reverse(edge: torch.Tensor) -> torch.Tensor:
 # ── User–user co-attendance edges ─────────────────────────────────────────────
 
 def _user_user_edges(
-    ixs: list[dict],
+    events_raw: list[dict],
+    spaces_raw: list[dict],
+    attendees_raw: list[dict],
+    members_raw: list[dict],
     u_idx: dict[str, int],
     e_idx: dict[str, int],
     s_idx: dict[str, int],
@@ -102,15 +104,17 @@ def _user_user_edges(
     top_k: int = 10,
 ) -> tuple[list[int], list[int]]:
     by_item: dict[str, set[str]] = defaultdict(set)
-    for r in ixs:
-        uid  = r.get("user_id")
-        iid  = r.get("item_id")
-        itype = r.get("item_type")
-        if uid not in u_idx:
-            continue
-        pool = e_idx if itype == "event" else s_idx
-        if iid in pool:
-            by_item[iid].add(uid)
+    for r in attendees_raw:
+        uid = r.get("userId")
+        eid = r.get("eventId")
+        if uid in u_idx and eid in e_idx:
+            by_item[eid].add(uid)
+            
+    for r in members_raw:
+        uid = r.get("userId")
+        sid = r.get("spaceId")
+        if uid in u_idx and sid in s_idx:
+            by_item[sid].add(uid)
 
     pair_count: dict[tuple[str, str], int] = defaultdict(int)
     for users in by_item.values():
@@ -155,8 +159,8 @@ def build_graph_data(
     users_raw  = _load(os.path.join(data_dir, "users.json"))
     events_raw = _load(os.path.join(data_dir, "events.json"))
     spaces_raw = _load(os.path.join(data_dir, "spaces.json"))
-    ixs_raw    = _load(os.path.join(data_dir, "interactions.json"))
-    conn_raw   = _load(os.path.join(data_dir, "connections.json"))
+    attendees_raw = _load(os.path.join(data_dir, "event_attendees.json"))
+    members_raw = _load(os.path.join(data_dir, "members.json"))
 
     # ── Node ID → integer index ────────────────────────────────────────────────
     user_ids  = [u["id"] for u in users_raw]
@@ -176,16 +180,22 @@ def build_graph_data(
 
     # ── Temporal train / val split on interactions ────────────────────────────
     by_user: dict[str, list] = defaultdict(list)
-    for r in ixs_raw:
-        uid   = r.get("user_id")
-        iid   = r.get("item_id")
-        itype = r.get("item_type")
-        w     = float(r.get("weight", 1.0))
-        ts    = r.get("created_at", "")
-        if uid in u_idx and itype in ("event", "space"):
-            pool = e_idx if itype == "event" else s_idx
-            if iid in pool:
-                by_user[uid].append((iid, itype, w, ts))
+    
+    for r in attendees_raw:
+        uid = r.get("userId")
+        eid = r.get("eventId")
+        w = float(r.get("weight", 1.0))
+        ts = r.get("created_at", "")
+        if uid in u_idx and eid in e_idx:
+            by_user[uid].append((eid, "event", w, ts))
+
+    for r in members_raw:
+        uid = r.get("userId")
+        sid = r.get("spaceId")
+        w = float(r.get("weight", 1.0))
+        ts = r.get("created_at", "")
+        if uid in u_idx and sid in s_idx:
+            by_user[uid].append((sid, "space", w, ts))
 
     attends_src, attends_dst, attends_w = [], [], []
     joins_src,   joins_dst,   joins_w   = [], [], []
@@ -217,13 +227,13 @@ def build_graph_data(
     # ── hosted_by edges (event → space) ───────────────────────────────────────
     hosted_src, hosted_dst = [], []
     for e in events_raw:
-        sid = e.get("space_id")
+        sid = e.get("spaceId")
         if e["id"] in e_idx and sid and sid in s_idx:
             hosted_src.append(e_idx[e["id"]])
             hosted_dst.append(s_idx[sid])
 
     # ── user similar_to user (co-attendance graph) ────────────────────────────
-    sim_src, sim_dst = _user_user_edges(ixs_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
+    sim_src, sim_dst = _user_user_edges(events_raw, spaces_raw, attendees_raw, members_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
 
     # ── Tag edges ─────────────────────────────────────────────────────────────
     # user → tag (binary: 1.0 per declared tag)
@@ -285,24 +295,6 @@ def build_graph_data(
 
     if sim_src:
         data["user", "similar_to", "user"].edge_index = _to_edge_index(sim_src, sim_dst)
-
-    # ── Connections (User -> User Match) ──────────────────────────────────────
-    conn_src, conn_dst = [], []
-    for c in conn_raw:
-        uid = c.get("initiator_id")
-        rid = c.get("recipient_id")
-        # only consider positive signals (pending or accepted) as signal
-        if c.get("status") in ["pending", "accepted"] and uid in u_idx and rid in u_idx:
-            conn_src.append(u_idx[uid])
-            conn_dst.append(u_idx[rid])
-            # add reverse for undirected relation in graph
-            conn_src.append(u_idx[rid])
-            conn_dst.append(u_idx[uid])
-
-    if conn_src:
-        ei = _to_edge_index(conn_src, conn_dst)
-        data["user", "connects", "user"].edge_index = ei
-        data["user", "rev_connects", "user"].edge_index = _reverse(ei)
 
     if ut_src:
         ei = _to_edge_index(ut_src, ut_dst)

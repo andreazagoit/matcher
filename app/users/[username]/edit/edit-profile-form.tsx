@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { UPDATE_USER, UPDATE_MY_TAGS, UPDATE_LOCATION } from "@/lib/models/users/gql";
+import type { UpdateLocationMutation } from "@/lib/graphql/__generated__/graphql";
 import { TAG_CATEGORIES } from "@/lib/models/tags/data";
 import { UserItemsEditor } from "./user-items-editor";
 
@@ -123,7 +124,7 @@ export function EditProfileForm({ user }: Props) {
 
     const [updateUser, { loading: saving }] = useMutation(UPDATE_USER);
     const [updateMyTags, { loading: savingTags }] = useMutation(UPDATE_MY_TAGS);
-    const [updateLocation] = useMutation(UPDATE_LOCATION);
+    const [updateLocation] = useMutation<UpdateLocationMutation>(UPDATE_LOCATION);
 
     function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) {
         setter((prev) => {
@@ -153,19 +154,15 @@ export function EditProfileForm({ user }: Props) {
             async (position) => {
                 const { latitude, longitude } = position.coords;
                 try {
-                    // Reverse geocoding base call with OpenStreetMap
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-                    let city: string | null = null;
-                    if (res.ok) {
-                        const data = await res.json();
-                        city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || "Località sconosciuta";
+                    // Server-side: updateUserLocation chiama Nominatim e salva location + coordinates
+                    const res = await updateLocation({ variables: { lat: latitude, lon: longitude } });
+                    const city = res.data?.updateLocation?.location;
+                    if (city) {
                         setCurrentCityName(city);
                         toast.success(`Posizione rilevata: ${city}`);
+                    } else {
+                        toast.success("Posizione aggiornata");
                     }
-
-                    // Save to backend
-                    await updateLocation({ variables: { lat: latitude, lon: longitude, location: city } });
-
                 } catch (err) {
                     console.error("Location update failed", err);
                     toast.error("Errore nell'aggiornamento della posizione");

@@ -107,6 +107,10 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
 
+  emailVerification: {
+    autoSignInAfterVerification: true,
+  },
+
   session: {
     expiresIn: 7 * 24 * 60 * 60, // 7 days
     updateAge: 24 * 60 * 60, // 1 day

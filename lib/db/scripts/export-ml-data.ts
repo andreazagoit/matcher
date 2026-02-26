@@ -38,14 +38,9 @@ async function exportUsers() {
       u.drinking,
       u.activity_level,
       u.tags,
-      (COUNT(DISTINCT ea.event_id) + COUNT(DISTINCT m.space_id))::int AS interaction_count
+      u.activity_level,
+      u.tags
     FROM users u
-    LEFT JOIN event_attendees ea
-           ON ea.user_id = u.id AND ea.status = 'attended'
-    LEFT JOIN members m
-           ON m.user_id = u.id AND m.status = 'active'
-    GROUP BY u.id, u.birthdate, u.gender, u.relationship_intent,
-             u.smoking, u.drinking, u.activity_level, u.tags
     ORDER BY u.id
   `;
 
@@ -53,11 +48,10 @@ async function exportUsers() {
     id: u.id,
     birthdate: u.birthdate ?? null,
     gender: u.gender ?? null,
-    relationship_intent: u.relationship_intent ?? [],
+    relationshipIntent: u.relationship_intent ?? [],
     smoking: u.smoking ?? null,
     drinking: u.drinking ?? null,
-    activity_level: u.activity_level ?? null,
-    interaction_count: Number(u.interaction_count),
+    activityLevel: u.activity_level ?? null,
     tags: u.tags ?? [],
   }));
 }
@@ -101,14 +95,14 @@ async function exportEvents() {
 
     return {
       id: e.id,
-      space_id: e.space_id ?? null,
+      spaceId: e.space_id ?? null,
       tags: e.tags ?? [],
-      starts_at: e.starts_at ?? null,
-      max_attendees: e.max_attendees ? Number(e.max_attendees) : null,
-      is_paid: e.price != null && Number(e.price) > 0,
-      price_cents: e.price != null ? Number(e.price) : 0,
-      attendee_count: attendeeCount,
-      avg_attendee_age: avgAge != null ? Number(avgAge) : null,
+      startsAt: e.starts_at ?? null,
+      maxAttendees: e.max_attendees ? Number(e.max_attendees) : null,
+      isPaid: e.price != null && Number(e.price) > 0,
+      priceCents: e.price != null ? Number(e.price) : 0,
+      attendeeCount: attendeeCount,
+      avgAttendeeAge: avgAge != null ? Number(avgAge) : null,
     };
   });
 }
@@ -134,34 +128,24 @@ async function exportSpaces() {
   return rows.map((s) => ({
     id: s.id,
     tags: s.tags ?? [],
-    member_count: Number(s.member_count),
-    avg_member_age: s.avg_member_age != null ? Number(s.avg_member_age) : null,
-    event_count: Number(s.event_count),
+    memberCount: Number(s.member_count),
+    avgMemberAge: s.avg_member_age != null ? Number(s.avg_member_age) : null,
+    eventCount: Number(s.event_count),
   }));
 }
 
-async function exportInteractions() {
-  /**
-   * Positive interactions with recency-weighted labels.
-   *
-   * weight = type_weight × recency_decay
-   *   type_weight:  attended=1.0, going=0.7, member=0.9
-   *   recency_decay: exp(-days_since / 180)  — half-life ≈ 6 months
-   *
-   * Final weight is clamped to [0.05, 1.0].
-   */
+async function exportEventAttendees() {
   const HALF_LIFE_SECS = 180 * 86400; // 180 days in seconds
   const rows = await client`
     -- attended (past events) — strongest signal
     SELECT
       ea.user_id::text,
-      ea.event_id::text                                                   AS item_id,
-      'event'::text                                                       AS item_type,
+      ea.event_id::text,
       LEAST(1.0, GREATEST(0.05,
         1.0 * EXP(-EXTRACT(EPOCH FROM
           (NOW() - COALESCE(ea.attended_at, ea.registered_at))
         ) / ${HALF_LIFE_SECS})
-      ))::float                                                           AS weight
+      ))::float AS weight
     FROM event_attendees ea
     JOIN events e ON e.id = ea.event_id
     WHERE ea.status = 'attended' AND e.starts_at < NOW()
@@ -171,38 +155,43 @@ async function exportInteractions() {
     -- going (upcoming events) — intent signal
     SELECT
       ea.user_id::text,
-      ea.event_id::text                                                   AS item_id,
-      'event'::text                                                       AS item_type,
+      ea.event_id::text,
       LEAST(1.0, GREATEST(0.05,
         0.7 * EXP(-EXTRACT(EPOCH FROM
           (NOW() - ea.registered_at)
         ) / ${HALF_LIFE_SECS})
-      ))::float                                                           AS weight
+      ))::float AS weight
     FROM event_attendees ea
     JOIN events e ON e.id = ea.event_id
     WHERE ea.status = 'going' AND e.starts_at >= NOW()
+  `;
 
-    UNION ALL
+  return rows.map((r) => ({
+    userId: r.user_id,
+    eventId: r.event_id,
+    weight: Number(r.weight),
+  }));
+}
 
+async function exportMembers() {
+  const HALF_LIFE_SECS = 180 * 86400; // 180 days in seconds
+  const rows = await client`
     -- space members
     SELECT
       m.user_id::text,
-      m.space_id::text                                                    AS item_id,
-      'space'::text                                                       AS item_type,
+      m.space_id::text,
       LEAST(1.0, GREATEST(0.05,
         0.9 * EXP(-EXTRACT(EPOCH FROM
           (NOW() - m.joined_at)
         ) / ${HALF_LIFE_SECS})
-      ))::float                                                           AS weight
+      ))::float AS weight
     FROM members m
     WHERE m.status = 'active'
-
   `;
 
   return rows.map((r) => ({
-    user_id: r.user_id,
-    item_id: r.item_id,
-    item_type: r.item_type,
+    userId: r.user_id,
+    spaceId: r.space_id,
     weight: Number(r.weight),
   }));
 }
@@ -230,18 +219,20 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const [users, events, spaces, interactions, connections] = await Promise.all([
+  const [users, events, spaces, eventAttendees, members, connections] = await Promise.all([
     exportUsers(),
     exportEvents(),
     exportSpaces(),
-    exportInteractions(),
+    exportEventAttendees(),
+    exportMembers(),
     exportConnections(),
   ]);
 
   write("users.json", users);
   write("events.json", events);
   write("spaces.json", spaces);
-  write("interactions.json", interactions);
+  write("event_attendees.json", eventAttendees);
+  write("members.json", members);
   write("connections.json", connections);
 
   console.log(`\nOutput: ${OUT_DIR}`);

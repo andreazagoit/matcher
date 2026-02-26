@@ -8,6 +8,7 @@ import { Page } from "@/components/page";
 import { SpaceCard } from "@/components/spaces/space-card";
 import { UserCard } from "@/components/user-card";
 import { LocationSelector } from "@/components/location-selector";
+import { LocationBanner } from "@/components/location-banner";
 import { ItemCarousel } from "@/components/item-carousel";
 import { getTranslations } from "next-intl/server";
 import { Tag } from "lucide-react";
@@ -51,6 +52,7 @@ export default async function DiscoverPage() {
 
     const recommendedIds = new Set(recommended.map((s) => s.id));
     const otherSpaces = allSpaces.filter((s) => !recommendedIds.has(s.id));
+    const hasLocation = !!cookieStore.get("matcher_lat")?.value;
 
     return (
         <Page
@@ -64,6 +66,8 @@ export default async function DiscoverPage() {
             headerExtras={<LocationSelector />}
         >
             <div className="space-y-12">
+
+                {!hasLocation && <LocationBanner />}
 
                 {matches.length === 0 ? (
                     <Card className="border-dashed py-8 bg-muted/30">

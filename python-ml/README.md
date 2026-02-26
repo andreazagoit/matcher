@@ -151,9 +151,9 @@ SpaceEncoder (43-dim)  ─┘
 ```
 
 **Feature dimensions:**
-| Entity | Dim | Contents |
-|--------|-----|----------|
-| User   | 60  | tag weights (40) + age (1) + gender (3) + rel_intent (4) + smoking (3) + drinking (3) + activity (5) + interaction_count (1) |
+| Entity | Dim | Features Built From JSON |
+|---|---|---|
+| User   | 219  | tag weights + age + gender + rel_intent + smoking + drinking + activity |
 | Event  | 51  | tags (40) + avg_age (1) + count (1) + days_until (1) + fill_rate (1) + is_paid (1) + price (1) + time_cyclical (5) |
 | Space  | 43  | tags (40) + avg_age (1) + member_count (1) + event_count (1) |
 
