@@ -20,11 +20,11 @@ import {
   getAccessibleSpaceIds,
   getMyAttendeeStatus,
 } from "./operations";
-import { events, eventAttendees } from "./schema";
+import { events } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
 import { getUserById } from "@/lib/models/users/operations";
 import { db } from "@/lib/db/drizzle";
-import { getStoredEmbedding, embedEvent } from "@/lib/models/embeddings/operations";
+import { getStoredEmbedding, embedEvent, recommendEventsForUser } from "@/lib/models/embeddings/operations";
 import { users } from "@/lib/models/users/schema";
 import { eq, sql, gte, and, inArray } from "drizzle-orm";
 
@@ -105,7 +105,6 @@ export const eventResolvers = {
         : eq(events.spaceId, "00000000-0000-0000-0000-000000000000"); // no results if nothing accessible
 
       const baseConditions = and(
-        eq(events.status, "published"),
         gte(events.startsAt, new Date()),
         accessFilter,
       );
@@ -122,16 +121,26 @@ export const eventResolvers = {
       const userTags = userRow?.tags ?? [];
       const userEmbedding = await getStoredEmbedding(userId, "user");
 
-      // Strategy 1: OpenAI behavioral embedding
+      // Strategy 1: ML behavioral embedding (via Multi-Tower)
       if (userEmbedding) {
-        const embeddingStr = `[${userEmbedding.join(",")}]`;
-        const results = await db
-          .select()
-          .from(events)
-          .where(and(baseConditions, sql`${events.embedding} IS NOT NULL`))
-          .orderBy(sql`${events.embedding} <=> ${embeddingStr}::vector`)
-          .limit(maxResults);
-        if (results.length > 0) return results;
+        const recommendedIds = await recommendEventsForUser(userId!, maxResults * 2);
+        if (recommendedIds.length > 0) {
+          const results = await db
+            .select()
+            .from(events)
+            .where(
+              and(
+                baseConditions,
+                inArray(events.id, recommendedIds)
+              )
+            )
+            .limit(maxResults);
+
+          if (results.length > 0) {
+            const orderMap = new Map(recommendedIds.map((id, i) => [id, i]));
+            return results.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+          }
+        }
       }
 
       // Strategy 2: tag overlap (cold start)
@@ -218,7 +227,7 @@ export const eventResolvers = {
         startsAt: event.startsAt?.toISOString() ?? null,
         isPaid: (event.price ?? 0) > 0,
         priceCents: event.price ?? null,
-      }).catch(() => {});
+      }).catch(() => { });
 
       return event;
     },
@@ -240,7 +249,6 @@ export const eventResolvers = {
           endsAt?: string;
           maxAttendees?: number;
           tags?: string[];
-          status?: "draft" | "published" | "cancelled" | "completed";
           price?: number;
           currency?: string;
         };
@@ -278,7 +286,6 @@ export const eventResolvers = {
         endsAt: input.endsAt ? new Date(input.endsAt) : undefined,
         maxAttendees: input.maxAttendees,
         tags: input.tags,
-        status: input.status,
         price: input.price,
         currency: input.currency,
       });

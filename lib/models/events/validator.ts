@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ALL_TAGS } from "@/lib/models/tags/data";
-import { eventStatusEnum, attendeeStatusEnum } from "./schema";
+import { attendeeStatusEnum } from "./schema";
 
 const tagSchema = z.enum(ALL_TAGS as [string, ...string[]]);
 
@@ -18,7 +18,6 @@ export const createEventSchema = z.object({
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date().optional(),
   maxAttendees: z.number().int().positive().optional(),
-  status: z.enum(eventStatusEnum.enumValues).default("published"),
   tags: z.array(tagSchema).max(10).default([]),
   price: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).toLowerCase().default("eur"),
@@ -32,7 +31,6 @@ export const updateEventSchema = z.object({
   startsAt: z.coerce.date().optional(),
   endsAt: z.coerce.date().optional(),
   maxAttendees: z.number().int().positive().optional(),
-  status: z.enum(eventStatusEnum.enumValues).optional(),
   tags: z.array(tagSchema).max(10).optional(),
   price: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).toLowerCase().optional(),

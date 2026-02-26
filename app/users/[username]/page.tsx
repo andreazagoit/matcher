@@ -5,7 +5,7 @@ import { query } from "@/lib/graphql/apollo-client";
 import { GET_USER } from "@/lib/models/users/gql";
 import { Page } from "@/components/page";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+
 import { LogoutButton } from "./logout-button";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
     Briefcase, GraduationCap, Languages, Globe, BookOpen,
-    Cigarette, Wine, Dumbbell, Baby, Users, Search, Sprout, Tag,
+    Cigarette, Wine, Dumbbell, Baby, Users, Search, Sprout,
     Cake, User, Heart, Ruler, Pencil
 } from "lucide-react";
 import type { GetUserQuery, GetUserQueryVariables } from "@/lib/graphql/__generated__/graphql";
@@ -145,7 +145,7 @@ export default async function UserProfilePage({
         ...(user.relationshipStyle ? [{ icon: Users, value: tEnums(`relationshipStyle.${user.relationshipStyle}` as Parameters<typeof tEnums>[0]) }] : []),
     ];
 
-    const hasInfo = chips.length > 0 || rows.length > 0 || (user.tags?.length ?? 0) > 0;
+
 
     return (
         <Page breadcrumbs={[{ label: isOwnProfile ? "Il mio profilo" : (user.name ?? "") }]}>

@@ -76,7 +76,6 @@ export async function createEvent(data: {
   startsAt: Date;
   endsAt?: Date;
   maxAttendees?: number;
-  status?: "draft" | "published" | "cancelled" | "completed";
   tags?: string[];
   price?: number;
   currency?: string;
@@ -95,7 +94,6 @@ export async function createEvent(data: {
       startsAt: data.startsAt,
       endsAt: data.endsAt,
       maxAttendees: data.maxAttendees,
-      status: data.status || "published",
       tags: data.tags ?? [],
       price: data.price ?? null,
       currency: data.currency ?? "eur",
@@ -115,7 +113,6 @@ export async function updateEvent(
     startsAt?: Date;
     endsAt?: Date;
     maxAttendees?: number;
-    status?: "draft" | "published" | "cancelled" | "completed";
     tags?: string[];
     price?: number;
     currency?: string;
@@ -223,7 +220,6 @@ export async function getEventsByTags(
     .where(
       and(
         sql`${events.tags} ${sql.raw(operator)} ${tagArray}::text[]`,
-        eq(events.status, "published"),
         gte(events.startsAt, new Date()),
         accessFilter,
       ),
@@ -279,7 +275,6 @@ export async function markEventCompleted(eventId: string): Promise<Event> {
   const [updated] = await db
     .update(events)
     .set({
-      status: "completed",
       updatedAt: new Date(),
     })
     .where(eq(events.id, eventId))

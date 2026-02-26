@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { Page } from "@/components/page";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Loader2Icon, SparklesIcon, CalendarCheckIcon } from "lucide-react";
 import { GET_MY_UPCOMING_EVENTS, GET_RECOMMENDED_EVENTS, RESPOND_TO_EVENT } from "@/lib/models/events/gql";

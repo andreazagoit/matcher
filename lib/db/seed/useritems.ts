@@ -1,7 +1,7 @@
 import { db } from "../drizzle";
 import { userItems } from "../../models/useritems/schema";
 
-const SAMPLE_PHOTO_URL = "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80";
+
 const SAMPLE_PHOTO_URLS = [
   "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80",
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80",

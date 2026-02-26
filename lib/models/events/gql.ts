@@ -14,7 +14,7 @@ export const GET_SPACE_EVENTS = gql`
       startsAt
       endsAt
       maxAttendees
-      status
+
       attendeeCount
       createdBy
       tags
@@ -36,7 +36,7 @@ export const GET_EVENT = gql`
       startsAt
       endsAt
       maxAttendees
-      status
+
       attendeeCount
       myAttendeeStatus
       myPaymentStatus
@@ -83,7 +83,7 @@ export const UPDATE_EVENT = gql`
       startsAt
       endsAt
       maxAttendees
-      status
+
       tags
       price
       currency
@@ -102,7 +102,7 @@ export const GET_MY_UPCOMING_EVENTS = gql`
       startsAt
       endsAt
       maxAttendees
-      status
+
       attendeeCount
       tags
       spaceId
@@ -121,7 +121,7 @@ export const GET_RECOMMENDED_EVENTS = gql`
       startsAt
       endsAt
       maxAttendees
-      status
+
       attendeeCount
       tags
       spaceId
@@ -154,7 +154,7 @@ export const MARK_EVENT_COMPLETED = gql`
   mutation MarkEventCompleted($eventId: ID!) {
     markEventCompleted(eventId: $eventId) {
       id
-      status
+
     }
   }
 `;

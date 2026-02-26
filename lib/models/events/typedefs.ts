@@ -14,7 +14,7 @@ export const eventTypeDefs = `#graphql
     endsAt: DateTime
     maxAttendees: Int
     tags: [String!]!
-    status: EventStatus!
+
     createdBy: ID!
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -50,12 +50,7 @@ export const eventTypeDefs = `#graphql
     paymentStatus: String
   }
 
-  enum EventStatus {
-    draft
-    published
-    cancelled
-    completed
-  }
+
 
   enum AttendeeStatus {
     going
@@ -88,7 +83,7 @@ export const eventTypeDefs = `#graphql
     endsAt: String
     maxAttendees: Int
     tags: [String!]
-    status: EventStatus
+
     price: Int
     currency: String
   }

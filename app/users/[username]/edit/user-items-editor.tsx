@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
-import { Loader2, Plus, GripVertical, Trash2, Image as ImageIcon, MessageSquare } from "lucide-react";
+import { Loader2, Trash2, Image as ImageIcon, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,6 @@ import { useTranslations } from "next-intl";
 import {
     GET_PROFILE_ITEMS,
     ADD_PROFILE_ITEM,
-    UPDATE_PROFILE_ITEM,
     DELETE_PROFILE_ITEM,
     REORDER_PROFILE_ITEMS
 } from "@/lib/models/useritems/gql";
@@ -44,7 +43,6 @@ export function UserItemsEditor({ userId }: { userId: string }) {
     });
 
     const [addItem] = useMutation(ADD_PROFILE_ITEM);
-    const [updateItem] = useMutation(UPDATE_PROFILE_ITEM);
     const [deleteItem] = useMutation(DELETE_PROFILE_ITEM);
     const [reorderItems] = useMutation(REORDER_PROFILE_ITEMS);
 
@@ -73,7 +71,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
             setIsAddPhotoOpen(false);
             refetch();
             toast.success("Foto aggiunta");
-        } catch (e) {
+        } catch {
             toast.error("Errore nell'aggiunta della foto");
         }
     };
@@ -96,7 +94,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
             setIsAddPromptOpen(false);
             refetch();
             toast.success("Prompt aggiunto");
-        } catch (e) {
+        } catch {
             toast.error("Errore nell'aggiunta del prompt");
         }
     };
@@ -106,7 +104,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
             await deleteItem({ variables: { itemId: id } });
             refetch();
             toast.success("Elemento rimosso");
-        } catch (e) {
+        } catch {
             toast.error("Errore nella rimozione");
         }
     };
@@ -121,7 +119,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
         try {
             await reorderItems({ variables: { itemIds: newItems.map(i => i.id) } });
             refetch();
-        } catch (e) {
+        } catch {
             toast.error("Errore nel riordino");
         }
     };
@@ -136,7 +134,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
         try {
             await reorderItems({ variables: { itemIds: newItems.map(i => i.id) } });
             refetch();
-        } catch (e) {
+        } catch {
             toast.error("Errore nel riordino");
         }
     };
@@ -149,7 +147,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-xl font-semibold">Foto e Prompt</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Gestisci i contenuti che appaiono sul tuo profilo. L'ordine in cui li vedi qui è lo stesso con cui verranno mostrati agli altri utenti.</p>
+                    <p className="text-sm text-muted-foreground mt-1">Gestisci i contenuti che appaiono sul tuo profilo. L&apos;ordine in cui li vedi qui è lo stesso con cui verranno mostrati agli altri utenti.</p>
                 </div>
                 <div className="flex gap-2">
                     <Dialog open={isAddPhotoOpen} onOpenChange={setIsAddPhotoOpen}>
@@ -167,7 +165,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">URL Immagine</label>
                                     <Input placeholder="https://..." value={newPhotoUrl} onChange={e => setNewPhotoUrl(e.target.value)} />
-                                    <p className="text-xs text-muted-foreground">Per ora supportiamo solo l'inserimento manuale di URL esterni.</p>
+                                    <p className="text-xs text-muted-foreground">Per ora supportiamo solo l&apos;inserimento manuale di URL esterni.</p>
                                 </div>
                                 <Button onClick={handleAddPhoto} className="w-full" disabled={!newPhotoUrl}>Aggiungi</Button>
                             </div>
@@ -198,6 +196,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
                                                     <SelectLabel>{CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}</SelectLabel>
                                                     {prompts.map(p => (
                                                         <SelectItem key={p.key} value={p.key}>
+                                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                                             {tPrompts(p.key as any)}
                                                         </SelectItem>
                                                     ))}
@@ -251,6 +250,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
                                     <div className="space-y-1">
                                         <span className="text-sm font-medium bg-muted px-2 py-1 rounded-md text-primary w-fit inline-flex items-center gap-1.5 mb-2">
                                             <MessageSquare className="w-3.5 h-3.5" />
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                             {item.promptKey ? tPrompts(item.promptKey as any) : "Prompt sconosciuto"}
                                         </span>
                                         <p className="text-current leading-relaxed">{item.content}</p>
@@ -265,6 +265,6 @@ export function UserItemsEditor({ userId }: { userId: string }) {
                     ))
                 )}
             </div>
-        </div>
+        </div >
     );
 }

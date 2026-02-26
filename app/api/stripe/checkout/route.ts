@@ -72,7 +72,9 @@ export async function POST(req: NextRequest) {
           },
         },
       ],
-      application_fee_amount: applicationFeeAmount,
+      payment_intent_data: {
+        application_fee_amount: applicationFeeAmount,
+      },
       success_url: `${appUrl}/events/${eventId}?success=1`,
       cancel_url: `${appUrl}/events/${eventId}?cancelled=1`,
       metadata: {

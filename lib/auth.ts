@@ -138,7 +138,7 @@ export const auth = betterAuth({
           throw err;
         }
       },
-      generateOTP: (options) => {
+      generateOTP: () => {
         if (process.env.NODE_ENV === "development") {
           return "000000";
         }

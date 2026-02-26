@@ -15,11 +15,10 @@ import {
 } from "@/components/ui/select";
 import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth-client";
-import { signUpSchema, signupFormSchema, type SignupFormData, SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
+import { signUpSchema, type SignupFormData, SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
 import {
   genderEnum, sexualOrientationEnum, relationshipIntentEnum, relationshipStyleEnum,
-  hasChildrenEnum, wantsChildrenEnum, smokingEnum, drinkingEnum, activityLevelEnum,
-  religionEnum, educationLevelEnum, ethnicityEnum,
+  hasChildrenEnum, wantsChildrenEnum, educationLevelEnum, ethnicityEnum,
 } from "@/lib/models/users/schema";
 import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, UserPlusIcon } from "lucide-react";
 import Link from "next/link";
@@ -47,11 +46,10 @@ function StepIndicator({ current }: { current: Step }) {
     <div className="flex items-center justify-center gap-1.5 mb-6">
       {STEPS.map((s, i) => (
         <div key={s} className="flex items-center gap-1.5">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-colors ${
-            i < idx ? "bg-primary text-primary-foreground"
-            : i === idx ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-            : "bg-muted text-muted-foreground"
-          }`}>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-colors ${i < idx ? "bg-primary text-primary-foreground"
+              : i === idx ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                : "bg-muted text-muted-foreground"
+            }`}>
             {i < idx ? "✓" : i + 1}
           </div>
           {i < STEPS.length - 1 && (
@@ -193,7 +191,7 @@ function SignUpForm() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tags: data.initialInterests }),
-        }).catch(() => {});
+        }).catch(() => { });
       }
       window.location.href = `/users/${data.username}`;
     } catch (err) {

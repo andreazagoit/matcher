@@ -285,7 +285,6 @@ export async function seedEvents(adminUserId: string) {
         startsAt: ev.startsAt,
         endsAt: ev.endsAt,
         maxAttendees: ev.maxAttendees,
-        status: "published",
         tags: ev.tags,
         createdBy: adminUserId,
       });

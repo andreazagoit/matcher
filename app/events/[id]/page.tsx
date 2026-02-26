@@ -12,13 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { EventMap } from "@/components/event-map";
 import {
   CalendarIcon,
@@ -35,9 +29,6 @@ import {
   EuroIcon,
   ShieldCheckIcon,
   SaveIcon,
-  XCircleIcon,
-  CheckSquareIcon,
-  SendIcon,
   FileEditIcon,
 } from "lucide-react";
 import { GET_EVENT, RESPOND_TO_EVENT, UPDATE_EVENT } from "@/lib/models/events/gql";
@@ -84,19 +75,6 @@ function getGradient(tags: string[]) {
   return "from-primary/60 to-primary";
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Bozza",
-  published: "Pubblicato",
-  cancelled: "Cancellato",
-  completed: "Concluso",
-};
-
-const STATUS_BADGE: Record<string, string> = {
-  draft: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30",
-  published: "bg-green-500/15 text-green-600 border-green-500/30",
-  cancelled: "bg-red-500/15 text-red-600 border-red-500/30",
-  completed: "bg-blue-500/15 text-blue-600 border-blue-500/30",
-};
 
 const ATTENDEE_STATUS_LABELS: Record<string, string> = {
   going: "Partecipa",
@@ -195,7 +173,7 @@ export default function EventDetailPage() {
   const startDate = new Date(event.startsAt as string);
   const endDate = event.endsAt ? new Date(event.endsAt as string) : null;
   const isPast = startDate < new Date();
-  const isPublished = event.status === "published";
+
   const gradient = getGradient(event.tags ?? []);
   const myStatus = event.myAttendeeStatus;
   const isPaid = event.isPaid;
@@ -297,7 +275,7 @@ export default function EventDetailPage() {
                 <DetailsTab
                   event={event}
                   isPast={isPast}
-                  isPublished={isPublished}
+
                   isPaid={isPaid}
                   hasTicket={hasTicket}
                   myStatus={myStatus}
@@ -317,7 +295,6 @@ export default function EventDetailPage() {
                   event={event}
                   updating={updating}
                   updateEvent={updateEvent}
-                  refetch={refetch}
                 />
               </TabsContent>
             </Tabs>
@@ -325,7 +302,7 @@ export default function EventDetailPage() {
             <DetailsTab
               event={event}
               isPast={isPast}
-              isPublished={isPublished}
+
               isPaid={isPaid}
               hasTicket={hasTicket}
               myStatus={myStatus}
@@ -350,7 +327,7 @@ export default function EventDetailPage() {
 function DetailsTab({
   event,
   isPast,
-  isPublished,
+
   isPaid,
   hasTicket,
   myStatus,
@@ -366,7 +343,7 @@ function DetailsTab({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   event: any;
   isPast: boolean;
-  isPublished: boolean;
+
   isPaid: boolean;
   hasTicket: boolean;
   myStatus: AttendeeStatus | null | undefined;
@@ -392,7 +369,7 @@ function DetailsTab({
         </div>
       )}
 
-      {isPublished && !isPast && (
+      {!isPast && (
         <div className="border rounded-xl p-5 space-y-3 bg-muted/30">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
@@ -605,15 +582,12 @@ function ManageTab({
   event,
   updating,
   updateEvent,
-  refetch,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   event: any;
   updating: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateEvent: (opts: any) => void;
-  () : void;
-  refetch: () => void;
 }) {
   const [editData, setEditData] = useState({
     title: event.title ?? "",
@@ -647,9 +621,6 @@ function ManageTab({
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  const handleStatusChange = (status: string) => {
-    updateEvent({ variables: { id: event.id, input: { status } } });
-  };
 
   const attendees: {
     id: string;
@@ -667,50 +638,6 @@ function ManageTab({
   return (
     <div className="space-y-10">
 
-      {/* ── Status ── */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ShieldCheckIcon className="h-4 w-4 text-primary" />
-          <h2 className="text-base font-semibold">Stato evento</h2>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_BADGE[event.status] ?? ""}`}>
-            {STATUS_LABELS[event.status] ?? event.status}
-          </span>
-          <div className="flex gap-2 flex-wrap">
-            {event.status === "draft" && (
-              <Button size="sm" onClick={() => handleStatusChange("published")} disabled={updating}>
-                <SendIcon className="h-3.5 w-3.5 mr-1.5" />
-                Pubblica
-              </Button>
-            )}
-            {event.status === "published" && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => handleStatusChange("draft")} disabled={updating}>
-                  <FileEditIcon className="h-3.5 w-3.5 mr-1.5" />
-                  Torna a bozza
-                </Button>
-                <Button size="sm" onClick={() => handleStatusChange("completed")} disabled={updating}>
-                  <CheckSquareIcon className="h-3.5 w-3.5 mr-1.5" />
-                  Segna come concluso
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleStatusChange("cancelled")} disabled={updating}>
-                  <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                  Cancella evento
-                </Button>
-              </>
-            )}
-            {event.status === "cancelled" && (
-              <Button size="sm" variant="outline" onClick={() => handleStatusChange("draft")} disabled={updating}>
-                <FileEditIcon className="h-3.5 w-3.5 mr-1.5" />
-                Ripristina come bozza
-              </Button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <Separator />
 
       {/* ── Attendees ── */}
       <section className="space-y-4">
