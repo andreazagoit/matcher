@@ -27,7 +27,22 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Optional
 
-from hgt.config import TAG_VOCAB, TRAINING_DATA_DIR
+from hgt.config import TRAINING_DATA_DIR
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+
+# Specifically load .env from project root
+env_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env')
+load_dotenv(dotenv_path=env_path)
+
+client = None
+
+def get_openai_client():
+    global client
+    if client is None:
+        client = OpenAI()
+    return client
 
 # Clusters mirror the 10 TAG_CATEGORIES in config.py / data.ts.
 # Every tag in TAG_VOCAB belongs to exactly one cluster (0–9).
@@ -88,6 +103,9 @@ TAG_CLUSTERS: list[list[str]] = [
 TAG_TO_CLUSTER: dict[str, int] = {
     tag: ci for ci, cluster in enumerate(TAG_CLUSTERS) for tag in cluster
 }
+
+# Re-create TAG_VOCAB flattened from CLUSTERS
+TAG_VOCAB: list[str] = [tag for cluster in TAG_CLUSTERS for tag in cluster]
 
 # ─── Personas ─────────────────────────────────────────────────────────────────
 #
@@ -1093,6 +1111,51 @@ def generate(
 
     _write("event_attendees.json", event_attendees)
     _write("members.json", members)
+
+    # Generate synthetic Tags array with REAL OpenAI embeddings
+    # This allows ml:train to work with meaningful data even on synthetic datasets
+    print(f"  Fetching OpenAI embeddings for {len(TAG_VOCAB)} tags...")
+    
+    oai = get_openai_client()
+    tags_data = []
+    
+    # We batch them to avoid hitting rate limits or making too many requests
+    batch_size = 100
+    all_embeddings = []
+    
+    try:
+        for i in range(0, len(TAG_VOCAB), batch_size):
+            batch = TAG_VOCAB[i:i + batch_size]
+            response = oai.embeddings.create(
+                input=[t.replace("_", " ") for t in batch],
+                model="text-embedding-3-small",
+                dimensions=64
+            )
+            all_embeddings.extend([d.embedding for d in response.data])
+            
+        for idx, tag in enumerate(TAG_VOCAB):
+            cluster_idx = TAG_TO_CLUSTER[tag]
+            category_name = f"cluster_{cluster_idx}"
+            
+            tags_data.append({
+                "id": tag,
+                "name": tag.replace("_", " ").title(),
+                "category": category_name,
+                "embedding": all_embeddings[idx]
+            })
+    except Exception as e:
+        print(f"  [!] Failed to fetch OpenAI embeddings: {e}")
+        print("  [!] Falling back to zero-embeddings...")
+        for tag in TAG_VOCAB:
+            cluster_idx = TAG_TO_CLUSTER[tag]
+            tags_data.append({
+                "id": tag,
+                "name": tag.replace("_", " ").title(),
+                "category": f"cluster_{cluster_idx}",
+                "embedding": [0.0] * 64
+            })
+
+    _write("tags.json", tags_data)
 
     n_pos = len(interactions)
     print(f"\n  positive pairs : {n_pos:,}  (target {n_interactions:,})")

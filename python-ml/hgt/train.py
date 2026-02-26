@@ -43,6 +43,13 @@ _BPR_EDGES: list[tuple[str, str, str]] = [
     ("event", "hosted_by",           "space"),
     ("event", "tagged_with",         "tag"),
     ("space", "tagged_with_space",   "tag"),
+    # Reverse edges for full-spectrum supervision
+    ("event", "rev_attends",         "user"),
+    ("space", "rev_joins",           "user"),
+    ("tag",   "rev_likes",           "user"),
+    ("space", "rev_hosted_by",       "event"),
+    ("tag",   "rev_tagged_with_event", "event"),
+    ("tag",   "rev_tagged_with_space", "space"),
 ]
 
 _EDGES_PER_TYPE = 512   # positive pairs sampled per edge type per step
@@ -232,13 +239,22 @@ def evaluate(
             per_task_r[(atype, dst_type)].append(r)
             per_task_n[(atype, dst_type)].append(n)
 
+    # Ensure all 16 combinations (4x4 matrix) are reported for full observability
+    node_types = ["user", "event", "space", "tag"]
+    for a in node_types:
+        for b in node_types:
+            key = (a, b)
+            if key not in per_task_r:
+                per_task_r[key] = []
+                per_task_n[key] = []
+
     per_task = {
         f"{a}->{b}": {
-            "recall@k": sum(rs) / len(rs),
-            "ndcg@k":   sum(per_task_n[(a, b)]) / len(per_task_n[(a, b)]),
+            "recall@k": sum(rs) / len(rs) if rs else 0.0,
+            "ndcg@k":   sum(per_task_n[(a, b)]) / len(per_task_n[(a, b)]) if rs else 0.0,
             "n_anchors": len(rs),
         }
-        for (a, b), rs in per_task_r.items()
+        for (a, b), rs in sorted(per_task_r.items())
     }
 
     total_n   = sum(v["n_anchors"] for v in per_task.values())
@@ -246,9 +262,11 @@ def evaluate(
         sum(v["recall@k"] * v["n_anchors"] for v in per_task.values()) / total_n
         if total_n else 0.0
     )
-    # Primary signal: mean cross-type recall (user→event, user→space)
-    cross_rs  = [per_task[k]["recall@k"] for k in ("user->event", "user->space") if k in per_task]
-    primary_r = sum(cross_rs) / len(cross_rs) if cross_rs else micro_r
+    
+    # Primary signal: mean recall across CORE interaction types
+    core_keys = ["user->event", "user->space", "user->tag"]
+    active_core = [per_task[k]["recall@k"] for k in core_keys if k in per_task]
+    primary_r = sum(active_core) / len(active_core) if active_core else micro_r
 
     return {
         "primary_recall": primary_r,
@@ -329,14 +347,17 @@ def train(
             pt      = ev["per_task"]
             elapsed = time.time() - t0
 
-            task_str = "  ".join(
-                f"{k}: R@10={v['recall@k']:.3f} N@10={v['ndcg@k']:.3f} (n={v['n_anchors']})"
-                for k, v in sorted(pt.items())
-            )
+            task_lines = []
+            for k in sorted(pt.keys()):
+                line = f"{k:14} │ R@10: {pt[k]['recall@k']:.4f} │ N@10: {pt[k]['ndcg@k']:.4f} │ n: {pt[k]['n_anchors']}"
+                task_lines.append(line)
+            
+            task_str = "\n         ".join(task_lines)
+            
             print(
                 f"[{ep:>4}/{epochs}] loss={loss:.4f}  "
                 f"primary_R@10={ev['primary_recall']:.4f}  micro_R@10={ev['micro_recall@k']:.4f}  "
-                f"({elapsed:.0f}s)\n         {task_str}"
+                f"({elapsed:.1f}s)\n         {task_str}"
             )
 
             if ev["primary_recall"] > best_score:

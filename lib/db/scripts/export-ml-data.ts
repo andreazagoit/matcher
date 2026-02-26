@@ -107,6 +107,24 @@ async function exportEvents() {
   });
 }
 
+async function exportTags() {
+  const rows = await client`
+    SELECT
+      id::text,
+      name,
+      category,
+      embedding::text
+    FROM tags
+    ORDER BY id ASC
+  `;
+  return rows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    embedding: t.embedding ? JSON.parse(t.embedding) : null,
+  }));
+}
+
 async function exportSpaces() {
   const rows = await client`
     SELECT
@@ -219,10 +237,11 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const [users, events, spaces, eventAttendees, members, connections] = await Promise.all([
+  const [users, events, spaces, tags, eventAttendees, members, connections] = await Promise.all([
     exportUsers(),
     exportEvents(),
     exportSpaces(),
+    exportTags(),
     exportEventAttendees(),
     exportMembers(),
     exportConnections(),
@@ -231,6 +250,7 @@ async function main() {
   write("users.json", users);
   write("events.json", events);
   write("spaces.json", spaces);
+  write("tags.json", tags);
   write("event_attendees.json", eventAttendees);
   write("members.json", members);
   write("connections.json", connections);

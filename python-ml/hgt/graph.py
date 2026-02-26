@@ -29,7 +29,9 @@ from typing import Optional
 import torch
 from torch_geometric.data import HeteroData
 
-from hgt.config import TRAINING_DATA_DIR, NUM_TAGS, TAG_TO_IDX
+from torch_geometric.data import HeteroData
+
+from hgt.config import TRAINING_DATA_DIR
 from hgt.features import build_user_features, build_event_features, build_space_features
 from hgt.utils import days_until
 
@@ -43,10 +45,35 @@ def _load(path: str) -> list[dict]:
 
 # ── Feature builders (JSON dict → float list) ─────────────────────────────────
 
-def _user_vec(u: dict) -> list[float]:
+def _user_vec(u: dict, tags_data: dict[str, list[float]], tag_weights: dict[str, float]) -> list[float]:
+    u_tags = u.get("tags") or []
+    from hgt.config import TAG_EMBED_DIM
+    
+    # We include all tags that have an embedding AND a positive weight for this user.
+    # This makes the profile "dynamic" by including tags from interactions.
+    active_tags = [t for t in tag_weights if t in tags_data and tag_weights[t] > 0]
+    
+    if not active_tags:
+        return build_user_features(
+            birthdate=u.get("birthdate"),
+            tag_embeddings=[[0.0] * TAG_EMBED_DIM],
+            tag_weights=[1.0],
+            num_tags=len(u_tags),
+            gender=u.get("gender"),
+            relationship_intent=u.get("relationshipIntent") or [],
+            smoking=u.get("smoking"),
+            drinking=u.get("drinking"),
+            activity_level=u.get("activityLevel"),
+        )
+    
+    tag_embs = [tags_data[t] for t in active_tags]
+    weights = [tag_weights[t] for t in active_tags]
+    
     return build_user_features(
         birthdate=u.get("birthdate"),
-        tags=u.get("tags") or [],
+        tag_embeddings=tag_embs,
+        tag_weights=weights,
+        num_tags=len(u_tags),
         gender=u.get("gender"),
         relationship_intent=u.get("relationshipIntent") or [],
         smoking=u.get("smoking"),
@@ -55,10 +82,17 @@ def _user_vec(u: dict) -> list[float]:
     )
 
 
-def _event_vec(e: dict) -> list[float]:
+def _event_vec(e: dict, tags_data: dict[str, list[float]]) -> list[float]:
     starts_at = e.get("startsAt")
+    e_tags = e.get("tags") or []
+    from hgt.config import TAG_EMBED_DIM
+    tag_embs = [tags_data[t] for t in e_tags if t in tags_data]
+    if not tag_embs:
+        tag_embs = [[0.0] * TAG_EMBED_DIM]
+
     return build_event_features(
-        tags=e.get("tags") or [],
+        tag_embeddings=tag_embs,
+        num_tags=len(e_tags),
         starts_at=starts_at,
         avg_attendee_age=e.get("avgAttendeeAge"),
         attendee_count=int(e.get("attendeeCount") or 0),
@@ -69,9 +103,16 @@ def _event_vec(e: dict) -> list[float]:
     )
 
 
-def _space_vec(s: dict) -> list[float]:
+def _space_vec(s: dict, tags_data: dict[str, list[float]]) -> list[float]:
+    s_tags = s.get("tags") or []
+    from hgt.config import TAG_EMBED_DIM
+    tag_embs = [tags_data[t] for t in s_tags if t in tags_data]
+    if not tag_embs:
+        tag_embs = [[0.0] * TAG_EMBED_DIM]
+
     return build_space_features(
-        tags=s.get("tags") or [],
+        tag_embeddings=tag_embs,
+        num_tags=len(s_tags),
         avg_member_age=s.get("avgMemberAge"),
         member_count=int(s.get("memberCount") or 0),
         event_count=int(s.get("eventCount") or 0),
@@ -172,116 +213,177 @@ def build_graph_data(
     user_ids  = [u["id"] for u in users_raw]
     event_ids = [e["id"] for e in events_raw]
     space_ids = [s["id"] for s in spaces_raw]
+    
+    tags_raw = _load(os.path.join(data_dir, "tags.json"))
+    
+    # Optional logic for when TAGS is completely missing or old DB was cleared out.
+    if not tags_raw:
+        tag_ids = []
+        tags_data = {}
+    else:    
+        tag_ids = [t["id"] for t in tags_raw]
+        # embedding matrix lookup for O(1) matching in _user_vec etc.
+        tags_data = {t["id"]: t["embedding"] for t in tags_raw if t.get("embedding")}
 
     u_idx = {uid: i for i, uid in enumerate(user_ids)}
     e_idx = {eid: i for i, eid in enumerate(event_ids)}
     s_idx = {sid: i for i, sid in enumerate(space_ids)}
+    t_idx = {tid: i for i, tid in enumerate(tag_ids)}
+
+    # ── Tag Weights Calculation (Dynamic Profile) ──────────────────────────────
+    # Base weight 1.0 for declared tags, +0.5 for events, +0.3 for spaces
+    user_weights: dict[str, dict[str, float]] = {}
+    for u in users_raw:
+        user_weights[u["id"]] = {t: 1.0 for t in u.get("tags", [])}
+
+    event_map = {e["id"]: e for e in events_raw}
+    for att in attendees_raw:
+        uid, eid = att.get("userId"), att.get("eventId")
+        if uid in user_weights and eid in event_map:
+            for t in event_map[eid].get("tags", []):
+                user_weights[uid][t] = user_weights[uid].get(t, 0.0) + 0.5
+
+    space_map = {s["id"]: s for s in spaces_raw}
+    for mem in members_raw:
+        uid, sid = mem.get("userId"), mem.get("spaceId")
+        if uid in user_weights and sid in space_map:
+            for t in space_map[sid].get("tags", []):
+                user_weights[uid][t] = user_weights[uid].get(t, 0.0) + 0.3
 
     # ── Node feature tensors ──────────────────────────────────────────────────
-    user_x  = torch.tensor([_user_vec(u)  for u in users_raw],  dtype=torch.float32)
-    event_x = torch.tensor([_event_vec(e) for e in events_raw], dtype=torch.float32)
-    space_x = torch.tensor([_space_vec(s) for s in spaces_raw], dtype=torch.float32)
-    # Tag nodes: identity matrix — each tag is a unique one-hot vector
-    tag_x   = torch.eye(NUM_TAGS, dtype=torch.float32)
-
-    # ── Temporal train / val split on interactions ────────────────────────────
-    by_user: dict[str, list] = defaultdict(list)
+    user_x  = torch.tensor([_user_vec(u, tags_data, user_weights[u["id"]])  for u in users_raw],  dtype=torch.float32)
+    event_x = torch.tensor([_event_vec(e, tags_data) for e in events_raw], dtype=torch.float32)
+    space_x = torch.tensor([_space_vec(s, tags_data) for s in spaces_raw], dtype=torch.float32)
     
-    for r in attendees_raw:
-        uid = r.get("userId")
-        eid = r.get("eventId")
-        w = float(r.get("weight", 1.0))
-        ts = r.get("created_at", "")
-        if uid in u_idx and eid in e_idx:
-            by_user[uid].append((eid, "event", w, ts))
+    # Tag nodes: 64D dense embeddings directly from Postgres via tags.json
+    from hgt.config import TAG_EMBED_DIM
+    if tag_ids and len(tags_data) > 0:
+        t_list = []
+        for tid in tag_ids:
+            t_list.append(tags_data.get(tid, [0.0] * TAG_EMBED_DIM))
+        tag_x = torch.tensor(t_list, dtype=torch.float32)
+    elif tag_ids:
+        # We have tags but no embeddings at all (e.g. from synthetic generator)
+        tag_x = torch.zeros((len(tag_ids), TAG_EMBED_DIM), dtype=torch.float32)
+    else:
+        # Fallback to completely empty if missing tags.json entirely
+        tag_x = torch.empty((0, TAG_EMBED_DIM), dtype=torch.float32)
 
-    for r in members_raw:
-        uid = r.get("userId")
-        sid = r.get("spaceId")
-        w = float(r.get("weight", 1.0))
-        ts = r.get("created_at", "")
-        if uid in u_idx and sid in s_idx:
-            by_user[uid].append((sid, "space", w, ts))
+    u_idx = {uid: i for i, uid in enumerate(user_ids)}
+    e_idx = {eid: i for i, eid in enumerate(event_ids)}
+    s_idx = {sid: i for i, sid in enumerate(space_ids)}
+    t_idx = {tid: i for i, tid in enumerate(tag_ids)}
 
-    attends_src, attends_dst, attends_w = [], [], []
-    joins_src,   joins_dst,   joins_w   = [], [], []
-    val_pos:   dict[str, dict[str, list[str]]] = {}
-    train_pos: dict[str, dict[str, set[str]]]  = {}
+    # ── Universal train / val split logic ─────────────────────────────────────
+    # We want to monitor all edge types in _BPR_EDGES.
+    
+    # Structure: (src_type, src_id, dst_type) -> list[dst_id]
+    val_all: dict[tuple[str, str, str], list[str]] = defaultdict(list)
+    # Structure: (src_type, src_id, dst_type) -> set[dst_id]
+    train_all: dict[tuple[str, str, str], set[str]] = defaultdict(set)
 
-    for uid, records in by_user.items():
-        records.sort(key=lambda r: r[3])           # chronological
-        n_val = max(1, int(len(records) * val_ratio))
-        train_recs = records[:-n_val]
-        val_recs   = records[-n_val:]
-
-        train_pos.setdefault(uid, {"event": set(), "space": set()})
-        for iid, itype, w, _ in train_recs:
-            if itype == "event":
-                attends_src.append(u_idx[uid])
-                attends_dst.append(e_idx[iid])
-                attends_w.append(w * 2.0)  # attends gives stronger signal than joins
+    def _split_and_fill(records, src_type, dst_type_map, src_idx_map, dst_idx_map, 
+                         src_list, dst_list, w_list, 
+                         is_timestamped=True, default_weight=1.0):
+        # group by src_id
+        by_src = defaultdict(list)
+        for r in records:
+            sid, did, w, ts = r
+            if sid in src_idx_map and did in dst_idx_map:
+                by_src[sid].append(r)
+        
+        for sid, recs in by_src.items():
+            if is_timestamped:
+                recs.sort(key=lambda x: x[3]) # chronological
             else:
-                joins_src.append(u_idx[uid])
-                joins_dst.append(s_idx[iid])
-                joins_w.append(w * 1.5)  # joins gives medium signal
-            train_pos[uid][itype].add(iid)
+                random.shuffle(recs)
+            
+            n_v = max(1, int(len(recs) * val_ratio)) if len(recs) > 1 else 0
+            t_recs = recs[:-n_v] if n_v > 0 else recs
+            v_recs = recs[-n_v:] if n_v > 0 else []
+            
+            # Metadata for dst_type
+            d_type = dst_type_map[recs[0][1]] if isinstance(dst_type_map, dict) else dst_type_map
 
-        for iid, itype, w, _ in val_recs:
-            val_pos.setdefault(uid, {"event": [], "space": []})
-            val_pos[uid][itype].append(iid)
+            for src_id, dst_id, w, _ in t_recs:
+                src_list.append(src_idx_map[src_id])
+                dst_list.append(dst_idx_map[dst_id])
+                w_list.append(w)
+                train_all[(src_type, src_id, d_type)].add(dst_id)
+            
+            for src_id, dst_id, w, _ in v_recs:
+                val_all[(src_type, src_id, d_type)].append(dst_id)
+                # Add reverse validation for high-granularity tracking
+                val_all[(d_type, dst_id, src_type)].append(src_id)
 
-    # ── hosted_by edges (event → space) ───────────────────────────────────────
-    hosted_src, hosted_dst = [], []
+    # 1. User interactions (attends, joins)
+    # Mapping table for interaction records
+    inter_recs = []
+    for r in attendees_raw:
+        uid, eid = r.get("userId"), r.get("eventId")
+        w, ts = float(r.get("weight", 1.0)) * 2.0, r.get("created_at", "")
+        inter_recs.append((uid, eid, w, ts))
+    
+    attends_src, attends_dst, attends_w = [], [], []
+    _split_and_fill(inter_recs, "user", "event", u_idx, e_idx, attends_src, attends_dst, attends_w)
+
+    inter_recs = []
+    for r in members_raw:
+        uid, sid = r.get("userId"), r.get("spaceId")
+        w, ts = float(r.get("weight", 1.0)) * 1.5, r.get("created_at", "")
+        inter_recs.append((uid, sid, w, ts))
+    
+    joins_src, joins_dst, joins_w = [], [], []
+    _split_and_fill(inter_recs, "user", "space", u_idx, s_idx, joins_src, joins_dst, joins_w)
+
+    # 2. hosted_by (event → space)
+    hosted_recs = []
     for e in events_raw:
-        sid = e.get("spaceId")
-        if e["id"] in e_idx and sid and sid in s_idx:
-            hosted_src.append(e_idx[e["id"]])
-            hosted_dst.append(s_idx[sid])
+        eid, sid = e["id"], e.get("spaceId")
+        if sid: hosted_recs.append((eid, sid, 1.0, ""))
+    
+    hosted_src, hosted_dst, hosted_w = [], [], []
+    _split_and_fill(hosted_recs, "event", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, is_timestamped=False)
 
-    # ── user similar_to user (co-attendance graph) ────────────────────────────
-    sim_src, sim_dst, sim_w = _user_user_edges(events_raw, spaces_raw, attendees_raw, members_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
+    # 3. similar_to (user → user)
+    # (Pre-calculated by _user_user_edges)
+    sim_raw_src, sim_raw_dst, sim_raw_w = _user_user_edges(events_raw, spaces_raw, attendees_raw, members_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
+    # Convert indexes back to IDs to use our generic splitter
+    rev_u_idx = {i: uid for uid, i in u_idx.items()}
+    sim_recs = [(rev_u_idx[s], rev_u_idx[d], w, "") for s, d, w in zip(sim_raw_src, sim_raw_dst, sim_raw_w)]
+    
+    sim_src, sim_dst, sim_w = [], [], []
+    _split_and_fill(sim_recs, "user", "user", u_idx, u_idx, sim_src, sim_dst, sim_w, is_timestamped=False)
 
-    # ── Tag edges ─────────────────────────────────────────────────────────────
-    # user → tag (binary: 1.0 per declared tag)
-    ut_src, ut_dst = [], []
+    # 4. Tags (likes, tagged_with, tagged_with_space)
+    ut_recs = []
     for u in users_raw:
         uid = u["id"]
-        if uid not in u_idx:
-            continue
-        for tag in (u.get("tags") or []):
-            t = TAG_TO_IDX.get(tag)
-            if t is not None:
-                ut_src.append(u_idx[uid]); ut_dst.append(t)
+        for t in u.get("tags", []): ut_recs.append((uid, t, 1.0, ""))
+    ut_src, ut_dst, ut_w = [], [], []
+    _split_and_fill(ut_recs, "user", "tag", u_idx, t_idx, ut_src, ut_dst, ut_w, is_timestamped=False)
 
-    # event → tag
-    et_src, et_dst = [], []
+    et_recs = []
     for e in events_raw:
         eid = e["id"]
-        if eid not in e_idx:
-            continue
-        for tag in (e.get("tags") or []):
-            t = TAG_TO_IDX.get(tag)
-            if t is not None:
-                et_src.append(e_idx[eid]); et_dst.append(t)
+        for t in e.get("tags", []): et_recs.append((eid, t, 1.0, ""))
+    et_src, et_dst, et_w = [], [], []
+    _split_and_fill(et_recs, "event", "tag", e_idx, t_idx, et_src, et_dst, et_w, is_timestamped=False)
 
-    # space → tag
-    st_src, st_dst = [], []
+    st_recs = []
     for s in spaces_raw:
         sid = s["id"]
-        if sid not in s_idx:
-            continue
-        for tag in (s.get("tags") or []):
-            t = TAG_TO_IDX.get(tag)
-            if t is not None:
-                st_src.append(s_idx[sid]); st_dst.append(t)
+        for t in s.get("tags", []): st_recs.append((sid, t, 1.0, ""))
+    st_src, st_dst, st_w = [], [], []
+    _split_and_fill(st_recs, "space", "tag", s_idx, t_idx, st_src, st_dst, st_w, is_timestamped=False)
 
     # ── Populate PyG HeteroData ───────────────────────────────────────────────
     data = HeteroData()
 
-    data["user"].x  = torch.tensor([_user_vec(u)  for u in users_raw],  dtype=torch.float32)
-    data["event"].x = torch.tensor([_event_vec(e) for e in events_raw], dtype=torch.float32)
-    data["space"].x = torch.tensor([_space_vec(s) for s in spaces_raw], dtype=torch.float32)
-    data["tag"].x   = torch.eye(NUM_TAGS, dtype=torch.float32)
+    data["user"].x  = user_x
+    data["event"].x = event_x
+    data["space"].x = space_x
+    data["tag"].x   = tag_x
 
     if attends_src:
         ei = _to_edge_index(attends_src, attends_dst)
@@ -344,16 +446,33 @@ def build_graph_data(
         data["tag",   "rev_tagged_with_space", "space"].edge_weight = ew
 
     # ── Validation data ────────────────────────────────────────────────────────
+    # Convert our grouped dicts into the list format train.py expects
+    val_pairs_list = []
+    for (atype, aid, itype), ids in val_all.items():
+        for iid in ids:
+            val_pairs_list.append((atype, aid, itype, iid))
+
+    # train_all is (atype, aid, itype) -> set(iid)
+    # We need to flatten it for evaluate() to { (atype, aid): set(iid) }
+    seen_train_flattened = defaultdict(set)
+    for (atype, aid, itype), ids in train_all.items():
+        seen_train_flattened[(atype, aid)] |= ids
+
     val_data = _build_val_data(
-        val_pos, train_pos,
-        users_raw, events_raw, spaces_raw,
+        users_raw, events_raw, spaces_raw, 
+        seen_train_flattened, val_pairs_list, tags_data, user_weights
     )
 
-    node_ids = {"user": user_ids, "event": event_ids, "space": space_ids}
+    node_ids = {
+        "user": user_ids, 
+        "event": event_ids, 
+        "space": space_ids,
+        "tag": tag_ids
+    }
 
     print(
         f"Graph: {len(user_ids)} users, {len(event_ids)} events, "
-        f"{len(space_ids)} spaces, {NUM_TAGS} tags | "
+        f"{len(space_ids)} spaces, {len(tags_data)} tags | "
         f"attends={len(attends_src)} joins={len(joins_src)} "
         f"hosted_by={len(hosted_src)} similar_to={len(sim_src)} "
         f"likes={len(ut_src)} tagged_with={len(et_src)+len(st_src)}"
@@ -365,11 +484,13 @@ def build_graph_data(
 # ── Validation helper ──────────────────────────────────────────────────────────
 
 def _build_val_data(
-    val_pos:   dict[str, dict[str, list[str]]],
-    train_pos: dict[str, dict[str, set[str]]],
-    users_raw:  list[dict],
+    users_raw: list[dict],
     events_raw: list[dict],
     spaces_raw: list[dict],
+    seen_train: dict[tuple[str, str], set[str]],
+    val_pairs: list[tuple[str, str, str, str]],
+    tags_data: dict[str, list[float]],
+    user_weights: dict[str, dict[str, float]],
 ) -> dict:
     """
     Returns a dict usable by evaluate_recall_ndcg in train.py:
@@ -379,33 +500,38 @@ def _build_val_data(
       seen_train_by_anchor  — {(atype, aid): set(iid)}
     """
     anchor_features: dict[tuple, list[float]] = {}
-    val_pairs: list[tuple] = []
-    seen_train: dict[tuple, set[str]] = {}
-
+    
     user_by_id = {u["id"]: u for u in users_raw}
+    event_by_id = {e["id"]: e for e in events_raw}
+    space_by_id = {s["id"]: s for s in spaces_raw}
 
-    for uid, by_type in val_pos.items():
-        if not any(by_type.values()):
-            continue
-        u = user_by_id.get(uid)
-        if not u:
-            continue
-        key = ("user", uid)
-        anchor_features[key] = _user_vec(u)
-        seen_train[key] = set()
-        for itype, ids in (train_pos.get(uid) or {}).items():
-            seen_train[key] |= ids
-        for itype, iids in by_type.items():
-            for iid in iids:
-                val_pairs.append(("user", uid, itype, iid))
+    # Extract unique anchors from val pairs
+    all_anchors = {(atype, aid) for atype, aid, itype, iid in val_pairs}
+
+    for atype, aid in all_anchors:
+        if atype == "user":
+            u = user_by_id.get(aid)
+            if u: anchor_features[(atype, aid)] = _user_vec(u, tags_data, user_weights[aid])
+        elif atype == "event":
+            e = event_by_id.get(aid)
+            if e: anchor_features[(atype, aid)] = _event_vec(e, tags_data)
+        elif atype == "space":
+            s = space_by_id.get(aid)
+            if s: anchor_features[(atype, aid)] = _space_vec(s, tags_data)
+        elif atype == "tag":
+            emb = tags_data.get(aid)
+            if emb: anchor_features[(atype, aid)] = emb
 
     item_features: dict[str, tuple[str, list[float]]] = {}
     for e in events_raw:
-        item_features[e["id"]] = ("event", _event_vec(e))
+        item_features[e["id"]] = ("event", _event_vec(e, tags_data))
     for s in spaces_raw:
-        item_features[s["id"]] = ("space", _space_vec(s))
+        item_features[s["id"]] = ("space", _space_vec(s, tags_data))
     for u in users_raw:
-        item_features[u["id"]] = ("user", _user_vec(u))
+        item_features[u["id"]] = ("user", _user_vec(u, tags_data, user_weights[u["id"]]))
+    
+    # We don't really have "features" for tags in the same way (they are the targets)
+    # but we might need them if they were anchors. For now, they are only targets.
 
     return {
         "anchor_features":      anchor_features,

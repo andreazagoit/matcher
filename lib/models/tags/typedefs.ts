@@ -19,4 +19,11 @@ export const tagTypeDefs = `#graphql
     """
     allTags: [String!]!
   }
+
+  extend type Mutation {
+    """
+    Create a new tag dynamically. Handled by OpenAI Embeddings generation (64d + 256d).
+    """
+    createTag(name: String!, category: String!): String!
+  }
 `;

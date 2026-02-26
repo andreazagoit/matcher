@@ -31,3 +31,6 @@ export * from "../models/useritems/schema";
 
 // 11. Notifications
 export * from "../models/notifications/schema";
+
+// 12. Tags (with Dense Embeddings)
+export * from "../models/tags/schema";
