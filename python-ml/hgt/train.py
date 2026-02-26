@@ -29,7 +29,25 @@ from hgt.config import (
 )
 from hgt.graph import build_graph_data
 from hgt.model import HetEncoder, save_model, load_model, device, _AUTOCAST, _DTYPE
+from hgt.config import (
+    MODEL_WEIGHTS_PATH, TRAINING_DATA_DIR,
+    EMBED_DIM, HIDDEN_DIM, HGT_HEADS, HGT_LAYERS,
+    NODE_TYPES, METADATA
+)
+import os
 
+def load_model_and_graph(weights_path: str = MODEL_WEIGHTS_PATH, data_dir: str = TRAINING_DATA_DIR):
+    print(f"Loading data from {data_dir}...")
+    bundle = build_graph_data(data_dir=data_dir)
+    
+    model = HetEncoder().to(device)
+    
+    if os.path.exists(weights_path):
+        print(f"Loading weights from {weights_path}")
+        model.load_state_dict(torch.load(weights_path, map_location=device))
+        
+    model.eval()
+    return model, bundle
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -321,16 +339,20 @@ def train(
     for atype, aid, _, _ in val_data["val_pairs"]:
         by_anchor_count[(atype, aid)] += 1
 
-    all_anchors = [
-        k for k in val_data["anchor_features"]
-        if k in anchors_with_val and by_anchor_count[k] >= 2
-    ]
+    # Balanced anchor sampling: take up to 128 anchors per type to ensure stable 'n' for all tasks.
+    by_type: dict[str, list] = defaultdict(list)
+    for atype, aid in val_data["anchor_features"]:
+        if (atype, aid) in anchors_with_val and by_anchor_count[(atype, aid)] >= 1: # lowered to 1 to include rare links
+            by_type[atype].append((atype, aid))
+            
     rng = random.Random(0)
-    fixed_eval_anchors = (
-        rng.sample(all_anchors, min(384, len(all_anchors)))
-        if len(all_anchors) > 384 else all_anchors
-    )
-    print(f"  Eval anchors: {len(fixed_eval_anchors)} (con ≥2 val items)")
+    balanced_anchors = []
+    for atype, candidates in by_type.items():
+        n_to_take = min(128, len(candidates))
+        balanced_anchors.extend(rng.sample(candidates, n_to_take))
+        
+    fixed_eval_anchors = balanced_anchors
+    print(f"  Eval anchors: {len(fixed_eval_anchors)} (balanced: {[f'{t}:{len(v)}' for t, v in by_type.items() if any(a[0]==t for a in balanced_anchors)]})")
 
     best_score    = -1.0
     best_state    = None

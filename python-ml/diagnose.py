@@ -41,9 +41,10 @@ print(f"\n── Random baseline R@10 (K=10):")
 n_events = len(node_ids["event"])
 n_spaces  = len(node_ids["space"])
 n_users   = len(node_ids["user"])
+n_tags    = len(node_ids["tag"])
 
 for (a, b), _ in sorted(task_counts.items()):
-    catalog_size = {"event": n_events, "space": n_spaces, "user": n_users}[b]
+    catalog_size = {"event": n_events, "space": n_spaces, "user": n_users, "tag": n_tags}.get(b, 1)
     # expected recall@10 = 10 / catalog_size  (1 relevant item)
     baseline = 10 / catalog_size
     print(f"   {a}->{b}: catalog={catalog_size}  random R@10 ≈ {baseline:.4f} ({baseline*100:.2f}%)")
@@ -54,12 +55,20 @@ print(f"\n── Anchor con ≥2 val items (stima affidabile): {reliable}/{len(c
 
 # ── 5. Overlap train/val ──────────────────────────────────────────────────
 overlaps = 0
+overlaps_list = []
 for (atype, aid), by_type in by_anchor.items():
     train_seen = seen.get((atype, aid), set())
     for itype, iids in by_type.items():
         for iid in iids:
             if iid in train_seen:
                 overlaps += 1
+                if len(overlaps_list) < 10:
+                    overlaps_list.append(f"      {atype} {aid} -> {itype} {iid}")
+
 print(f"\n── Val items che compaiono anche in train: {overlaps} (dovrebbe essere 0)")
+if overlaps_list:
+    print("   Esempi:")
+    for ex in overlaps_list:
+        print(ex)
 
 print("\nDone.")

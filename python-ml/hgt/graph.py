@@ -175,15 +175,91 @@ def _user_user_edges(
     src, dst, weights = [], [], []
     max_coattend = float(max(pair_count.values(), default=1))
 
-    for uid, peers in neighbors.items():
+    # To keep the graph sparse, we take top_k neighbors per user
+    # but store them as unique undirected bonds (u1 < u2) for split safety
+    user_neighbors = defaultdict(list)
+    for (u1, u2), cnt in pair_count.items():
+        if cnt >= min_coattend:
+            user_neighbors[u1].append((u2, cnt))
+            user_neighbors[u2].append((u1, cnt))
+
+    bonds = set()
+    for uid, peers in user_neighbors.items():
         peers.sort(key=lambda x: x[1], reverse=True)
         for peer_id, cnt in peers[:top_k]:
-            src.append(u_idx[uid])
-            dst.append(u_idx[peer_id])
+            bonds.add(tuple(sorted((uid, peer_id))))
+
+    for u1, u2 in bonds:
+        cnt = pair_count.get((u1, u2)) or pair_count.get((u2, u1))
+        src.append(u_idx[u1])
+        dst.append(u_idx[u2])
+        weights.append(float(cnt) / max_coattend)
             
-            # Normalize co-attendance count to [0, 1] relative to the global max
-            weights.append(float(cnt) / max_coattend)
+    return src, dst, weights
+
+
+def _shared_tag_edges(entities: list[dict], e_idx: dict[str, int], top_k: int = 5) -> tuple[list[int], list[int], list[float]]:
+    """Connect entities (events or spaces) based on shared tags."""
+    tag_to_entities = defaultdict(list)
+    for ent in entities:
+        for t in ent.get("tags", []):
+            tag_to_entities[t].append(ent["id"])
             
+    pair_count: dict[tuple[str, str], int] = defaultdict(int)
+    for ents in tag_to_entities.values():
+        el = sorted(ents)
+        for i in range(len(el)):
+            for j in range(i + 1, len(el)):
+                pair_count[(el[i], el[j])] += 1
+                
+    src, dst, weights = [], [], []
+    ent_neighbors = defaultdict(list)
+    for (e1, e2), cnt in pair_count.items():
+        if cnt >= 2: # At least 2 shared tags
+            ent_neighbors[e1].append((e2, cnt))
+            ent_neighbors[e2].append((e1, cnt))
+            
+    bonds = set()
+    for eid, peers in ent_neighbors.items():
+        peers.sort(key=lambda x: x[1], reverse=True)
+        for peer_id, cnt in peers[:top_k]:
+            bonds.add(tuple(sorted((eid, peer_id))))
+            
+    max_c = float(max(pair_count.values(), default=1))
+    for e1, e2 in bonds:
+        cnt = pair_count.get((e1, e2)) or pair_count.get((e2, e1))
+        src.append(e_idx[e1])
+        dst.append(e_idx[e2])
+        weights.append(float(cnt) / max_c)
+        
+    return src, dst, weights
+
+
+def _tag_tag_edges(tags_raw: list[dict], t_idx: dict[str, int], top_k: int = 5) -> tuple[list[int], list[int], list[float]]:
+    """Connect tags based on cosine similarity of their 64d OpenAI embeddings."""
+    if not tags_raw: return [], [], []
+    
+    import torch.nn.functional as F
+    ids = [t["id"] for t in tags_raw if t.get("embedding")]
+    if not ids: return [], [], []
+    
+    embs = torch.tensor([t["embedding"] for t in tags_raw if t.get("embedding")], dtype=torch.float32)
+    embs = F.normalize(embs, p=2, dim=1)
+    sim_matrix = torch.mm(embs, embs.t())
+    
+    src, dst, weights = [], [], []
+    for i in range(len(ids)):
+        scores = sim_matrix[i]
+        scores[i] = -1.0 # Ignore self
+        vals, indices = torch.topk(scores, k=min(top_k, len(ids)-1))
+        for val, idx in zip(vals.tolist(), indices.tolist()):
+            # Store as unique undirected bond u1 < u2
+            id1, id2 = ids[i], ids[idx]
+            if id1 < id2:
+                src.append(t_idx[id1])
+                dst.append(t_idx[id2])
+                weights.append(float(val))
+                
     return src, dst, weights
 
 
@@ -284,7 +360,7 @@ def build_graph_data(
 
     def _split_and_fill(records, src_type, dst_type_map, src_idx_map, dst_idx_map, 
                          src_list, dst_list, w_list, 
-                         is_timestamped=True, default_weight=1.0):
+                         is_timestamped=True, default_weight=1.0, allow_1_degree_holdout=False):
         # group by src_id
         by_src = defaultdict(list)
         for r in records:
@@ -298,7 +374,17 @@ def build_graph_data(
             else:
                 random.shuffle(recs)
             
-            n_v = max(1, int(len(recs) * val_ratio)) if len(recs) > 1 else 0
+            # If a source node only has 1 record for this relation, we usually never hold it out
+            # to protect its embedding. However, for 1-to-1 relationships like `event->space`
+            # we MUST hold some out (`allow_1_degree_holdout`), or we never evaluate them.
+            if len(recs) == 1:
+                n_v = 1 if allow_1_degree_holdout and random.random() < val_ratio else 0
+            else:
+                n_v = max(1, int(len(recs) * val_ratio))
+                # Ensure we ALWAYS leave at least 1 record in training
+                if len(recs) - n_v < 1:
+                    n_v = len(recs) - 1
+            
             t_recs = recs[:-n_v] if n_v > 0 else recs
             v_recs = recs[-n_v:] if n_v > 0 else []
             
@@ -310,6 +396,13 @@ def build_graph_data(
                 dst_list.append(dst_idx_map[dst_id])
                 w_list.append(w)
                 train_all[(src_type, src_id, d_type)].add(dst_id)
+                
+                # If symmetric user relationship, ensure reverse is also in train/seen
+                if src_type == d_type and src_type == "user":
+                    src_list.append(src_idx_map[dst_id])
+                    dst_list.append(src_idx_map[src_id])
+                    w_list.append(w)
+                    train_all[(src_type, dst_id, src_type)].add(src_id)
             
             for src_id, dst_id, w, _ in v_recs:
                 val_all[(src_type, src_id, d_type)].append(dst_id)
@@ -336,14 +429,15 @@ def build_graph_data(
     joins_src, joins_dst, joins_w = [], [], []
     _split_and_fill(inter_recs, "user", "space", u_idx, s_idx, joins_src, joins_dst, joins_w)
 
-    # 2. hosted_by (event → space)
+    # 2. hosted_by (event → space) (Many-to-1)
+    # Every event has exactly 1 space. We MUST allow 1-degree holdouts to test event->space and space->event!
     hosted_recs = []
     for e in events_raw:
         eid, sid = e["id"], e.get("spaceId")
         if sid: hosted_recs.append((eid, sid, 1.0, ""))
     
     hosted_src, hosted_dst, hosted_w = [], [], []
-    _split_and_fill(hosted_recs, "event", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, is_timestamped=False)
+    _split_and_fill(hosted_recs, "event", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, is_timestamped=False, allow_1_degree_holdout=True)
 
     # 3. similar_to (user → user)
     # (Pre-calculated by _user_user_edges)
@@ -376,6 +470,20 @@ def build_graph_data(
         for t in s.get("tags", []): st_recs.append((sid, t, 1.0, ""))
     st_src, st_dst, st_w = [], [], []
     _split_and_fill(st_recs, "space", "tag", s_idx, t_idx, st_src, st_dst, st_w, is_timestamped=False)
+
+    # 5. Same-type similarity (event-event, space-space, tag-tag) -> VALIDATION ONLY (Discovery)
+    # We don't add these to the training graph, but we test if the model can "discover" them.
+    ee_raw_src, ee_raw_dst, ee_raw_w = _shared_tag_edges(events_raw, e_idx, top_k=top_k_similar)
+    for s, d, w in zip(ee_raw_src, ee_raw_dst, ee_raw_w):
+        val_all[("event", event_ids[s], "event")].append(event_ids[d])
+
+    ss_raw_src, ss_raw_dst, ss_raw_w = _shared_tag_edges(spaces_raw, s_idx, top_k=top_k_similar)
+    for s, d, w in zip(ss_raw_src, ss_raw_dst, ss_raw_w):
+        val_all[("space", space_ids[s], "space")].append(space_ids[d])
+
+    tt_raw_src, tt_raw_dst, tt_raw_w = _tag_tag_edges(tags_raw, t_idx, top_k=top_k_similar)
+    for s, d, w in zip(tt_raw_src, tt_raw_dst, tt_raw_w):
+        val_all[("tag", tag_ids[s], "tag")].append(tag_ids[d])
 
     # ── Populate PyG HeteroData ───────────────────────────────────────────────
     data = HeteroData()
@@ -475,7 +583,7 @@ def build_graph_data(
         f"{len(space_ids)} spaces, {len(tags_data)} tags | "
         f"attends={len(attends_src)} joins={len(joins_src)} "
         f"hosted_by={len(hosted_src)} similar_to={len(sim_src)} "
-        f"likes={len(ut_src)} tagged_with={len(et_src)+len(st_src)}"
+        f"likes={len(ut_src)} tagged={len(et_src)+len(st_src)} similarity={len(sim_src)}"
     )
 
     return {"train_data": data, "val_data": val_data, "node_ids": node_ids}
