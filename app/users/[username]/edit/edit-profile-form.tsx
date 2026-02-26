@@ -43,7 +43,7 @@ export type EditableUser = Pick<
     | "hasChildren" | "wantsChildren"
     | "religion" | "smoking" | "drinking" | "activityLevel"
     | "jobTitle" | "educationLevel" | "schoolName" | "languages" | "ethnicity"
-    | "locationText" | "tags"
+    | "location" | "tags"
 >;
 
 type Props = {
@@ -119,7 +119,7 @@ export function EditProfileForm({ user }: Props) {
 
     // Location state
     const [locatingUser, setLocatingUser] = useState(false);
-    const [currentCityName, setCurrentCityName] = useState<string | null>(user.locationText || null);
+    const [currentCityName, setCurrentCityName] = useState<string | null>(user.location || null);
 
     const [updateUser, { loading: saving }] = useMutation(UPDATE_USER);
     const [updateMyTags, { loading: savingTags }] = useMutation(UPDATE_MY_TAGS);
@@ -164,7 +164,7 @@ export function EditProfileForm({ user }: Props) {
                     }
 
                     // Save to backend
-                    await updateLocation({ variables: { lat: latitude, lon: longitude, locationText: city } });
+                    await updateLocation({ variables: { lat: latitude, lon: longitude, location: city } });
 
                 } catch (err) {
                     console.error("Location update failed", err);

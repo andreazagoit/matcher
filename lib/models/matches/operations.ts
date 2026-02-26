@@ -58,7 +58,7 @@ export async function findMatches(
   if (!currentUser) throw new Error("User not found");
 
   // Location is required for daily matches
-  const myLocation = currentUser.location;
+  const myLocation = currentUser.coordinates;
   if (!myLocation) return [];
 
   const myEmbeddingRow = await db.query.embeddings.findFirst({
@@ -67,7 +67,7 @@ export async function findMatches(
   const myEmbedding = myEmbeddingRow?.embedding ?? null;
   const myTags = currentUser.tags ?? [];
 
-  const distanceSql = sql<number>`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
+  const distanceSql = sql<number>`ST_DistanceSphere(${users.coordinates}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
 
   const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
 
@@ -132,12 +132,14 @@ export async function findMatches(
             ),
         ),
         // Candidates must have a location set
-        sql`${users.location} IS NOT NULL`,
+        sql`${users.coordinates} IS NOT NULL`,
         // Required by MatchUser GraphQL type
         sql`${users.username} IS NOT NULL`,
         sql`${users.birthdate} IS NOT NULL`,
-        // Must be within maxDistance radius
-        sql`ST_DistanceSphere(${users.location}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`,
+        sql`${users.id} != ${userId}`,
+        myLocation
+          ? sql`ST_DistanceSphere(${users.coordinates}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`
+          : undefined,
         filters.gender?.length
           ? inArray(users.gender, filters.gender)
           : undefined,

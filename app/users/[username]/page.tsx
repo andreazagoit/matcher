@@ -14,7 +14,7 @@ import Image from "next/image";
 import {
     Briefcase, GraduationCap, Languages, Globe, BookOpen,
     Cigarette, Wine, Dumbbell, Baby, Users, Search, Sprout,
-    Cake, User, Heart, Ruler, Pencil
+    Cake, User, Heart, Ruler, Pencil, MapPin
 } from "lucide-react";
 import type { GetUserQuery, GetUserQueryVariables } from "@/lib/graphql/__generated__/graphql";
 import type { LucideIcon } from "lucide-react";
@@ -130,6 +130,7 @@ export default async function UserProfilePage({
     // ─── Hinge-style list rows ────────────────────────────────────────────────
     type RowEntry = { icon: LucideIcon; value: string };
     const rows: RowEntry[] = [
+        ...(user.location ? [{ icon: MapPin, value: user.location }] : []),
         ...(user.jobTitle ? [{ icon: Briefcase, value: user.jobTitle }] : []),
         ...(user.educationLevel ? [{
             icon: GraduationCap,

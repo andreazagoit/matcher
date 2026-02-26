@@ -1,14 +1,6 @@
 import { z } from "zod";
-import { ALL_TAGS } from "@/lib/models/tags/data";
+import { tagSchema, coordinatesSchema } from "@/lib/models/shared/validator";
 import { attendeeStatusEnum } from "./schema";
-
-const tagSchema = z.enum(ALL_TAGS as [string, ...string[]]);
-
-const coordinatesSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lon: z.number().min(-180).max(180),
-});
-
 export const createEventSchema = z.object({
   spaceId: z.string().uuid(),
   title: z.string().min(1).max(200),

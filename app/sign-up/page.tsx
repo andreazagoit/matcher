@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth-client";
-import { signUpSchema, type SignupFormData, SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
+import { createUserSchema, type SignupFormData, SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
 import {
   genderEnum, sexualOrientationEnum, relationshipIntentEnum, relationshipStyleEnum,
   hasChildrenEnum, wantsChildrenEnum, educationLevelEnum, ethnicityEnum,
@@ -47,8 +47,8 @@ function StepIndicator({ current }: { current: Step }) {
       {STEPS.map((s, i) => (
         <div key={s} className="flex items-center gap-1.5">
           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-colors ${i < idx ? "bg-primary text-primary-foreground"
-              : i === idx ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-                : "bg-muted text-muted-foreground"
+            : i === idx ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+              : "bg-muted text-muted-foreground"
             }`}>
             {i < idx ? "✓" : i + 1}
           </div>
@@ -103,7 +103,7 @@ function SignUpForm() {
 
   const handleIdentityNext = (e: React.FormEvent) => {
     e.preventDefault();
-    const partial = signUpSchema.pick({ name: true, birthdate: true, gender: true });
+    const partial = createUserSchema.pick({ name: true, birthdate: true, gender: true });
     const parsed = partial.safeParse({ name: data.name, birthdate: data.birthdate, gender: data.gender });
     if (!parsed.success) {
       const errors: FieldErrors = {};
@@ -120,7 +120,7 @@ function SignUpForm() {
     e.preventDefault();
     if (loading || usernameTaken) return;
     setSubmitError(null);
-    const partial = signUpSchema.pick({ email: true, username: true });
+    const partial = createUserSchema.pick({ email: true, username: true });
     const parsed = partial.safeParse({ email: data.email, username: data.username });
     if (!parsed.success) {
       const errors: FieldErrors = {};

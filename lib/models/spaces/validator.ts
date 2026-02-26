@@ -1,7 +1,5 @@
 import { z } from "zod";
-import { ALL_TAGS } from "@/lib/models/tags/data";
-
-const tagSchema = z.enum(ALL_TAGS as [string, ...string[]]);
+import { tagSchema } from "@/lib/models/shared/validator";
 
 const visibilityValues = ["public", "private", "hidden"] as const;
 const joinPolicyValues = ["open", "apply", "invite_only"] as const;

@@ -16,6 +16,11 @@ import { GraphQLError } from "graphql";
 export async function createUser(
   input: CreateUserInput
 ): Promise<User> {
+  // Sanitize username
+  if (input.username) {
+    input.username = input.username.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 30);
+  }
+
   const validatedInput = createUserSchema.parse(input);
 
   const existing = await db.query.users.findFirst({
@@ -33,6 +38,30 @@ export async function createUser(
       email: validatedInput.email,
       birthdate: validatedInput.birthdate,
       ...(validatedInput.gender && { gender: validatedInput.gender }),
+
+      // Orientation & identity
+      ...(validatedInput.sexualOrientation && { sexualOrientation: validatedInput.sexualOrientation }),
+      ...(validatedInput.heightCm !== undefined && { heightCm: validatedInput.heightCm }),
+
+      // Relational intent
+      ...(validatedInput.relationshipIntent && { relationshipIntent: validatedInput.relationshipIntent }),
+      ...(validatedInput.relationshipStyle && { relationshipStyle: validatedInput.relationshipStyle }),
+      ...(validatedInput.hasChildren && { hasChildren: validatedInput.hasChildren }),
+      ...(validatedInput.wantsChildren && { wantsChildren: validatedInput.wantsChildren }),
+
+      // Lifestyle
+      ...(validatedInput.religion && { religion: validatedInput.religion }),
+      ...(validatedInput.smoking && { smoking: validatedInput.smoking }),
+      ...(validatedInput.drinking && { drinking: validatedInput.drinking }),
+      ...(validatedInput.activityLevel && { activityLevel: validatedInput.activityLevel }),
+
+      // Identity & background
+      ...(validatedInput.jobTitle && { jobTitle: validatedInput.jobTitle }),
+      ...(validatedInput.educationLevel && { educationLevel: validatedInput.educationLevel }),
+      ...(validatedInput.schoolName && { schoolName: validatedInput.schoolName }),
+      ...(validatedInput.languages && { languages: validatedInput.languages }),
+      ...(validatedInput.ethnicity && { ethnicity: validatedInput.ethnicity }),
+      ...(validatedInput.location && { location: validatedInput.location }),
     })
     .returning();
 
@@ -163,17 +192,25 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
 export async function updateUserLocation(
   id: string,
   lat: number,
-  lon: number,
-  locationText?: string
+  lon: number
 ): Promise<User> {
   const updateData: Partial<User> = {
-    location: { x: lon, y: lat },
+    coordinates: { x: lon, y: lat },
     locationUpdatedAt: new Date(),
     updatedAt: new Date(),
   };
 
-  if (locationText !== undefined) {
-    updateData.locationText = locationText;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
+      headers: { "User-Agent": "MatcherApp/1.0" }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const city = data.address?.city || data.address?.town || data.address?.village || data.name;
+      if (city) updateData.location = city;
+    }
+  } catch (err) {
+    console.error("Reverse geocoding error:", err);
   }
 
   const [updated] = await db

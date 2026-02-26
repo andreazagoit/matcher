@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770330413070,
-      "tag": "0000_sour_night_nurse",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770338874443,
-      "tag": "0001_parched_bill_hollister",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770756141648,
-      "tag": "0002_big_squirrel_girl",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770756259292,
-      "tag": "0003_military_hitman",
+      "when": 1772108000025,
+      "tag": "0000_solid_romulus",
       "breakpoints": true
     }
   ]

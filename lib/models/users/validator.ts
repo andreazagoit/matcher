@@ -14,10 +14,8 @@ import {
   ethnicityEnum,
 } from "./schema";
 
-export const SUPPORTED_LANGUAGES = [
-  "italian", "english", "french", "spanish", "german", "portuguese",
-  "arabic", "chinese", "japanese", "russian", "hindi", "turkish", "other",
-] as const;
+import { SUPPORTED_LANGUAGES } from "@/lib/models/shared/validator";
+export { SUPPORTED_LANGUAGES };
 
 const usernameSchema = z
   .string()
@@ -31,11 +29,32 @@ export const createUserSchema = z.object({
   email: z.string().email("Invalid email"),
   birthdate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
   gender: z.enum(genderEnum.enumValues).optional(),
+
+  // Orientation & identity
+  sexualOrientation: z.array(z.enum(sexualOrientationEnum.enumValues)).optional(),
+  heightCm: z.number().int().min(100).max(250).optional(),
+
+  // Relational intent
+  relationshipIntent: z.array(z.enum(relationshipIntentEnum.enumValues)).optional(),
+  relationshipStyle: z.enum(relationshipStyleEnum.enumValues).optional(),
+  hasChildren: z.enum(hasChildrenEnum.enumValues).optional(),
+  wantsChildren: z.enum(wantsChildrenEnum.enumValues).optional(),
+
+  // Lifestyle
+  religion: z.enum(religionEnum.enumValues).optional(),
+  smoking: z.enum(smokingEnum.enumValues).optional(),
+  drinking: z.enum(drinkingEnum.enumValues).optional(),
+  activityLevel: z.enum(activityLevelEnum.enumValues).optional(),
+
+  // Identity & background
+  jobTitle: z.string().max(100).optional(),
+  educationLevel: z.enum(educationLevelEnum.enumValues).optional(),
+  schoolName: z.string().max(150).optional(),
+  languages: z.array(z.enum(SUPPORTED_LANGUAGES)).optional(),
+  ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
+  location: z.string().max(255).optional(),
 });
 
-export const signUpSchema = createUserSchema.extend({
-  gender: z.enum(genderEnum.enumValues, { message: "Seleziona il genere" }),
-});
 
 export const updateUserSchema = z.object({
   username: usernameSchema.optional(),
@@ -66,7 +85,7 @@ export const updateUserSchema = z.object({
   schoolName: z.string().max(150).optional(),
   languages: z.array(z.enum(SUPPORTED_LANGUAGES)).optional(),
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
-  locationText: z.string().max(255).optional(),
+  location: z.string().max(255).optional(),
 });
 
 /**

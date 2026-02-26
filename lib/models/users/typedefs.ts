@@ -13,8 +13,8 @@ export const userTypeDefs = `#graphql
     email: String!
     birthdate: String!
     image: String
-    locationText: String
-    location: Location
+    location: String
+    coordinates: Location
     locationUpdatedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -96,7 +96,7 @@ export const userTypeDefs = `#graphql
     schoolName: String
     languages: [String!]
     ethnicity: Ethnicity
-    locationText: String
+    location: String
   }
 
   enum Gender {
@@ -189,7 +189,7 @@ export const userTypeDefs = `#graphql
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
-    updateLocation(lat: Float!, lon: Float!, locationText: String): User!
+    updateLocation(lat: Float!, lon: Float!, location: String): User!
     updateMyTags(tags: [String!]!): User!
   }
 `;

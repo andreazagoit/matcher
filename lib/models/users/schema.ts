@@ -128,8 +128,8 @@ export const users = pgTable(
     // LOCATION (PostGIS)
     // x = longitude, y = latitude (PostGIS convention)
     // ==========================================
-    locationText: text("location_text"),
-    location: geometry("location", { type: "point", mode: "xy", srid: 4326 }),
+    location: text("location"),
+    coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }),
     locationUpdatedAt: timestamp("location_updated_at"),
 
     // ==========================================
@@ -141,7 +141,7 @@ export const users = pgTable(
   (table) => [
     index("users_email_idx").on(table.email),
     index("users_username_idx").on(table.username),
-    index("users_location_gist_idx").using("gist", table.location),
+    index("users_coordinates_gist_idx").using("gist", table.coordinates),
   ]
 );
 
