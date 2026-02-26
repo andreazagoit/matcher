@@ -268,7 +268,7 @@ def _tag_tag_edges(tags_raw: list[dict], t_idx: dict[str, int], top_k: int = 5) 
 def build_graph_data(
     data_dir: str = TRAINING_DATA_DIR,
     val_ratio: float = 0.20,
-    min_coattend: int = 2,
+    min_coattend: int = 4,
     top_k_similar: int = 10,
 ) -> dict:
     """
@@ -521,13 +521,13 @@ def build_graph_data(
         data["space", "rev_hosted_by", "event"].edge_index = _reverse(ei)
         data["space", "rev_hosted_by", "event"].edge_weight = ew
 
-    if sim_src:
-        ei = _to_edge_index(sim_src, sim_dst)
-        w_tensor = torch.tensor(sim_w, dtype=torch.float32)
-        # Fallback normalization just in case
-        ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
-        data["user", "similar_to", "user"].edge_index = ei
-        data["user", "similar_to", "user"].edge_weight = ew
+    # Disabilitato temporaneamente per ridurre il rumore nel grafo
+    # if sim_src:
+    #     ei = _to_edge_index(sim_src, sim_dst)
+    #     w_tensor = torch.tensor(sim_w, dtype=torch.float32)
+    #     ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
+    #     data["user", "similar_to", "user"].edge_index = ei
+    #     data["user", "similar_to", "user"].edge_weight = ew
 
     if ut_src:
         ei = _to_edge_index(ut_src, ut_dst)

@@ -51,23 +51,17 @@ def load_model_and_graph(weights_path: str = MODEL_WEIGHTS_PATH, data_dir: str =
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-# Edges used for BCE ranking loss — the only training signal.
-# All other edge types still contribute via HGT message passing.
+# Edges used for BPR ranking loss — the ONLY training signal!
+# By removing `likes` and `tagged_with` we force the model to infer
+# correlations strictly through real interaction features, avoiding tag shortcuts.
 _BPR_EDGES: list[tuple[str, str, str]] = [
     ("user",  "attends",             "event"),
     ("user",  "joins",               "space"),
-    ("user",  "similar_to",          "user"),
-    ("user",  "likes",               "tag"),
     ("event", "hosted_by",           "space"),
-    ("event", "tagged_with",         "tag"),
-    ("space", "tagged_with_space",   "tag"),
-    # Reverse edges for full-spectrum supervision
+    # Reverse behavioral edges
     ("event", "rev_attends",         "user"),
     ("space", "rev_joins",           "user"),
-    ("tag",   "rev_likes",           "user"),
     ("space", "rev_hosted_by",       "event"),
-    ("tag",   "rev_tagged_with_event", "event"),
-    ("tag",   "rev_tagged_with_space", "space"),
 ]
 
 _EDGES_PER_TYPE = 512   # positive pairs sampled per edge type per step
