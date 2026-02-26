@@ -23,7 +23,7 @@ LEARNING_RATE = 0.001
 EPOCHS = 100
 BATCH_SIZE = 256
 NEGATIVE_SAMPLES = 5       # negatives per positive interaction
-DROPOUT = 0.2
+DROPOUT = 0.1
 NUM_WORKERS = 0          # 0 = single-threaded (safest on MPS); set to 2-4 on CUDA
 
 # ─── Tag vocabulary (must match lib/models/tags/data.ts) ───────────────────────
@@ -131,8 +131,8 @@ USER_DIM  = NUM_TAGS + 19
 #   [+1]          member count norm      (1)
 #   [+2]          event count norm       (1)
 
-USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB)
-EVENT_DIM = NUM_TAGS + 1 + 1 + 1 + 1 + 1 + 1 + 5  # tags + age + count + days + fill + paid + price + time(5)
+USER_DIM  = NUM_TAGS + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1 # +1 for num_tags
+EVENT_DIM = NUM_TAGS + 1 + 1 + 1 + 1 + 1 + 1 + 5 + 1 # +1 for num_tags
 SPACE_DIM = NUM_TAGS + 1 + 1 + 1                    # tags + age + member_count + event_count
 
 # Entity types
@@ -167,7 +167,7 @@ EDGE_TYPES: list[tuple[str, str, str]] = [
 METADATA: tuple = (NODE_TYPES, EDGE_TYPES)
 
 HGT_HEADS  = 4
-HGT_LAYERS = 2
+HGT_LAYERS = 3
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 MODEL_WEIGHTS_PATH  = os.path.join(_SERVICE_DIR, "hgt_weights.pt")

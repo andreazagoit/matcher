@@ -131,20 +131,26 @@ def _user_user_edges(
             neighbors[u1].append((u2, cnt))
             neighbors[u2].append((u1, cnt))
 
-    src, dst = [], []
+    src, dst, weights = [], [], []
+    max_coattend = float(max(pair_count.values(), default=1))
+
     for uid, peers in neighbors.items():
         peers.sort(key=lambda x: x[1], reverse=True)
-        for peer_id, _ in peers[:top_k]:
+        for peer_id, cnt in peers[:top_k]:
             src.append(u_idx[uid])
             dst.append(u_idx[peer_id])
-    return src, dst
+            
+            # Normalize co-attendance count to [0, 1] relative to the global max
+            weights.append(float(cnt) / max_coattend)
+            
+    return src, dst, weights
 
 
 # ── Main builder ──────────────────────────────────────────────────────────────
 
 def build_graph_data(
     data_dir: str = TRAINING_DATA_DIR,
-    val_ratio: float = 0.15,
+    val_ratio: float = 0.20,
     min_coattend: int = 2,
     top_k_similar: int = 10,
 ) -> dict:
@@ -213,11 +219,11 @@ def build_graph_data(
             if itype == "event":
                 attends_src.append(u_idx[uid])
                 attends_dst.append(e_idx[iid])
-                attends_w.append(w)
+                attends_w.append(w * 2.0)  # attends gives stronger signal than joins
             else:
                 joins_src.append(u_idx[uid])
                 joins_dst.append(s_idx[iid])
-                joins_w.append(w)
+                joins_w.append(w * 1.5)  # joins gives medium signal
             train_pos[uid][itype].add(iid)
 
         for iid, itype, w, _ in val_recs:
@@ -233,7 +239,7 @@ def build_graph_data(
             hosted_dst.append(s_idx[sid])
 
     # ── user similar_to user (co-attendance graph) ────────────────────────────
-    sim_src, sim_dst = _user_user_edges(events_raw, spaces_raw, attendees_raw, members_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
+    sim_src, sim_dst, sim_w = _user_user_edges(events_raw, spaces_raw, attendees_raw, members_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
 
     # ── Tag edges ─────────────────────────────────────────────────────────────
     # user → tag (binary: 1.0 per declared tag)
@@ -269,47 +275,73 @@ def build_graph_data(
             if t is not None:
                 st_src.append(s_idx[sid]); st_dst.append(t)
 
-    # ── Assemble HeteroData ───────────────────────────────────────────────────
+    # ── Populate PyG HeteroData ───────────────────────────────────────────────
     data = HeteroData()
-    data["user"].x  = user_x
-    data["event"].x = event_x
-    data["space"].x = space_x
-    data["tag"].x   = tag_x
+
+    data["user"].x  = torch.tensor([_user_vec(u)  for u in users_raw],  dtype=torch.float32)
+    data["event"].x = torch.tensor([_event_vec(e) for e in events_raw], dtype=torch.float32)
+    data["space"].x = torch.tensor([_space_vec(s) for s in spaces_raw], dtype=torch.float32)
+    data["tag"].x   = torch.eye(NUM_TAGS, dtype=torch.float32)
 
     if attends_src:
         ei = _to_edge_index(attends_src, attends_dst)
-        data["user",  "attends",     "event"].edge_index  = ei
-        data["user",  "attends",     "event"].edge_weight = torch.tensor(attends_w, dtype=torch.float32)
-        data["event", "rev_attends", "user"].edge_index   = _reverse(ei)
+        w_tensor = torch.tensor(attends_w, dtype=torch.float32)
+        # Normalize attends_w to [0, 1]
+        ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
+        data["user", "attends", "event"].edge_index = ei
+        data["user", "attends", "event"].edge_weight = ew
+        data["event", "rev_attends", "user"].edge_index = _reverse(ei)
+        data["event", "rev_attends", "user"].edge_weight = ew
 
     if joins_src:
         ei = _to_edge_index(joins_src, joins_dst)
-        data["user",  "joins",    "space"].edge_index  = ei
-        data["user",  "joins",    "space"].edge_weight = torch.tensor(joins_w, dtype=torch.float32)
-        data["space", "rev_joins","user"].edge_index   = _reverse(ei)
+        w_tensor = torch.tensor(joins_w, dtype=torch.float32)
+        # Normalize joins_w to [0, 1]
+        ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
+        data["user", "joins", "space"].edge_index = ei
+        data["user", "joins", "space"].edge_weight = ew
+        data["space", "rev_joins", "user"].edge_index = _reverse(ei)
+        data["space", "rev_joins", "user"].edge_weight = ew
 
     if hosted_src:
         ei = _to_edge_index(hosted_src, hosted_dst)
-        data["event", "hosted_by",     "space"].edge_index = ei
+        ew = torch.ones(ei.size(1), dtype=torch.float32)
+        data["event", "hosted_by", "space"].edge_index = ei
+        data["event", "hosted_by", "space"].edge_weight = ew
         data["space", "rev_hosted_by", "event"].edge_index = _reverse(ei)
+        data["space", "rev_hosted_by", "event"].edge_weight = ew
 
     if sim_src:
-        data["user", "similar_to", "user"].edge_index = _to_edge_index(sim_src, sim_dst)
+        ei = _to_edge_index(sim_src, sim_dst)
+        w_tensor = torch.tensor(sim_w, dtype=torch.float32)
+        # Fallback normalization just in case
+        ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
+        data["user", "similar_to", "user"].edge_index = ei
+        data["user", "similar_to", "user"].edge_weight = ew
 
     if ut_src:
         ei = _to_edge_index(ut_src, ut_dst)
-        data["user", "likes",     "tag"].edge_index = ei
-        data["tag",  "rev_likes", "user"].edge_index = _reverse(ei)
+        ew = torch.ones(ei.size(1), dtype=torch.float32)
+        data["user", "likes",           "tag"].edge_index = ei
+        data["user", "likes",           "tag"].edge_weight = ew
+        data["tag",  "rev_likes",       "user"].edge_index = _reverse(ei)
+        data["tag",  "rev_likes",       "user"].edge_weight = ew
 
     if et_src:
         ei = _to_edge_index(et_src, et_dst)
+        ew = torch.ones(ei.size(1), dtype=torch.float32)
         data["event", "tagged_with",           "tag"].edge_index = ei
+        data["event", "tagged_with",           "tag"].edge_weight = ew
         data["tag",   "rev_tagged_with_event", "event"].edge_index = _reverse(ei)
+        data["tag",   "rev_tagged_with_event", "event"].edge_weight = ew
 
     if st_src:
         ei = _to_edge_index(st_src, st_dst)
+        ew = torch.ones(ei.size(1), dtype=torch.float32)
         data["space", "tagged_with_space",     "tag"].edge_index = ei
+        data["space", "tagged_with_space",     "tag"].edge_weight = ew
         data["tag",   "rev_tagged_with_space", "space"].edge_index = _reverse(ei)
+        data["tag",   "rev_tagged_with_space", "space"].edge_weight = ew
 
     # ── Validation data ────────────────────────────────────────────────────────
     val_data = _build_val_data(

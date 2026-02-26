@@ -966,11 +966,11 @@ def assign_interactions(
 
         # ── Events ──────────────────────────────────────────────────────────
         pool = persona_event_pools[p_idx]
-        # 92% from persona-aligned top-third, 8% serendipity
-        top  = pool[: max(1, len(pool) // 3)]
-        rest = pool[len(pool) // 3 :]
+        # 95% from persona-aligned top-quarter, 5% serendipity
+        top  = pool[: max(1, len(pool) // 4)]
+        rest = pool[len(pool) // 4 :]
 
-        n_top  = max(0, round(n_ev * 0.92))
+        n_top  = max(0, round(n_ev * 0.95))
         n_rest = n_ev - n_top
         sampled_ev  = random.sample(top,  min(n_top,  len(top)))
         sampled_ev += random.sample(rest, min(n_rest, len(rest)))
@@ -984,10 +984,11 @@ def assign_interactions(
 
         # ── Spaces ──────────────────────────────────────────────────────────
         pool = persona_space_pools[p_idx]
-        top  = pool[: max(1, len(pool) // 3)]
-        rest = pool[len(pool) // 3 :]
+        # 95% from persona-aligned top-quarter, 5% serendipity
+        top  = pool[: max(1, len(pool) // 4)]
+        rest = pool[len(pool) // 4 :]
 
-        n_top  = max(0, round(n_sp * 0.92))
+        n_top  = max(0, round(n_sp * 0.95))
         n_rest = n_sp - n_top
         sampled_sp  = random.sample(top,  min(n_top,  len(top)))
         sampled_sp += random.sample(rest, min(n_rest, len(rest)))

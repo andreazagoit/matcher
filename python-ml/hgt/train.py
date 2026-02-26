@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from hgt.config import (
-    LEARNING_RATE, EPOCHS,
+    LEARNING_RATE, EPOCHS, NEGATIVE_SAMPLES,
     MODEL_WEIGHTS_PATH, TRAINING_DATA_DIR,
 )
 from hgt.graph import build_graph_data
@@ -48,15 +48,29 @@ _BPR_EDGES: list[tuple[str, str, str]] = [
 _EDGES_PER_TYPE = 512   # positive pairs sampled per edge type per step
 
 
-# ── BPR loss ──────────────────────────────────────────────────────────────────
+# Margin from original BPR conceptually.
+# Using standard MarginRankingLoss optimizes ranking constraints efficiently.
+_margin_loss = torch.nn.MarginRankingLoss(margin=0.5)
 
 def _bpr_loss(
     anchor: torch.Tensor,
     pos: torch.Tensor,
     neg: torch.Tensor,
 ) -> torch.Tensor:
-    """Standard BPR: positive item must rank higher than a random negative."""
-    return -F.logsigmoid((anchor * pos).sum(-1) - (anchor * neg).sum(-1)).mean()
+    """
+    Evaluates relative ranking via MarginRankingLoss.
+    Constraints: anchor * pos > anchor * neg + margin
+    """
+    n = anchor.size(0)
+    n_neg = neg.size(0) // n
+    
+    # [n, n_neg] expansions
+    pos_score = (anchor * pos).sum(-1, keepdim=True).expand(n, n_neg)
+    neg_score = (anchor.unsqueeze(1) * neg.view(n, n_neg, -1)).sum(-1)
+    
+    # Target tensor of ones (pos_score should be larger than neg_score)
+    ones = torch.ones_like(pos_score)
+    return _margin_loss(pos_score.flatten(), neg_score.flatten(), ones.flatten())
 
 
 # ── Training step ─────────────────────────────────────────────────────────────
@@ -88,10 +102,27 @@ def _train_step(
         n   = min(_EDGES_PER_TYPE, edges.size(1))
         idx = torch.randperm(edges.size(1), device=device)[:n]
 
-        a_emb = F.normalize(emb[src_t][edges[0, idx]], dim=-1)
-        p_emb = F.normalize(emb[dst_t][edges[1, idx]], dim=-1)
+        a_emb = F.normalize(emb[src_t][edges[0, idx]], dim=-1)   # [n, D]
+        p_emb = F.normalize(emb[dst_t][edges[1, idx]], dim=-1)   # [n, D]
 
-        neg_idx = torch.randint(0, emb[dst_t].size(0), (n,), device=device)
+        # ── Hard Negative Mining
+        # Instead of 5 purely randoms, we do:
+        # Half random global (easy negatives, teach basic distinction)
+        # Half in-batch positives (hard negatives: popular items currently active but unlinked to this anchor)
+        
+        n_hard = max(1, NEGATIVE_SAMPLES // 2)
+        n_easy = max(1, NEGATIVE_SAMPLES - n_hard)
+        
+        # Easy: Uniform random over all items in catalog
+        easy_idx = torch.randint(0, emb[dst_t].size(0), (n * n_easy,), device=device)
+        
+        # Hard: Sample from the batch's positive items recursively 
+        # (Items that other users liked in this batch, very prevalent/popular overall)
+        batch_pos_pool = edges[1, idx]
+        hard_idx = batch_pos_pool[torch.randint(0, n, (n * n_hard,), device=device)]
+        
+        neg_idx = torch.cat([easy_idx, hard_idx], dim=0)
+        
         n_emb   = F.normalize(emb[dst_t][neg_idx], dim=-1)
 
         total_loss = total_loss + _bpr_loss(a_emb, p_emb, n_emb)
@@ -122,12 +153,17 @@ def evaluate(
     val_data: dict,
     node_ids: dict[str, list[str]],
     k: int = 10,
-    max_anchors: int = 300,
+    max_anchors: int = 384,
+    min_val_items: int = 2,
     fixed_anchors: Optional[list] = None,
 ) -> dict:
     """
     Evaluate Recall@K / NDCG@K using full-graph embeddings.
     Mirrors production: embeddings come from forward_graph (same as ml:sync).
+
+    min_val_items: skip anchors with fewer than this many val items.
+    Anchors with only 1 val item produce binary 0/1 recall per anchor,
+    which introduces too much noise for meaningful epoch-level tracking.
     """
     model.eval()
     emb = model.forward_graph(
@@ -148,10 +184,13 @@ def evaluate(
 
     seen_train = val_data.get("seen_train_by_anchor", {})
 
+    def _n_val(anchor):
+        return sum(len(v) for v in by_anchor[anchor].values())
+
     if fixed_anchors is not None:
-        all_anchors = [a for a in fixed_anchors if a in by_anchor and any(by_anchor[a].values())]
+        all_anchors = [a for a in fixed_anchors if _n_val(a) >= min_val_items]
     else:
-        all_anchors = [a for a in by_anchor if any(by_anchor[a].values())]
+        all_anchors = [a for a in by_anchor if _n_val(a) >= min_val_items]
         if len(all_anchors) > max_anchors:
             all_anchors = random.sample(all_anchors, max_anchors)
 
@@ -226,10 +265,12 @@ def train(
     epochs: int = EPOCHS,
     lr: float = LEARNING_RATE,
     eval_every: int = 5,
+    patience: int = 6,
     resume: bool = False,
     data_dir: str = TRAINING_DATA_DIR,
     weights_path: str = MODEL_WEIGHTS_PATH,
 ) -> HetEncoder:
+    """patience: stop after this many evals with no improvement (0 = disabled)."""
     print(f"Loading graph data from {data_dir} …")
     bundle     = build_graph_data(data_dir=data_dir)
     train_data = bundle["train_data"]
@@ -252,19 +293,31 @@ def train(
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, _lr_lambda)
 
     # Fix eval anchors once — ensures consistent metric across all epochs
+    # Only include anchors with >=2 val items: single-item anchors produce
+    # binary 0/1 recall per anchor which dominates the metric with noise.
     anchors_with_val: set[tuple] = set()
     for atype, aid, _itype, _iid in val_data["val_pairs"]:
         anchors_with_val.add((atype, aid))
-    all_anchors = [k for k in val_data["anchor_features"] if k in anchors_with_val]
+
+    by_anchor_count: dict[tuple, int] = defaultdict(int)
+    for atype, aid, _, _ in val_data["val_pairs"]:
+        by_anchor_count[(atype, aid)] += 1
+
+    all_anchors = [
+        k for k in val_data["anchor_features"]
+        if k in anchors_with_val and by_anchor_count[k] >= 2
+    ]
     rng = random.Random(0)
     fixed_eval_anchors = (
-        rng.sample(all_anchors, min(300, len(all_anchors)))
-        if len(all_anchors) > 300 else all_anchors
+        rng.sample(all_anchors, min(384, len(all_anchors)))
+        if len(all_anchors) > 384 else all_anchors
     )
+    print(f"  Eval anchors: {len(fixed_eval_anchors)} (con ≥2 val items)")
 
-    best_score = -1.0
-    best_state = None
-    t0         = time.time()
+    best_score    = -1.0
+    best_state    = None
+    patience_ctr  = 0
+    t0            = time.time()
 
     for ep in range(1, epochs + 1):
         loss = _train_step(model, train_data, optimizer)
@@ -287,10 +340,16 @@ def train(
             )
 
             if ev["primary_recall"] > best_score:
-                best_score = ev["primary_recall"]
-                best_state = copy.deepcopy(model.state_dict())
+                best_score   = ev["primary_recall"]
+                best_state   = copy.deepcopy(model.state_dict())
+                patience_ctr = 0
                 save_model(model, weights_path)
                 print(f"  ✓ New best R@10 = {best_score:.4f}")
+            else:
+                patience_ctr += 1
+                if patience > 0 and patience_ctr >= patience:
+                    print(f"  Early stop: no improvement for {patience} evals ({patience * eval_every} epochs).")
+                    break
         else:
             if ep % max(1, eval_every // 5) == 0:
                 print(f"[{ep:>4}/{epochs}] loss={loss:.4f}")
@@ -309,6 +368,7 @@ def main() -> None:
     p.add_argument("--epochs",      type=int,   default=EPOCHS,         help="Max training epochs")
     p.add_argument("--lr",          type=float, default=LEARNING_RATE,  help="Learning rate")
     p.add_argument("--eval-every",  type=int,   default=5,              help="Evaluate every N epochs")
+    p.add_argument("--patience",    type=int,   default=6,              help="Early stop after N evals without improvement (0=disabled)")
     p.add_argument("--resume",      action="store_true",                help="Resume from saved weights")
     p.add_argument("--data-dir",    default=TRAINING_DATA_DIR,          help="Training data directory")
     p.add_argument("--weights",     default=MODEL_WEIGHTS_PATH,         help="Model weights path")
@@ -318,6 +378,7 @@ def main() -> None:
         epochs=args.epochs,
         lr=args.lr,
         eval_every=args.eval_every,
+        patience=args.patience,
         resume=args.resume,
         data_dir=args.data_dir,
         weights_path=args.weights,

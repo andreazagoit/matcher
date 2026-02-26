@@ -90,7 +90,10 @@ def build_user_features(
     # [54:59] activity one-hot
     activity_vec = _onehot(ACTIVITY_TO_IDX, len(ACTIVITY_VOCAB), activity_level)
 
-    vec = tags_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec
+    # [59] number of tags declared (sqrt normalized, max ~20)
+    num_tags_vec = [normalize_count(len(tags or []), scale=4.47)] # sqrt(20) ~ 4.47
+
+    vec = tags_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec + num_tags_vec
     assert len(vec) == USER_DIM, f"Expected {USER_DIM}, got {len(vec)}"
     return vec
 
@@ -160,7 +163,10 @@ def build_event_features(
     # [46:50] cyclical calendar/time + weekend
     time_vec = time_cyclical_features(starts_at)
 
-    vec = tags_vec + age_vec + count_vec + days_vec + fill_vec + paid_vec + price_vec + time_vec
+    # [51] number of tags declared (sqrt normalized, max ~10 for events)
+    num_tags_vec = [normalize_count(len(tags or []), scale=3.16)] # sqrt(10) ~ 3.16
+
+    vec = tags_vec + age_vec + count_vec + days_vec + fill_vec + paid_vec + price_vec + time_vec + num_tags_vec
     assert len(vec) == EVENT_DIM, f"Expected {EVENT_DIM}, got {len(vec)}"
     return vec
 
