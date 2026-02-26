@@ -156,6 +156,7 @@ def build_graph_data(
     events_raw = _load(os.path.join(data_dir, "events.json"))
     spaces_raw = _load(os.path.join(data_dir, "spaces.json"))
     ixs_raw    = _load(os.path.join(data_dir, "interactions.json"))
+    conn_raw   = _load(os.path.join(data_dir, "connections.json"))
 
     # ── Node ID → integer index ────────────────────────────────────────────────
     user_ids  = [u["id"] for u in users_raw]
@@ -284,6 +285,24 @@ def build_graph_data(
 
     if sim_src:
         data["user", "similar_to", "user"].edge_index = _to_edge_index(sim_src, sim_dst)
+
+    # ── Connections (User -> User Match) ──────────────────────────────────────
+    conn_src, conn_dst = [], []
+    for c in conn_raw:
+        uid = c.get("initiator_id")
+        rid = c.get("recipient_id")
+        # only consider positive signals (pending or accepted) as signal
+        if c.get("status") in ["pending", "accepted"] and uid in u_idx and rid in u_idx:
+            conn_src.append(u_idx[uid])
+            conn_dst.append(u_idx[rid])
+            # add reverse for undirected relation in graph
+            conn_src.append(u_idx[rid])
+            conn_dst.append(u_idx[uid])
+
+    if conn_src:
+        ei = _to_edge_index(conn_src, conn_dst)
+        data["user", "connects", "user"].edge_index = ei
+        data["user", "rev_connects", "user"].edge_index = _reverse(ei)
 
     if ut_src:
         ei = _to_edge_index(ut_src, ut_dst)

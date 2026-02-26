@@ -138,6 +138,18 @@ export const auth = betterAuth({
           throw err;
         }
       },
+      generateOTP: (options) => {
+        if (process.env.NODE_ENV === "development") {
+          return "000000";
+        }
+        // Fallback to default random generation if not in dev
+        // This is safe because better-auth uses a secure random generator internally
+        // when generateOTP is strictly NOT provided, but since we provide it we must 
+        // fallback to standard JS crypto
+        const array = new Uint32Array(6);
+        crypto.getRandomValues(array);
+        return Array.from(array, (num) => (num % 10).toString()).join("");
+      },
       otpLength: 6,
       expiresIn: 300, // 5 minutes
       disableSignUp: true, // signup handled separately (needs profile fields)

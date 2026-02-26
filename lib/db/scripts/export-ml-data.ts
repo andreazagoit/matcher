@@ -6,6 +6,7 @@
  *   events.json       — events + real attendance stats
  *   spaces.json       — spaces + member/event stats
  *   interactions.json — positive interaction pairs
+ *   connections.json  — user-to-user connections (pending/accepted/declined)
  *
  * Usage: npm run ml:export
  */
@@ -206,22 +207,42 @@ async function exportInteractions() {
   }));
 }
 
+async function exportConnections() {
+  const rows = await client`
+    SELECT
+      initiator_id::text,
+      recipient_id::text,
+      status::text,
+      created_at::text
+    FROM connections
+    ORDER BY created_at ASC
+  `;
+  return rows.map((c) => ({
+    initiator_id: c.initiator_id,
+    recipient_id: c.recipient_id,
+    status: c.status,
+    created_at: c.created_at,
+  }));
+}
+
 async function main() {
   console.log("Exporting ML training data...\n");
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const [users, events, spaces, interactions] = await Promise.all([
+  const [users, events, spaces, interactions, connections] = await Promise.all([
     exportUsers(),
     exportEvents(),
     exportSpaces(),
     exportInteractions(),
+    exportConnections(),
   ]);
 
   write("users.json", users);
   write("events.json", events);
   write("spaces.json", spaces);
   write("interactions.json", interactions);
+  write("connections.json", connections);
 
   console.log(`\nOutput: ${OUT_DIR}`);
   await client.end();

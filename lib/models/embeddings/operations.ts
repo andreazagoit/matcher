@@ -42,15 +42,6 @@ export interface EventEmbedInput {
   description?: string | null;
 }
 
-export interface SpaceEmbedInput {
-  tags?: string[];
-  memberCount?: number;
-  avgMemberAge?: number | null;
-  eventCount?: number;
-  // kept for forward compatibility; not used by the current model
-  name?: string;
-  description?: string | null;
-}
 
 // ─── ML service call ───────────────────────────────────────────────────────────
 
@@ -102,14 +93,14 @@ export async function embedUser(
   data: UserEmbedInput,
 ): Promise<void> {
   const embedding = await callMlEmbed("user", {
-    tags:                 data.tags,
-    birthdate:            data.birthdate ?? null,
-    gender:               data.gender ?? null,
-    relationship_intent:  data.relationshipIntent ?? [],
-    smoking:              data.smoking ?? null,
-    drinking:             data.drinking ?? null,
-    activity_level:       data.activityLevel ?? null,
-    interaction_count:    data.interactionCount ?? 0,
+    tags: data.tags,
+    birthdate: data.birthdate ?? null,
+    gender: data.gender ?? null,
+    relationship_intent: data.relationshipIntent ?? [],
+    smoking: data.smoking ?? null,
+    drinking: data.drinking ?? null,
+    activity_level: data.activityLevel ?? null,
+    interaction_count: data.interactionCount ?? 0,
   });
 
   await upsertEmbedding(entityId, "user", embedding);
@@ -128,36 +119,19 @@ export async function embedEvent(
     : null;
 
   const embedding = await callMlEmbed("event", {
-    tags:               data.tags ?? [],
-    starts_at:          data.startsAt ?? null,
-    price_cents:        data.priceCents ?? null,
-    avg_attendee_age:   data.avgAttendeeAge ?? null,
-    attendee_count:     data.attendeeCount ?? 0,
-    days_until_event:   daysUntilEvent,
-    max_attendees:      data.maxAttendees ?? null,
-    is_paid:            data.isPaid ?? false,
+    tags: data.tags ?? [],
+    starts_at: data.startsAt ?? null,
+    price_cents: data.priceCents ?? null,
+    avg_attendee_age: data.avgAttendeeAge ?? null,
+    attendee_count: data.attendeeCount ?? 0,
+    days_until_event: daysUntilEvent,
+    max_attendees: data.maxAttendees ?? null,
+    is_paid: data.isPaid ?? false,
   });
 
   await upsertEmbedding(entityId, "event", embedding);
 }
 
-/**
- * Generate and save embedding for a space.
- * Call after creating or updating a space.
- */
-export async function embedSpace(
-  entityId: string,
-  data: SpaceEmbedInput,
-): Promise<void> {
-  const embedding = await callMlEmbed("space", {
-    tags:            data.tags ?? [],
-    member_count:    data.memberCount ?? 0,
-    avg_member_age:  data.avgMemberAge ?? null,
-    event_count:     data.eventCount ?? 0,
-  });
-
-  await upsertEmbedding(entityId, "space", embedding);
-}
 
 /**
  * Get the stored embedding for an entity.
@@ -191,29 +165,6 @@ async function _getUserVector(userId: string): Promise<string | null> {
 
 // ─── Public recommendation queries ────────────────────────────────────────────
 
-/**
- * Users with the most similar embeddings (excludes self).
- */
-export async function recommendUsersForUser(
-  userId: string,
-  limit = 10,
-  offset = 0,
-): Promise<string[]> {
-  const vec = await _getUserVector(userId);
-  if (!vec) return [];
-
-  const rows = await db.execute<{ entity_id: string }>(sql`
-    SELECT entity_id
-    FROM   embeddings
-    WHERE  entity_type = 'user'
-      AND  entity_id   != ${userId}
-    ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
-    LIMIT  ${sql.raw(String(limit))}
-    OFFSET ${sql.raw(String(offset))}
-  `);
-
-  return rows.map((r) => r.entity_id);
-}
 
 /**
  * Events closest to the user's embedding (by entity_id, caller applies business filters).
@@ -227,8 +178,8 @@ export async function recommendEventsForUser(
   const vec = await _getUserVector(userId);
   if (!vec) return [];
 
-  const excludeSet  = new Set(excludeIds);
-  const fetchExtra  = limit + excludeIds.length;
+  const excludeSet = new Set(excludeIds);
+  const fetchExtra = limit + excludeIds.length;
   const rows = await db.execute<{ entity_id: string }>(sql`
     SELECT entity_id
     FROM   embeddings
@@ -256,8 +207,8 @@ export async function recommendSpacesForUser(
   const vec = await _getUserVector(userId);
   if (!vec) return [];
 
-  const excludeSet  = new Set(excludeIds);
-  const fetchExtra  = limit + excludeIds.length;
+  const excludeSet = new Set(excludeIds);
+  const fetchExtra = limit + excludeIds.length;
   const rows = await db.execute<{ entity_id: string }>(sql`
     SELECT entity_id
     FROM   embeddings

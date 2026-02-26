@@ -20,6 +20,7 @@ export const userTypeDefs = `#graphql
     updatedAt: DateTime!
     tags: [String!]!
     userItems: [UserItem!]!
+    gender: Gender
 
     """Tags recommended based on embedding similarity. Only visible to own profile."""
     recommendedUserTags(limit: Int, offset: Int): [String!]!

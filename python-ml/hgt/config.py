@@ -153,8 +153,9 @@ EDGE_TYPES: list[tuple[str, str, str]] = [
     ("user",  "joins",                  "space"),
     ("space", "rev_joins",              "user"),
     ("event", "hosted_by",              "space"),
-    ("space", "rev_hosted_by",          "event"),
     ("user",  "similar_to",             "user"),
+    ("user",  "connects",               "user"),
+    ("user",  "rev_connects",           "user"),
     # tag edges
     ("user",  "likes",                  "tag"),
     ("tag",   "rev_likes",              "user"),

@@ -24,6 +24,7 @@ _BPR_EDGES: list[tuple[str, str, str]] = [
     # behavioural
     ("user",  "attends",           "event"),
     ("user",  "joins",             "space"),
+    ("user",  "connects",          "user"),
     # tag alignment — critical for the multi-tower to learn tag relevance
     ("user",  "likes",             "tag"),
     ("event", "tagged_with",       "tag"),
@@ -140,8 +141,8 @@ def evaluate(
     details = []
     tot_r, tot_n = 0.0, 0
 
-    # Primary metrics: user->event and user->space
-    for et in [("user", "attends", "event"), ("user", "joins", "space")]:
+    # Primary metrics: user->event and user->space and user->user
+    for et in [("user", "attends", "event"), ("user", "joins", "space"), ("user", "connects", "user")]:
         r, _, n = _eval_edge_type(et)
         tot_r += r * n
         tot_n += n
