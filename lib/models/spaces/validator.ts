@@ -7,7 +7,7 @@ const joinPolicyValues = ["open", "apply", "invite_only"] as const;
 export const createSpaceSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(1000).optional(),
-  image: z.string().url().optional(),
+  image: z.url().optional(),
   visibility: z.enum(visibilityValues).default("public"),
   joinPolicy: z.enum(joinPolicyValues).default("open"),
   tags: z.array(tagSchema).max(10).default([]),
@@ -16,7 +16,7 @@ export const createSpaceSchema = z.object({
 export const updateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(1000).optional(),
-  image: z.string().url().optional(),
+  image: z.url().optional(),
   visibility: z.enum(visibilityValues).optional(),
   joinPolicy: z.enum(joinPolicyValues).optional(),
   isActive: z.boolean().optional(),

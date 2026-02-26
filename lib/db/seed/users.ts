@@ -1,11 +1,5 @@
-import { db } from "../drizzle";
-import { eq } from "drizzle-orm";
-import { users } from "../../models/users/schema";
-import type { NewUser } from "../../models/users/schema";
 import { updateUserLocation, createUser } from "../../models/users/operations";
-
-
-// Milan city center (Duomo area). Seeded users get a small random offset
+import type { CreateUserInput } from "../../models/users/validator";
 // so all locations stay in/around Milano for geospatial testing.
 const MILAN_CENTER = { lat: 45.4642, lon: 9.19 };
 
@@ -18,8 +12,6 @@ function randomMilanLocation() {
     lon: MILAN_CENTER.lon + lonJitter,
   };
 }
-
-import type { CreateUserInput } from "../../models/users/validator";
 
 export const SEED_USERS: CreateUserInput[] = [
   { username: "admin_system", name: "Admin System", email: "admin@matcher.local", birthdate: "1990-01-01", gender: "man" },

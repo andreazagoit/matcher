@@ -138,14 +138,14 @@ export const userResolvers = {
 
     updateLocation: async (
       _: unknown,
-      { lat, lon, location }: { lat: number; lon: number; location?: string },
+      { lat, lon }: { lat: number; lon: number; location?: string },
       context: GraphQLContext,
     ) => {
       if (!context.auth.user) {
         throw new AuthError("Authentication required");
       }
 
-      return await updateUserLocation(context.auth.user.id, lat, lon, location);
+      return await updateUserLocation(context.auth.user.id, lat, lon);
     },
 
     updateMyTags: async (
