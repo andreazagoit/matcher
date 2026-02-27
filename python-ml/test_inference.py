@@ -26,7 +26,7 @@ def diagnose_zeros():
         for t, ids in node_ids.items()
     }
     
-    for (atype, aid, itype, iid) in val_data["val_pairs"]:
+    for (atype, aid, rel_type, itype, iid) in val_data["val_pairs"]:
         task_name = f"{atype}->{itype}"
         if task_name in target_tasks and len(results[task_name]) < 5:
             aidx = id_to_idx.get(atype, {}).get(aid)
@@ -34,10 +34,10 @@ def diagnose_zeros():
             if aidx is None or iidx is None:
                 continue
             
-            a_emb = emb[atype][aidx].unsqueeze(0).cpu() # [1, D]
-            mat = emb[itype].cpu()                      # [N, D]
+            a_emb = emb[atype][aidx].unsqueeze(0)   # [1, D] on device
+            mat = emb[itype]                        # [N, D] on device
             
-            sims = F.cosine_similarity(a_emb, mat).clone()
+            sims = model.score_batch(atype, rel_type, itype, a_emb, mat).cpu().clone()
             
             seen = val_data.get("seen_train_by_anchor", {}).get((atype, aid), set())
             

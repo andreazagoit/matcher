@@ -353,13 +353,13 @@ def build_graph_data(
     # ── Universal train / val split logic ─────────────────────────────────────
     # We want to monitor all edge types in _BPR_EDGES.
     
-    # Structure: (src_type, src_id, dst_type) -> list[dst_id]
-    val_all: dict[tuple[str, str, str], list[str]] = defaultdict(list)
-    # Structure: (src_type, src_id, dst_type) -> set[dst_id]
-    train_all: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    # Structure: (src_type, src_id, rel_type, dst_type) -> list[dst_id]
+    val_all: dict[tuple[str, str, str, str], list[str]] = defaultdict(list)
+    # Structure: (src_type, src_id, rel_type, dst_type) -> set[dst_id]
+    train_all: dict[tuple[str, str, str, str], set[str]] = defaultdict(set)
 
-    def _split_and_fill(records, src_type, dst_type_map, src_idx_map, dst_idx_map, 
-                         src_list, dst_list, w_list, 
+    def _split_and_fill(records, src_type, rel_type, dst_type_map, src_idx_map, dst_idx_map, 
+                         src_list, dst_list, w_list, rev_rel_type=None,
                          is_timestamped=True, default_weight=1.0, allow_1_degree_holdout=False):
         # group by src_id
         by_src = defaultdict(list)
@@ -395,19 +395,18 @@ def build_graph_data(
                 src_list.append(src_idx_map[src_id])
                 dst_list.append(dst_idx_map[dst_id])
                 w_list.append(w)
-                train_all[(src_type, src_id, d_type)].add(dst_id)
+                train_all[(src_type, src_id, rel_type, d_type)].add(dst_id)
                 
-                # If symmetric user relationship, ensure reverse is also in train/seen
                 if src_type == d_type and src_type == "user":
                     src_list.append(src_idx_map[dst_id])
                     dst_list.append(src_idx_map[src_id])
                     w_list.append(w)
-                    train_all[(src_type, dst_id, src_type)].add(src_id)
+                    train_all[(src_type, dst_id, rel_type, src_type)].add(src_id)
             
             for src_id, dst_id, w, _ in v_recs:
-                val_all[(src_type, src_id, d_type)].append(dst_id)
-                # Add reverse validation for high-granularity tracking
-                val_all[(d_type, dst_id, src_type)].append(src_id)
+                val_all[(src_type, src_id, rel_type, d_type)].append(dst_id)
+                if rev_rel_type:
+                    val_all[(d_type, dst_id, rev_rel_type, src_type)].append(src_id)
 
     # 1. User interactions (attends, joins)
     # Mapping table for interaction records
@@ -418,7 +417,7 @@ def build_graph_data(
         inter_recs.append((uid, eid, w, ts))
     
     attends_src, attends_dst, attends_w = [], [], []
-    _split_and_fill(inter_recs, "user", "event", u_idx, e_idx, attends_src, attends_dst, attends_w)
+    _split_and_fill(inter_recs, "user", "attends", "event", u_idx, e_idx, attends_src, attends_dst, attends_w, rev_rel_type="rev_attends")
 
     inter_recs = []
     for r in members_raw:
@@ -427,7 +426,7 @@ def build_graph_data(
         inter_recs.append((uid, sid, w, ts))
     
     joins_src, joins_dst, joins_w = [], [], []
-    _split_and_fill(inter_recs, "user", "space", u_idx, s_idx, joins_src, joins_dst, joins_w)
+    _split_and_fill(inter_recs, "user", "joins", "space", u_idx, s_idx, joins_src, joins_dst, joins_w, rev_rel_type="rev_joins")
 
     # 2. hosted_by (event → space) (Many-to-1)
     # Every event has exactly 1 space. We MUST allow 1-degree holdouts to test event->space and space->event!
@@ -437,7 +436,7 @@ def build_graph_data(
         if sid: hosted_recs.append((eid, sid, 1.0, ""))
     
     hosted_src, hosted_dst, hosted_w = [], [], []
-    _split_and_fill(hosted_recs, "event", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, is_timestamped=False, allow_1_degree_holdout=True)
+    _split_and_fill(hosted_recs, "event", "hosted_by", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, rev_rel_type="rev_hosted_by", is_timestamped=False, allow_1_degree_holdout=True)
 
     # 3. similar_to (user → user)
     # (Pre-calculated by _user_user_edges)
@@ -447,7 +446,7 @@ def build_graph_data(
     sim_recs = [(rev_u_idx[s], rev_u_idx[d], w, "") for s, d, w in zip(sim_raw_src, sim_raw_dst, sim_raw_w)]
     
     sim_src, sim_dst, sim_w = [], [], []
-    _split_and_fill(sim_recs, "user", "user", u_idx, u_idx, sim_src, sim_dst, sim_w, is_timestamped=False)
+    _split_and_fill(sim_recs, "user", "similar_to", "user", u_idx, u_idx, sim_src, sim_dst, sim_w, rev_rel_type="similar_to", is_timestamped=False)
 
     # 4. Tags (likes, tagged_with, tagged_with_space)
     ut_recs = []
@@ -455,35 +454,35 @@ def build_graph_data(
         uid = u["id"]
         for t in u.get("tags", []): ut_recs.append((uid, t, 1.0, ""))
     ut_src, ut_dst, ut_w = [], [], []
-    _split_and_fill(ut_recs, "user", "tag", u_idx, t_idx, ut_src, ut_dst, ut_w, is_timestamped=False)
+    _split_and_fill(ut_recs, "user", "likes", "tag", u_idx, t_idx, ut_src, ut_dst, ut_w, rev_rel_type="rev_likes", is_timestamped=False)
 
     et_recs = []
     for e in events_raw:
         eid = e["id"]
         for t in e.get("tags", []): et_recs.append((eid, t, 1.0, ""))
     et_src, et_dst, et_w = [], [], []
-    _split_and_fill(et_recs, "event", "tag", e_idx, t_idx, et_src, et_dst, et_w, is_timestamped=False)
+    _split_and_fill(et_recs, "event", "tagged_with", "tag", e_idx, t_idx, et_src, et_dst, et_w, rev_rel_type="rev_tagged_with_event", is_timestamped=False)
 
     st_recs = []
     for s in spaces_raw:
         sid = s["id"]
         for t in s.get("tags", []): st_recs.append((sid, t, 1.0, ""))
     st_src, st_dst, st_w = [], [], []
-    _split_and_fill(st_recs, "space", "tag", s_idx, t_idx, st_src, st_dst, st_w, is_timestamped=False)
+    _split_and_fill(st_recs, "space", "tagged_with_space", "tag", s_idx, t_idx, st_src, st_dst, st_w, rev_rel_type="rev_tagged_with_space", is_timestamped=False)
 
     # 5. Same-type similarity (event-event, space-space, tag-tag) -> VALIDATION ONLY (Discovery)
     # We don't add these to the training graph, but we test if the model can "discover" them.
     ee_raw_src, ee_raw_dst, ee_raw_w = _shared_tag_edges(events_raw, e_idx, top_k=top_k_similar)
     for s, d, w in zip(ee_raw_src, ee_raw_dst, ee_raw_w):
-        val_all[("event", event_ids[s], "event")].append(event_ids[d])
+        val_all[("event", event_ids[s], "similarity", "event")].append(event_ids[d])
 
     ss_raw_src, ss_raw_dst, ss_raw_w = _shared_tag_edges(spaces_raw, s_idx, top_k=top_k_similar)
     for s, d, w in zip(ss_raw_src, ss_raw_dst, ss_raw_w):
-        val_all[("space", space_ids[s], "space")].append(space_ids[d])
+        val_all[("space", space_ids[s], "similarity", "space")].append(space_ids[d])
 
     tt_raw_src, tt_raw_dst, tt_raw_w = _tag_tag_edges(tags_raw, t_idx, top_k=top_k_similar)
     for s, d, w in zip(tt_raw_src, tt_raw_dst, tt_raw_w):
-        val_all[("tag", tag_ids[s], "tag")].append(tag_ids[d])
+        val_all[("tag", tag_ids[s], "similarity", "tag")].append(tag_ids[d])
 
     # ── Populate PyG HeteroData ───────────────────────────────────────────────
     data = HeteroData()
@@ -495,75 +494,50 @@ def build_graph_data(
 
     if attends_src:
         ei = _to_edge_index(attends_src, attends_dst)
-        w_tensor = torch.tensor(attends_w, dtype=torch.float32)
-        # Normalize attends_w to [0, 1]
-        ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
         data["user", "attends", "event"].edge_index = ei
-        data["user", "attends", "event"].edge_weight = ew
         data["event", "rev_attends", "user"].edge_index = _reverse(ei)
-        data["event", "rev_attends", "user"].edge_weight = ew
 
     if joins_src:
         ei = _to_edge_index(joins_src, joins_dst)
-        w_tensor = torch.tensor(joins_w, dtype=torch.float32)
-        # Normalize joins_w to [0, 1]
-        ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
         data["user", "joins", "space"].edge_index = ei
-        data["user", "joins", "space"].edge_weight = ew
         data["space", "rev_joins", "user"].edge_index = _reverse(ei)
-        data["space", "rev_joins", "user"].edge_weight = ew
 
     if hosted_src:
         ei = _to_edge_index(hosted_src, hosted_dst)
-        ew = torch.ones(ei.size(1), dtype=torch.float32)
         data["event", "hosted_by", "space"].edge_index = ei
-        data["event", "hosted_by", "space"].edge_weight = ew
         data["space", "rev_hosted_by", "event"].edge_index = _reverse(ei)
-        data["space", "rev_hosted_by", "event"].edge_weight = ew
 
     # Disabilitato temporaneamente per ridurre il rumore nel grafo
     # if sim_src:
     #     ei = _to_edge_index(sim_src, sim_dst)
-    #     w_tensor = torch.tensor(sim_w, dtype=torch.float32)
-    #     ew = w_tensor / w_tensor.max() if w_tensor.numel() > 0 else w_tensor
     #     data["user", "similar_to", "user"].edge_index = ei
-    #     data["user", "similar_to", "user"].edge_weight = ew
 
     if ut_src:
         ei = _to_edge_index(ut_src, ut_dst)
-        ew = torch.ones(ei.size(1), dtype=torch.float32)
         data["user", "likes",           "tag"].edge_index = ei
-        data["user", "likes",           "tag"].edge_weight = ew
         data["tag",  "rev_likes",       "user"].edge_index = _reverse(ei)
-        data["tag",  "rev_likes",       "user"].edge_weight = ew
 
     if et_src:
         ei = _to_edge_index(et_src, et_dst)
-        ew = torch.ones(ei.size(1), dtype=torch.float32)
         data["event", "tagged_with",           "tag"].edge_index = ei
-        data["event", "tagged_with",           "tag"].edge_weight = ew
         data["tag",   "rev_tagged_with_event", "event"].edge_index = _reverse(ei)
-        data["tag",   "rev_tagged_with_event", "event"].edge_weight = ew
 
     if st_src:
         ei = _to_edge_index(st_src, st_dst)
-        ew = torch.ones(ei.size(1), dtype=torch.float32)
         data["space", "tagged_with_space",     "tag"].edge_index = ei
-        data["space", "tagged_with_space",     "tag"].edge_weight = ew
         data["tag",   "rev_tagged_with_space", "space"].edge_index = _reverse(ei)
-        data["tag",   "rev_tagged_with_space", "space"].edge_weight = ew
 
     # ── Validation data ────────────────────────────────────────────────────────
     # Convert our grouped dicts into the list format train.py expects
     val_pairs_list = []
-    for (atype, aid, itype), ids in val_all.items():
+    for (atype, aid, rel_type, itype), ids in val_all.items():
         for iid in ids:
-            val_pairs_list.append((atype, aid, itype, iid))
+            val_pairs_list.append((atype, aid, rel_type, itype, iid))
 
-    # train_all is (atype, aid, itype) -> set(iid)
+    # train_all is (atype, aid, rel_type, itype) -> set(iid)
     # We need to flatten it for evaluate() to { (atype, aid): set(iid) }
     seen_train_flattened = defaultdict(set)
-    for (atype, aid, itype), ids in train_all.items():
+    for (atype, aid, rel_type, itype), ids in train_all.items():
         seen_train_flattened[(atype, aid)] |= ids
 
     val_data = _build_val_data(
@@ -596,7 +570,7 @@ def _build_val_data(
     events_raw: list[dict],
     spaces_raw: list[dict],
     seen_train: dict[tuple[str, str], set[str]],
-    val_pairs: list[tuple[str, str, str, str]],
+    val_pairs: list[tuple[str, str, str, str, str]],
     tags_data: dict[str, list[float]],
     user_weights: dict[str, dict[str, float]],
 ) -> dict:
@@ -604,7 +578,7 @@ def _build_val_data(
     Returns a dict usable by evaluate_recall_ndcg in train.py:
       anchor_features       — {(atype, aid): feature_vec}
       item_features         — {iid: (itype, vec)}
-      val_pairs             — [(atype, aid, itype, iid), ...]
+      val_pairs             — [(atype, aid, rel_type, itype, iid), ...]
       seen_train_by_anchor  — {(atype, aid): set(iid)}
     """
     anchor_features: dict[tuple, list[float]] = {}
@@ -614,7 +588,7 @@ def _build_val_data(
     space_by_id = {s["id"]: s for s in spaces_raw}
 
     # Extract unique anchors from val pairs
-    all_anchors = {(atype, aid) for atype, aid, itype, iid in val_pairs}
+    all_anchors = {(atype, aid) for atype, aid, rel_type, itype, iid in val_pairs}
 
     for atype, aid in all_anchors:
         if atype == "user":

@@ -71,21 +71,22 @@ _EDGES_PER_TYPE = 512   # positive pairs sampled per edge type per step
 # Using standard MarginRankingLoss optimizes ranking constraints efficiently.
 _margin_loss = torch.nn.MarginRankingLoss(margin=0.5)
 
-def _bpr_loss(
-    anchor: torch.Tensor,
-    pos: torch.Tensor,
-    neg: torch.Tensor,
+def _margin_ranking_loss(
+    pos_score: torch.Tensor,
+    neg_score: torch.Tensor,
 ) -> torch.Tensor:
     """
     Evaluates relative ranking via MarginRankingLoss.
-    Constraints: anchor * pos > anchor * neg + margin
+    Constraints: pos_score > neg_score + margin
+    pos_score: [N]
+    neg_score: [N * n_neg] representing n_neg per pos instance
     """
-    n = anchor.size(0)
-    n_neg = neg.size(0) // n
+    n = pos_score.size(0)
+    n_neg = neg_score.size(0) // n
     
     # [n, n_neg] expansions
-    pos_score = (anchor * pos).sum(-1, keepdim=True).expand(n, n_neg)
-    neg_score = (anchor.unsqueeze(1) * neg.view(n, n_neg, -1)).sum(-1)
+    pos_score = pos_score.unsqueeze(1).expand(n, n_neg)
+    neg_score = neg_score.view(n, n_neg)
     
     # Target tensor of ones (pos_score should be larger than neg_score)
     ones = torch.ones_like(pos_score)
@@ -121,30 +122,28 @@ def _train_step(
         n   = min(_EDGES_PER_TYPE, edges.size(1))
         idx = torch.randperm(edges.size(1), device=device)[:n]
 
-        a_emb = F.normalize(emb[src_t][edges[0, idx]], dim=-1)   # [n, D]
-        p_emb = F.normalize(emb[dst_t][edges[1, idx]], dim=-1)   # [n, D]
+        a_emb = emb[src_t][edges[0, idx]]   # [n, D]
+        p_emb = emb[dst_t][edges[1, idx]]   # [n, D]
 
         # ── Hard Negative Mining
-        # Instead of 5 purely randoms, we do:
-        # Half random global (easy negatives, teach basic distinction)
-        # Half in-batch positives (hard negatives: popular items currently active but unlinked to this anchor)
-        
         n_hard = max(1, NEGATIVE_SAMPLES // 2)
         n_easy = max(1, NEGATIVE_SAMPLES - n_hard)
         
-        # Easy: Uniform random over all items in catalog
         easy_idx = torch.randint(0, emb[dst_t].size(0), (n * n_easy,), device=device)
-        
-        # Hard: Sample from the batch's positive items recursively 
-        # (Items that other users liked in this batch, very prevalent/popular overall)
         batch_pos_pool = edges[1, idx]
         hard_idx = batch_pos_pool[torch.randint(0, n, (n * n_hard,), device=device)]
-        
         neg_idx = torch.cat([easy_idx, hard_idx], dim=0)
         
-        n_emb   = F.normalize(emb[dst_t][neg_idx], dim=-1)
+        n_emb = emb[dst_t][neg_idx]
 
-        total_loss = total_loss + _bpr_loss(a_emb, p_emb, n_emb)
+        # Score pairs
+        pos_score = model.score(src_t, rel, dst_t, a_emb, p_emb)
+        
+        # anchor must be repeated interleaved to match neg_idx block sizes
+        a_emb_repeated = a_emb.repeat_interleave(NEGATIVE_SAMPLES, dim=0)
+        neg_score = model.score(src_t, rel, dst_t, a_emb_repeated, n_emb)
+
+        total_loss = total_loss + _margin_ranking_loss(pos_score, neg_score)
 
     total_loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -196,10 +195,12 @@ def evaluate(
         for t, ids in node_ids.items()
     }
 
-    # Group val pairs by anchor
+    # Group val pairs by anchor (and save relation type!)
     by_anchor: dict[tuple, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
-    for atype, aid, itype, iid in val_data["val_pairs"]:
+    anchor_rel: dict[tuple[str, str, str], str] = {}
+    for atype, aid, rel_type, itype, iid in val_data["val_pairs"]:
         by_anchor[(atype, aid)][itype].add(iid)
+        anchor_rel[(atype, aid, itype)] = rel_type
 
     seen_train = val_data.get("seen_train_by_anchor", {})
 
@@ -220,17 +221,23 @@ def evaluate(
         aidx = id_to_idx.get(atype, {}).get(aid)
         if aidx is None:
             continue
-        a_emb = emb[atype][aidx].cpu().unsqueeze(0)   # [1, D]
+        a_emb = emb[atype][aidx].unsqueeze(0)   # [1, D] on device
         seen  = seen_train.get((atype, aid), set())
 
         for dst_type, pos_ids in by_anchor[(atype, aid)].items():
             if not pos_ids or dst_type not in emb:
                 continue
+            
+            rel_type   = anchor_rel.get((atype, aid, dst_type))
+            if rel_type is None:
+                continue
+
             dst_ids    = node_ids[dst_type]
             dst_idx_map = id_to_idx[dst_type]
-            mat        = emb[dst_type].cpu()           # [N, D]
+            mat        = emb[dst_type]           # [N, D] on device
 
-            sims = F.cosine_similarity(a_emb, mat).clone()
+            # Replace strict cosine with parameterized DistMult score_batch
+            sims = model.score_batch(atype, rel_type, dst_type, a_emb, mat).cpu().clone()
 
             # Mask: seen train items + self
             for exc in seen | {aid}:
@@ -326,11 +333,11 @@ def train(
     # Only include anchors with >=2 val items: single-item anchors produce
     # binary 0/1 recall per anchor which dominates the metric with noise.
     anchors_with_val: set[tuple] = set()
-    for atype, aid, _itype, _iid in val_data["val_pairs"]:
+    for atype, aid, _rel, _itype, _iid in val_data["val_pairs"]:
         anchors_with_val.add((atype, aid))
 
     by_anchor_count: dict[tuple, int] = defaultdict(int)
-    for atype, aid, _, _ in val_data["val_pairs"]:
+    for atype, aid, _, _, _ in val_data["val_pairs"]:
         by_anchor_count[(atype, aid)] += 1
 
     # Balanced anchor sampling: take up to 128 anchors per type to ensure stable 'n' for all tasks.

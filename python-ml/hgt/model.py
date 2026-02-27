@@ -60,11 +60,58 @@ class HetEncoder(nn.Module):
             for _ in range(HGT_LAYERS)
         ])
 
-        # Shared output projection → embedding space
-        self.out_proj = nn.Sequential(
-            nn.Linear(HIDDEN_DIM, EMBED_DIM),
-            nn.LayerNorm(EMBED_DIM),
-        )
+        # Per-type output projection → embedding space
+        self.out_proj = nn.ModuleDict({
+            t: nn.Sequential(
+                nn.Linear(HIDDEN_DIM, EMBED_DIM),
+                nn.LayerNorm(EMBED_DIM),
+            ) for t in NODE_TYPES
+        })
+
+        # DistMult Relational Decoder Weights
+        # Initialized with ones so that it natively starts as a pure dot-product
+        # and slowly learns relationship-specific deviations.
+        self.decoder_weights = nn.ParameterDict()
+        for src, rel, dst in METADATA[1]:
+            key = f"{src}__{rel}__{dst}"
+            self.decoder_weights[key] = nn.Parameter(torch.ones(EMBED_DIM))
+
+        # Adding discovery validation relations for validation phase
+        discovery_rels = [
+            ("event", "similarity", "event"),
+            ("space", "similarity", "space"),
+            ("tag", "similarity", "tag")
+        ]
+        for src, rel, dst in discovery_rels:
+            key = f"{src}__{rel}__{dst}"
+            self.decoder_weights[key] = nn.Parameter(torch.ones(EMBED_DIM))
+
+    # ── Relational Decoder (DistMult) ──────────────────────────────────────────
+    
+    def score(self, src_type: str, rel_type: str, dst_type: str, a_emb: torch.Tensor, i_emb: torch.Tensor) -> torch.Tensor:
+        """
+        DistMult scoring for a batch of (anchor, item) pairs.
+        a_emb: [B, D]
+        i_emb: [B, D]
+        """
+        key = f"{src_type}__{rel_type}__{dst_type}"
+        w = self.decoder_weights.get(key, None)
+        if w is None:
+            # Fallback to pure dot product if relation not found
+            return torch.sum(a_emb * i_emb, dim=-1)
+        return torch.sum(a_emb * w * i_emb, dim=-1)
+
+    def score_batch(self, src_type: str, rel_type: str, dst_type: str, a_emb: torch.Tensor, i_emb_mat: torch.Tensor) -> torch.Tensor:
+        """
+        DistMult scoring for evaluating 1 anchor against N items.
+        a_emb: [1, D]
+        i_emb_mat: [N, D]
+        """
+        key = f"{src_type}__{rel_type}__{dst_type}"
+        w = self.decoder_weights.get(key, None)
+        if w is None:
+            return torch.sum(a_emb * i_emb_mat, dim=-1)
+        return torch.sum((a_emb * w) * i_emb_mat, dim=-1)
 
     # ── Shared input encoding ──────────────────────────────────────────────────
 
@@ -80,45 +127,29 @@ class HetEncoder(nn.Module):
         self,
         x_dict: dict[str, torch.Tensor],
         edge_index_dict: dict[tuple, torch.Tensor],
-        edge_weight_dict: Optional[dict[tuple, torch.Tensor]] = None,
     ) -> dict[str, torch.Tensor]:
         """
         Run HGT over the full heterogeneous graph.
-        Returns {node_type: L2-normalised embeddings [N, EMBED_DIM]}.
+        Returns {node_type: embeddings [N, EMBED_DIM]}.
         """
         h = self._encode_inputs(x_dict)
         for conv in self.convs:
             # HGTConv accepts edge_index_dict as second argument.
-            # edge_weight is explicitly handled via **kwargs if provided.
-            kwargs = {}
-            if edge_weight_dict is not None:
-                # Filter out types missing from the weight dict to avoid errors
-                kwargs["edge_attr_dict"] = {
-                    k: v.unsqueeze(-1) if v.dim() == 1 else v
-                    for k, v in edge_weight_dict.items()
-                } # HGT uses edge_attr_dict to inject edge features
-
-            h_new = conv(h, edge_index_dict) # In standard PyG HGT Conv it does not accept edge weights natively, only node attributes and edge indices. We just validated the code does not crash.
-            # Wait, PyG HGTConv does not natively support 1D edge_weights.
-            # We must skip passing it directly. The presence of weights is more for
-            # sampling. Let's leave conv(h, edge_index_dict).
             h_new = conv(h, edge_index_dict)
-            # applies softmax normalization internally; extra ReLU kills negative
-            # contributions from cross-type attention.
-            h = {t: h_new[t] + h[t] for t in h}
-        return {t: F.normalize(self.out_proj(v), dim=-1) for t, v in h.items()}
+            h = {t: self.drop(h_new[t]) + h[t] for t in h}
+        return {t: self.out_proj[t](v) for t, v in h.items()}
 
     # ── Encoder-only forward (/embed — new entities, no graph) ────────────────
 
     def forward_single(self, x: torch.Tensor, node_type: str) -> torch.Tensor:
         """
         Encode a single entity without the graph (used by /embed).
-        Returns an L2-normalised embedding [EMBED_DIM].
+        Returns an embedding [EMBED_DIM].
         The embedding is consistent with forward_graph in the shared feature space
         but lacks cross-type context. ml:sync re-embeds with the full graph.
         """
         h = self.drop(F.relu(self.input_norm[node_type](self.input_proj[node_type](x))))
-        return F.normalize(self.out_proj(h), dim=-1)
+        return self.out_proj[node_type](h)
 
 
 # ── Persistence ────────────────────────────────────────────────────────────────
