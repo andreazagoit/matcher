@@ -37,7 +37,10 @@ export default async function DiscoverPage() {
         query<GetFindMatchesQuery, GetFindMatchesQueryVariables>({
             query: GET_FIND_MATCHES,
             variables: { maxDistance: radius },
-        }).catch(() => ({ data: { findMatches: [] as GetFindMatchesQuery["findMatches"] } })),
+        }).catch((e) => {
+            console.error("GET_FIND_MATCHES error:", e);
+            return { data: { findMatches: [] as GetFindMatchesQuery["findMatches"] } };
+        }),
         query<GetRecommendedTagsQuery, GetRecommendedTagsQueryVariables>({
             query: GET_RECOMMENDED_TAGS,
             variables: { limit: 12 },

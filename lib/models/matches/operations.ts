@@ -71,15 +71,7 @@ export async function findMatches(
 
   const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
 
-  // Score = cosine similarity of HGT embeddings (1 = identical, 0 = orthogonal)
   const embeddingStr = myEmbedding ? `[${myEmbedding.join(",")}]` : null;
-  const finalScoreSql = embeddingStr
-    ? sql<number>`COALESCE((
-        SELECT 1 - (e.embedding <=> ${embeddingStr}::vector)
-        FROM ${embeddings} e
-        WHERE e.entity_id = ${users.id} AND e.entity_type = 'user'
-      ), 0)`
-    : sql<number>`0`;
 
   // Shared tags for display (array intersection)
   const sharedTagsSql =
@@ -95,7 +87,7 @@ export async function findMatches(
 
   const poolSize = filters.candidatePool ?? filters.limit;
 
-  const candidates = await db
+  const candidatesQuery = db
     .select({
       user: {
         id: users.id,
@@ -105,30 +97,38 @@ export async function findMatches(
         gender: users.gender,
         birthdate: users.birthdate,
       },
-      score: finalScoreSql,
+      score: embeddingStr
+        ? sql<number>`1 - (${embeddings.embedding} <=> ${sql.raw(`'${embeddingStr}'::vector`)})`
+        : sql<number>`0`,
       distanceKm: distanceSql,
       sharedTags: sharedTagsSql,
     })
-    .from(users)
+    // Start from embeddings to use the HNSW index efficiently
+    .from(embeddings)
+    .innerJoin(users, eq(sql`${users.id}::text`, embeddings.entityId))
     .where(
       and(
+        eq(embeddings.entityType, "user"),
         ne(users.id, userId),
-        // Exclude users who already have a connection with the current user
+        // Exclude ONLY accepted or declined connections
         notExists(
           db
             .select()
             .from(connections)
             .where(
-              or(
-                and(
-                  eq(connections.initiatorId, userId),
-                  eq(connections.recipientId, users.id),
+              and(
+                or(
+                  and(
+                    eq(connections.initiatorId, userId),
+                    eq(connections.recipientId, users.id),
+                  ),
+                  and(
+                    eq(connections.initiatorId, users.id),
+                    eq(connections.recipientId, userId),
+                  ),
                 ),
-                and(
-                  eq(connections.initiatorId, users.id),
-                  eq(connections.recipientId, userId),
-                ),
-              ),
+                inArray(connections.status, ["accepted", "declined"])
+              )
             ),
         ),
         // Candidates must have a location set
@@ -136,7 +136,6 @@ export async function findMatches(
         // Required by MatchUser GraphQL type
         sql`${users.username} IS NOT NULL`,
         sql`${users.birthdate} IS NOT NULL`,
-        sql`${users.id} != ${userId}`,
         myLocation
           ? sql`ST_DistanceSphere(${users.coordinates}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`
           : undefined,
@@ -150,8 +149,12 @@ export async function findMatches(
           ? sql`${ageSql} <= ${filters.maxAge}`
           : undefined,
       ),
-    )
-    .orderBy(sql`${finalScoreSql} DESC`)
+    );
+
+  const candidates = await (embeddingStr
+    ? candidatesQuery.orderBy(sql`${embeddings.embedding} <=> ${sql.raw(`'${embeddingStr}'::vector`)}`)
+    : candidatesQuery.orderBy(sql`${distanceSql} ASC`)
+  )
     .limit(poolSize)
     .offset(filters.offset);
 

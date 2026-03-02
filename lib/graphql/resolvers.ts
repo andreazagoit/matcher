@@ -42,6 +42,7 @@ export const resolvers = {
   Connection: connectionResolvers.Connection,
   Event: eventResolvers.Event,
   EventAttendee: eventResolvers.EventAttendee,
+  MatchUser: matchResolvers.MatchUser,
   Member: { ...memberResolvers.Member, ...tierResolvers.Member },
   Message: connectionResolvers.Message,
   Post: postResolvers.Post,
