@@ -26,11 +26,3 @@ export const GET_FIND_MATCHES = gql`
   }
 `;
 
-export const GET_PROFILE_STATUS = gql`
-  query GetProfileStatus {
-    profileStatus {
-      hasProfile
-      updatedAt
-    }
-  }
-`;

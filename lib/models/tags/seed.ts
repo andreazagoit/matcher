@@ -1,6 +1,4 @@
 import "dotenv/config";
-import { db } from "@/lib/db/drizzle";
-import { tags } from "./schema";
 import { TAG_CATEGORIES } from "./data";
 import { createTag } from "./operations";
 

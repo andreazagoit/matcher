@@ -6,7 +6,7 @@ export const tagResolvers = {
     allTags: async () => await getAllTags(),
   },
   Mutation: {
-    createTag: async (_: any, { name, category }: { name: string; category: string }) => {
+    createTag: async (_: unknown, { name, category }: { name: string; category: string }) => {
       // Returns the normalized name of the created tag string
       return await createTag(name, category);
     },

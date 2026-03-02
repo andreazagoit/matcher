@@ -26,7 +26,7 @@ export const tierTypeDefs = `#graphql
   }
 
   extend type Space {
-    tiers: [MembershipTier!]
+    tiers: [MembershipTier!]!
   }
 
   extend type Member {

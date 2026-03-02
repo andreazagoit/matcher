@@ -14,7 +14,7 @@ export const userTypeDefs = `#graphql
     birthdate: String!
     image: String
     location: String
-    coordinates: Location
+    coordinates: Coordinates
     locationUpdatedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -53,11 +53,6 @@ export const userTypeDefs = `#graphql
     schoolName: String
     languages: [String!]!
     ethnicity: Ethnicity
-  }
-
-  type Location {
-    lat: Float!
-    lon: Float!
   }
 
   input CreateUserInput {

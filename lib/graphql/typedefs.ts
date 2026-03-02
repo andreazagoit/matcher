@@ -1,5 +1,6 @@
 import { connectionTypeDefs } from "../models/connections/typedefs";
 import { notificationTypeDefs } from "../models/notifications/typedefs";
+import { sharedTypeDefs } from "../models/shared/typedefs";
 import { eventTypeDefs } from "../models/events/typedefs";
 import { matchTypeDefs } from "../models/matches/typedefs";
 import { memberTypeDefs } from "../models/members/typedefs";
@@ -21,6 +22,7 @@ const baseTypeDefs = `#graphql
 
 export const typeDefs = [
   baseTypeDefs,
+  sharedTypeDefs,
   connectionTypeDefs,
   eventTypeDefs,
   matchTypeDefs,

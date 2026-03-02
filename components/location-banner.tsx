@@ -11,7 +11,6 @@ export function LocationBanner() {
     const [dismissed, setDismissed] = useState(false);
     const [locating, setLocating] = useState(false);
     const [done, setDone] = useState(false);
-    const [city, setCity] = useState<string | null>(null);
 
     const [updateLocation] = useMutation<UpdateLocationMutation>(UPDATE_LOCATION);
 
@@ -23,7 +22,7 @@ export function LocationBanner() {
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
                 try {
-                    const res = await updateLocation({
+                    await updateLocation({
                         variables: { lat: pos.coords.latitude, lon: pos.coords.longitude },
                     });
                     // Also persist to cookies so next SSR render picks up radius/lat/lon
@@ -31,7 +30,6 @@ export function LocationBanner() {
                     document.cookie = `matcher_lat=${pos.coords.latitude}; path=/; max-age=${maxAge}`;
                     document.cookie = `matcher_lng=${pos.coords.longitude}; path=/; max-age=${maxAge}`;
 
-                    setCity(res.data?.updateLocation?.location ?? null);
                     setDone(true);
                 } catch {
                     // silently ignore — user can try again via header selector

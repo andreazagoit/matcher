@@ -4,10 +4,6 @@
 
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
-import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
-import { db } from "@/lib/db/drizzle";
-import { users } from "@/lib/models/users/schema";
-import { eq } from "drizzle-orm";
 import { getUserItems } from "@/lib/models/useritems/operations";
 import { findMatches } from "./operations";
 import type { Gender } from "@/lib/graphql/__generated__/graphql";
@@ -47,23 +43,6 @@ export const matchResolvers = {
         minAge: args.minAge,
         maxAge: args.maxAge,
       });
-    },
-
-    profileStatus: async (
-      _: unknown,
-      __: unknown,
-      context: GraphQLContext,
-    ) => {
-      const user = requireAuth(context);
-      const [userRow, embeddingRow] = await Promise.all([
-        db.query.users.findFirst({ where: eq(users.id, user.id), columns: { tags: true } }),
-        getStoredEmbedding(user.id, "user"),
-      ]);
-
-      return {
-        hasProfile: (userRow?.tags?.length ?? 0) > 0 || embeddingRow !== null,
-        updatedAt: null,
-      };
     },
   },
   MatchUser: {

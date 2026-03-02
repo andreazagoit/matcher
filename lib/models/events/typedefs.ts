@@ -9,7 +9,7 @@ export const eventTypeDefs = `#graphql
     title: String!
     description: String
     location: String
-    coordinates: EventCoordinates
+    coordinates: Coordinates
     startsAt: DateTime!
     endsAt: DateTime
     maxAttendees: Int
@@ -32,11 +32,6 @@ export const eventTypeDefs = `#graphql
     isPaid: Boolean!
     """Payment status for the currently authenticated user (null if free event or no purchase)"""
     myPaymentStatus: String
-  }
-
-  type EventCoordinates {
-    lat: Float!
-    lon: Float!
   }
 
   type EventAttendee {

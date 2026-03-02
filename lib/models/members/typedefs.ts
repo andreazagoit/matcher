@@ -10,7 +10,7 @@ export const memberTypeDefs = `#graphql
   }
 
   extend type Space {
-    members(limit: Int, offset: Int): [Member!]
+    members(limit: Int, offset: Int): [Member!]!
     myMembership: Member
   }
 

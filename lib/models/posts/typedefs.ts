@@ -15,7 +15,7 @@ export const postTypeDefs = `#graphql
   }
 
   extend type Space {
-    feed(limit: Int, offset: Int): [Post!]
+    feed(limit: Int, offset: Int): [Post!]!
   }
 
   extend type Mutation {
