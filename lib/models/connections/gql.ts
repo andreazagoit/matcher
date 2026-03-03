@@ -52,8 +52,11 @@ export const MESSAGE_FRAGMENT = gql`
 export const GET_CONVERSATIONS = gql`
   ${CONNECTION_FRAGMENT}
   query GetConnections {
-    connections {
-      ...ConnectionFields
+    me {
+      id
+      connections {
+        ...ConnectionFields
+      }
     }
   }
 `;
@@ -61,20 +64,26 @@ export const GET_CONVERSATIONS = gql`
 export const GET_CONNECTION_REQUESTS = gql`
   ${CONNECTION_FRAGMENT}
   query GetConnectionRequests {
-    connectionRequests {
-      ...ConnectionFields
+    me {
+      id
+      connectionRequests {
+        ...ConnectionFields
+      }
     }
   }
 `;
 
 export const GET_RECENT_CONVERSATIONS = gql`
   query GetRecentConnections {
-    connections {
+    me {
       id
-      otherUser {
-        name
+      connections {
+        id
+        otherUser {
+          name
+        }
+        unreadCount
       }
-      unreadCount
     }
   }
 `;
@@ -82,16 +91,19 @@ export const GET_RECENT_CONVERSATIONS = gql`
 export const GET_MESSAGES = gql`
   ${MESSAGE_FRAGMENT}
   query GetMessages($connectionId: ID!) {
-    messages(connectionId: $connectionId) {
-      ...MessageFields
-    }
-    connection(id: $connectionId) {
+    me {
       id
-      status
-      otherUser {
+      connection(id: $connectionId) {
         id
-        name
-        image
+        status
+        otherUser {
+          id
+          name
+          image
+        }
+        messages {
+          ...MessageFields
+        }
       }
     }
   }
@@ -134,4 +146,3 @@ export const MARK_AS_READ = gql`
     markAsRead(connectionId: $connectionId)
   }
 `;
-

@@ -51,20 +51,45 @@ def load_model_and_graph(weights_path: str = MODEL_WEIGHTS_PATH, data_dir: str =
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-# Edges used for BPR ranking loss — the ONLY training signal!
-# By removing `likes` and `tagged_with` we force the model to infer
-# correlations strictly through real interaction features, avoiding tag shortcuts.
+# Edges used for BPR ranking loss.
+# Includes structural similarity edges (event→event, space→space) with low weight
+# to preserve geometric coherence in entity embedding space while optimising
+# for user interaction edges.
 _BPR_EDGES: list[tuple[str, str, str]] = [
-    ("user",  "attends",             "event"),
-    ("user",  "joins",               "space"),
-    ("event", "hosted_by",           "space"),
-    # Reverse behavioral edges
-    ("event", "rev_attends",         "user"),
-    ("space", "rev_joins",           "user"),
-    ("space", "rev_hosted_by",       "event"),
+    ("user",  "attends",           "event"),
+    ("user",  "joins",             "space"),
+    ("user",  "likes_category",    "category"),
+    ("event", "tagged_with",       "category"),
+    ("space", "tagged_with_space", "category"),
+    ("event", "similarity",        "event"),    # structural anchor: keeps event embeddings coherent
+    ("space", "similarity",        "space"),    # structural anchor: keeps space embeddings coherent
 ]
 
-_EDGES_PER_TYPE = 512   # positive pairs sampled per edge type per step
+# Per-relation loss weights AND per-type sample budget.
+# user→event and user→space are the primary training signal.
+# Structural similarity edges (event→event, space→space) use a very low weight —
+# they act as regularisers to prevent the entity embedding space from collapsing
+# under the pressure of the user interaction gradients.
+_BPR_EDGE_WEIGHTS: dict[tuple[str, str, str], float] = {
+    ("user",  "attends",           "event"):    2.0,
+    ("user",  "joins",             "space"):    2.5,
+    ("user",  "likes_category",    "category"): 0.5,
+    ("event", "tagged_with",       "category"): 0.3,
+    ("space", "tagged_with_space", "category"): 0.3,
+    ("event", "similarity",        "event"):    0.4,   # structural regulariser
+    ("space", "similarity",        "space"):    0.4,   # structural regulariser
+}
+
+# Per-relation sample budget: how many positive pairs to draw per step.
+_EDGES_PER_TYPE: dict[tuple[str, str, str], int] = {
+    ("user",  "attends",           "event"):    1024,
+    ("user",  "joins",             "space"):    1024,
+    ("user",  "likes_category",    "category"): 256,
+    ("event", "tagged_with",       "category"): 256,
+    ("space", "tagged_with_space", "category"): 256,
+    ("event", "similarity",        "event"):    512,
+    ("space", "similarity",        "space"):    512,
+}
 
 
 # Margin from original BPR conceptually.
@@ -119,31 +144,27 @@ def _train_step(
         if edges.size(1) == 0:
             continue
 
-        n   = min(_EDGES_PER_TYPE, edges.size(1))
+        n_budget = _EDGES_PER_TYPE.get((src_t, rel, dst_t), 512)
+        n   = min(n_budget, edges.size(1))
         idx = torch.randperm(edges.size(1), device=device)[:n]
 
         a_emb = emb[src_t][edges[0, idx]]   # [n, D]
         p_emb = emb[dst_t][edges[1, idx]]   # [n, D]
 
-        # ── Hard Negative Mining
-        n_hard = max(1, NEGATIVE_SAMPLES // 2)
-        n_easy = max(1, NEGATIVE_SAMPLES - n_hard)
-        
-        easy_idx = torch.randint(0, emb[dst_t].size(0), (n * n_easy,), device=device)
-        batch_pos_pool = edges[1, idx]
-        hard_idx = batch_pos_pool[torch.randint(0, n, (n * n_hard,), device=device)]
-        neg_idx = torch.cat([easy_idx, hard_idx], dim=0)
-        
-        n_emb = emb[dst_t][neg_idx]
+        # Random negatives sampled uniformly from all destination nodes.
+        # True hard negative mining (sampling near-positives in embedding space)
+        # would require an extra forward pass per step — too expensive here.
+        # The BPR margin (0.5) already provides implicit curriculum hardness.
+        neg_idx = torch.randint(0, emb[dst_t].size(0), (n * NEGATIVE_SAMPLES,), device=device)
+        n_emb   = emb[dst_t][neg_idx]
 
-        # Score pairs
         pos_score = model.score(src_t, rel, dst_t, a_emb, p_emb)
-        
-        # anchor must be repeated interleaved to match neg_idx block sizes
+
         a_emb_repeated = a_emb.repeat_interleave(NEGATIVE_SAMPLES, dim=0)
         neg_score = model.score(src_t, rel, dst_t, a_emb_repeated, n_emb)
 
-        total_loss = total_loss + _margin_ranking_loss(pos_score, neg_score)
+        edge_weight = _BPR_EDGE_WEIGHTS.get((src_t, rel, dst_t), 1.0)
+        total_loss = total_loss + edge_weight * _margin_ranking_loss(pos_score, neg_score)
 
     total_loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -172,7 +193,7 @@ def evaluate(
     node_ids: dict[str, list[str]],
     k: int = 10,
     max_anchors: int = 384,
-    min_val_items: int = 2,
+    min_val_items: int = 1,
     fixed_anchors: Optional[list] = None,
 ) -> dict:
     """
@@ -282,8 +303,10 @@ def evaluate(
         if total_n else 0.0
     )
     
-    # Primary signal: mean recall across CORE interaction types
-    core_keys = ["user->event", "user->space", "user->category"]
+    # Primary signal: mean recall across the RECOMMENDATION tasks only.
+    # user→category is excluded: it's easy to learn (dense signal) and
+    # inflates the score, masking poor performance on event/space discovery.
+    core_keys = ["user->event", "user->space"]
     active_core = [per_task[k]["recall@k"] for k in core_keys if k in per_task]
     primary_r = sum(active_core) / len(active_core) if active_core else micro_r
 
@@ -319,14 +342,16 @@ def train(
         model = HetEncoder().to(device)
         print("Starting fresh model.")
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    # LambdaLR: linear warmup for first 5 epochs, then cosine annealing
-    _warmup = 5
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-4)
+    # LambdaLR: short linear warmup, then cosine annealing to near-zero.
+    # Lower initial LR (5e-4) + shorter warmup reduces early oscillations.
+    _warmup = 3
     def _lr_lambda(ep: int) -> float:
         if ep < _warmup:
             return 0.1 + 0.9 * (ep / _warmup)
         progress = (ep - _warmup) / max(1, epochs - _warmup)
-        return 0.5 * (1.0 + math.cos(math.pi * progress))
+        # Cosine annealing with eta_min = 1% of initial LR (avoids complete stall)
+        return 0.01 + 0.99 * 0.5 * (1.0 + math.cos(math.pi * progress))
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, _lr_lambda)
 
     # Fix eval anchors once — ensures consistent metric across all epochs
@@ -412,7 +437,7 @@ def main() -> None:
     p.add_argument("--epochs",      type=int,   default=EPOCHS,         help="Max training epochs")
     p.add_argument("--lr",          type=float, default=LEARNING_RATE,  help="Learning rate")
     p.add_argument("--eval-every",  type=int,   default=5,              help="Evaluate every N epochs")
-    p.add_argument("--patience",    type=int,   default=6,              help="Early stop after N evals without improvement (0=disabled)")
+    p.add_argument("--patience",    type=int,   default=10,             help="Early stop after N evals without improvement (0=disabled)")
     p.add_argument("--resume",      action="store_true",                help="Resume from saved weights")
     p.add_argument("--data-dir",    default=TRAINING_DATA_DIR,          help="Training data directory")
     p.add_argument("--weights",     default=MODEL_WEIGHTS_PATH,         help="Model weights path")

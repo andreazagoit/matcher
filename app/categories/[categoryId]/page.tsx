@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { query } from "@/lib/graphql/apollo-client";
 import { GET_CATEGORY } from "@/lib/models/categories/gql";
-import { GET_EVENTS_BY_CATEGORIES } from "@/lib/models/events/gql";
-import { GET_SPACES_BY_CATEGORIES } from "@/lib/models/spaces/gql";
 import { Page } from "@/components/page";
 import { SpaceCard } from "@/components/spaces/space-card";
 import { ItemCarousel } from "@/components/item-carousel";
@@ -13,41 +11,34 @@ import Link from "next/link";
 import { CalendarIcon, MapPinIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type {
-  GetCategoryQuery,
-  GetCategoryQueryVariables,
-  GetEventsByCategoriesQuery,
-  GetEventsByCategoriesQueryVariables,
-  GetSpacesByCategoriesQuery,
-  GetSpacesByCategoriesQueryVariables,
-} from "@/lib/graphql/__generated__/graphql";
 
-const CATEGORY_ICONS: Record<string, string> = {
-  sport: "🏃",
-  outdoor: "🏕️",
-  music: "🎵",
-  art: "🎨",
-  food: "🍽️",
-  travel: "✈️",
-  wellness: "🧘",
-  tech: "💻",
-  culture: "🏛️",
-  cinema: "🎬",
-  social: "🤝",
-  animals: "🐾",
-  fashion: "👗",
-  sustainability: "🌱",
-  entrepreneurship: "🚀",
-  science: "🔬",
-  spirituality: "🕊️",
-  volunteering: "❤️",
-  nightlife: "🌙",
-  photography: "📷",
-  dance: "💃",
-  crafts: "🪡",
-  languages: "🗣️",
-  comedy: "😂",
-};
+interface CategoryEvent {
+  id: string;
+  title: string;
+  location?: string | null;
+  startsAt: string;
+  spaceId: string;
+  price?: number | null;
+  currency?: string | null;
+  isPaid: boolean;
+  attendeeCount: number;
+}
+
+interface CategorySpace {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  image?: string | null;
+  categories: string[];
+  visibility: string;
+  joinPolicy: string;
+  createdAt: string;
+  isActive?: boolean | null;
+  membersCount?: number | null;
+  type?: string | null;
+  stripeAccountEnabled: boolean;
+}
 
 interface Props {
   params: Promise<{ categoryId: string }>;
@@ -56,22 +47,19 @@ interface Props {
 export default async function CategoryPage({ params }: Props) {
   const { categoryId } = await params;
 
-  const [categoryRes, eventsRes, spacesRes] = await Promise.all([
-    query<GetCategoryQuery, GetCategoryQueryVariables>({
-      query: GET_CATEGORY,
-      variables: { id: categoryId },
-    }),
-    query<GetEventsByCategoriesQuery, GetEventsByCategoriesQueryVariables>({
-      query: GET_EVENTS_BY_CATEGORIES,
-      variables: { categories: [categoryId] },
-    }).catch(() => ({ data: { eventsByCategories: [] } })),
-    query<GetSpacesByCategoriesQuery, GetSpacesByCategoriesQueryVariables>({
-      query: GET_SPACES_BY_CATEGORIES,
-      variables: { categories: [categoryId] },
-    }).catch(() => ({ data: { spacesByCategories: [] } })),
-  ]);
+  const res = await query<{
+    category: {
+      id: string;
+      recommendedEvents: CategoryEvent[];
+      recommendedSpaces: CategorySpace[];
+      recommendedCategories: string[];
+    } | null;
+  }>({
+    query: GET_CATEGORY,
+    variables: { id: categoryId, eventsLimit: 20, spacesLimit: 20 },
+  });
 
-  const category = categoryRes.data?.category;
+  const category = res.data?.category;
   if (!category) notFound();
 
   // Track the visit server-side (fire-and-forget)
@@ -82,28 +70,24 @@ export default async function CategoryPage({ params }: Props) {
     recordImpression(session.user.id, categoryId, "category", "viewed");
   }
 
-  const events = eventsRes.data?.eventsByCategories ?? [];
-  const spaces = spacesRes.data?.spacesByCategories ?? [];
-
-  const icon = CATEGORY_ICONS[category.id] ?? "🏷️";
+  const events = category.recommendedEvents ?? [];
+  const spaces = category.recommendedSpaces ?? [];
+  const similar = category.recommendedCategories ?? [];
 
   return (
     <Page
       breadcrumbs={[
         { label: "Categories", href: "/categories" },
-        { label: category.name },
+        { label: category.id },
       ]}
       header={
-        <div className="flex items-center gap-4">
-          <span className="text-5xl">{icon}</span>
-          <div className="space-y-1">
-            <h1 className="text-5xl font-extrabold tracking-tight capitalize">
-              {category.name}
-            </h1>
-            <p className="text-lg text-muted-foreground font-medium">
-              {events.length} eventi · {spaces.length} spazi
-            </p>
-          </div>
+        <div className="space-y-1">
+          <h1 className="text-5xl font-extrabold tracking-tight capitalize">
+            {category.id}
+          </h1>
+          <p className="text-lg text-muted-foreground font-medium">
+            {events.length} eventi · {spaces.length} spazi
+          </p>
         </div>
       }
     >
@@ -152,9 +136,25 @@ export default async function CategoryPage({ params }: Props) {
           </section>
         )}
 
+        {similar.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold tracking-tight">Categorie simili</h2>
+            <div className="flex flex-wrap gap-2">
+              {similar.map((cat) => (
+                <Link
+                  key={cat}
+                  href={`/categories/${cat}`}
+                  className="inline-flex items-center rounded-full border bg-card px-4 py-1.5 text-sm font-medium capitalize hover:bg-accent transition-colors"
+                >
+                  {cat}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {events.length === 0 && spaces.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <span className="text-6xl mb-4">{icon}</span>
             <p className="text-muted-foreground font-medium">
               Nessun contenuto disponibile per questa categoria.
             </p>

@@ -35,15 +35,6 @@ export const GET_ALL_SPACES = gql`
   }
 `;
 
-export const GET_RECOMMENDED_SPACES = gql`
-  ${SPACE_FRAGMENT}
-  query GetRecommendedSpaces($limit: Int) {
-    recommendedSpaces(limit: $limit) {
-      ...SpaceFields
-    }
-  }
-`;
-
 export const GET_MY_SPACES = gql`
   ${SPACE_FRAGMENT}
   query GetMySpaces {
@@ -100,6 +91,30 @@ export const GET_SPACE = gql`
   }
 `;
 
+export const GET_SPACE_RECOMMENDED_EVENTS = gql`
+  query GetSpaceRecommendedEvents($spaceId: ID!, $limit: Int) {
+    space(id: $spaceId) {
+      id
+      recommendedEvents(limit: $limit) {
+        id
+        title
+        location
+        startsAt
+        endsAt
+        attendeeCount
+        categories
+        price
+        isPaid
+        space {
+          id
+          name
+          slug
+        }
+      }
+    }
+  }
+`;
+
 // ============================================
 // MUTATIONS
 // ============================================
@@ -118,15 +133,6 @@ export const UPDATE_SPACE = gql`
   ${SPACE_FRAGMENT}
   mutation UpdateSpace($id: ID!, $input: UpdateSpaceInput!) {
     updateSpace(id: $id, input: $input) {
-      ...SpaceFields
-    }
-  }
-`;
-
-export const GET_SPACES_BY_CATEGORIES = gql`
-  ${SPACE_FRAGMENT}
-  query GetSpacesByCategories($categories: [String!]!, $matchAll: Boolean) {
-    spacesByCategories(categories: $categories, matchAll: $matchAll) {
       ...SpaceFields
     }
   }

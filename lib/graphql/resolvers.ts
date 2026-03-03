@@ -16,15 +16,10 @@ export const resolvers = {
 
 
   Query: {
-    ...connectionResolvers.Query,
     ...eventResolvers.Query,
-    ...matchResolvers.Query,
-    ...postResolvers.Query,
-    ...userItemResolvers.Query,
     ...spaceResolvers.Query,
     ...categoryResolvers.Query,
     ...userResolvers.Query,
-    ...notificationResolvers.Query,
   },
 
   Mutation: {
@@ -40,10 +35,10 @@ export const resolvers = {
   },
 
   // Relationship and specific type resolvers
+  Category: categoryResolvers.Category,
   Connection: connectionResolvers.Connection,
   Event: eventResolvers.Event,
   EventAttendee: eventResolvers.EventAttendee,
-  MatchUser: matchResolvers.MatchUser,
   Member: { ...memberResolvers.Member, ...tierResolvers.Member },
   Message: connectionResolvers.Message,
   Post: postResolvers.Post,
@@ -55,5 +50,10 @@ export const resolvers = {
   },
   User: {
     ...userResolvers.User,
+    ...notificationResolvers.User,
+    ...userItemResolvers.User,
+    ...matchResolvers.User,
+    ...postResolvers.User,
+    ...connectionResolvers.User,
   },
 };

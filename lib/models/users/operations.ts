@@ -7,8 +7,12 @@ import {
   type CreateUserInput,
   type UpdateUserInput,
 } from "./validator";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, inArray, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
+import { embeddings } from "@/lib/models/embeddings/schema";
+import { events } from "@/lib/models/events/schema";
+import { eventAttendees } from "@/lib/models/events/schema";
+import { embedUser } from "@/lib/ml/client";
 
 /**
  * Create a new user record.
@@ -64,6 +68,25 @@ export async function createUser(
       ...(validatedInput.location && { location: validatedInput.location }),
     })
     .returning();
+
+  // Generate and store embedding
+  const embedding = await embedUser({
+    birthdate: validatedInput.birthdate,
+    gender: validatedInput.gender,
+    relationshipIntent: validatedInput.relationshipIntent,
+    smoking: validatedInput.smoking,
+    drinking: validatedInput.drinking,
+    activityLevel: validatedInput.activityLevel,
+  });
+  if (embedding) {
+    await db
+      .insert(embeddings)
+      .values({ entityId: newUser.id, entityType: "user", embedding })
+      .onConflictDoUpdate({
+        target: [embeddings.entityId, embeddings.entityType],
+        set: { embedding, updatedAt: new Date() },
+      });
+  }
 
   return newUser;
 }
@@ -123,6 +146,30 @@ export async function updateUser(
     .where(eq(users.id, id))
     .returning();
 
+  // Regenerate embedding if any profile-relevant field changed
+  const profileFields = ["gender", "relationshipIntent", "smoking", "drinking", "activityLevel", "birthdate"] as const;
+  const hasProfileChange = profileFields.some((f) => validatedInput[f] !== undefined);
+  if (hasProfileChange) {
+    const merged = { ...existingUser, ...updatedUser };
+    const embedding = await embedUser({
+      birthdate: merged.birthdate,
+      gender: merged.gender,
+      relationshipIntent: merged.relationshipIntent ?? [],
+      smoking: merged.smoking,
+      drinking: merged.drinking,
+      activityLevel: merged.activityLevel,
+    });
+    if (embedding) {
+      await db
+        .insert(embeddings)
+        .values({ entityId: id, entityType: "user", embedding })
+        .onConflictDoUpdate({
+          target: [embeddings.entityId, embeddings.entityType],
+          set: { embedding, updatedAt: new Date() },
+        });
+    }
+  }
+
   return updatedUser;
 }
 
@@ -175,8 +222,46 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
- * Check if a username is already taken. No auth required (used at sign-up).
+ * AI-recommended events for a user — based on cosine similarity between the
+ * user's embedding and each event's embedding. Excludes already-attended events.
  */
+export async function getUserRecommendedEvents(
+  userId: string,
+  limit = 10,
+  offset = 0,
+) {
+  const row = await db.query.embeddings.findFirst({
+    where: and(eq(embeddings.entityId, userId), eq(embeddings.entityType, "user")),
+    columns: { embedding: true },
+  });
+  if (!row) return [];
+
+  const attended = await db
+    .select({ eventId: eventAttendees.eventId })
+    .from(eventAttendees)
+    .where(eq(eventAttendees.userId, userId));
+  const excludeIds = attended.map((a) => a.eventId);
+
+  const vec = `[${row.embedding.join(",")}]`;
+  const rows = await db.execute<{ entity_id: string }>(sql`
+    SELECT entity_id FROM embeddings
+    WHERE  entity_type = 'event'
+    ${excludeIds.length ? sql`AND entity_id != ALL(${excludeIds})` : sql``}
+    ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
+    LIMIT ${sql.raw(String(limit))} OFFSET ${sql.raw(String(offset))}
+  `);
+
+  const ids = rows.map((r) => r.entity_id);
+  if (!ids.length) return [];
+
+  const result = await db
+    .select()
+    .from(events)
+    .where(and(inArray(events.id, ids), gte(events.startsAt, new Date())));
+  const map = new Map(result.map((e) => [e.id, e]));
+  return ids.map((id) => map.get(id)).filter(Boolean);
+}
+
 export async function isUsernameTaken(username: string): Promise<boolean> {
   const existing = await db.query.users.findFirst({
     where: eq(users.username, username),
@@ -188,11 +273,13 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
 /**
  * Update a user's location (PostGIS point).
  * PostGIS convention: x = longitude, y = latitude.
+ * If locationOverride is provided, it is used directly instead of reverse geocoding.
  */
 export async function updateUserLocation(
   id: string,
   lat: number,
-  lon: number
+  lon: number,
+  locationOverride?: string,
 ): Promise<User> {
   const updateData: Partial<User> = {
     coordinates: { x: lon, y: lat },
@@ -200,17 +287,21 @@ export async function updateUserLocation(
     updatedAt: new Date(),
   };
 
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
-      headers: { "User-Agent": "MatcherApp/1.0" }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const city = data.address?.city || data.address?.town || data.address?.village || data.name;
-      if (city) updateData.location = city;
+  if (locationOverride) {
+    updateData.location = locationOverride;
+  } else {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
+        headers: { "User-Agent": "MatcherApp/1.0" }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const city = data.address?.city || data.address?.town || data.address?.village || data.name;
+        if (city) updateData.location = city;
+      }
+    } catch (err) {
+      console.error("Reverse geocoding error:", err);
     }
-  } catch (err) {
-    console.error("Reverse geocoding error:", err);
   }
 
   const [updated] = await db

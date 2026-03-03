@@ -3,15 +3,14 @@ export const postTypeDefs = `#graphql
     id: ID!
     content: String!
     mediaUrls: [String!]
-    likesCount: Int
-    commentsCount: Int
     createdAt: DateTime!
     author: User!
     space: Space!
   }
 
-  extend type Query {
-    userFeed(limit: Int, offset: Int): [Post!]!
+  extend type User {
+    """Posts from all spaces the user is an active member of."""
+    feed(limit: Int, offset: Int): [Post!]!
   }
 
   extend type Space {

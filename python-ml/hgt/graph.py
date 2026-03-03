@@ -43,33 +43,9 @@ def _load(path: str) -> list[dict]:
 
 # ── Feature builders (JSON dict → float list) ─────────────────────────────────
 
-def _user_vec(
-    u: dict,
-    categories_data: dict[str, list[float]],
-    category_weights: dict[str, float],
-) -> list[float]:
-    # Use all categories where the user has a positive impression weight
-    active_cats = [c for c in category_weights if c in categories_data and category_weights[c] > 0]
-
-    if not active_cats:
-        return build_user_features(
-            birthdate=u.get("birthdate"),
-            category_embeddings=[[0.0] * CATEGORY_EMBED_DIM],
-            category_weights=[1.0],
-            gender=u.get("gender"),
-            relationship_intent=u.get("relationshipIntent") or [],
-            smoking=u.get("smoking"),
-            drinking=u.get("drinking"),
-            activity_level=u.get("activityLevel"),
-        )
-
-    cat_embs = [categories_data[c] for c in active_cats]
-    weights  = [category_weights[c] for c in active_cats]
-
+def _user_vec(u: dict) -> list[float]:
     return build_user_features(
         birthdate=u.get("birthdate"),
-        category_embeddings=cat_embs,
-        category_weights=weights,
         gender=u.get("gender"),
         relationship_intent=u.get("relationshipIntent") or [],
         smoking=u.get("smoking"),
@@ -302,7 +278,7 @@ def build_graph_data(
     user_category_weights: dict[str, dict[str, float]] = {u["id"]: {} for u in users_raw}
 
     for imp in cat_impressions_raw:
-        uid, cid, w = imp.get("userId"), imp.get("categoryId"), float(imp.get("weight", 0.0))
+        uid, cid, w = imp.get("userId"), imp.get("itemId"), float(imp.get("weight", 0.0))
         if uid in user_category_weights:
             user_category_weights[uid][cid] = user_category_weights[uid].get(cid, 0.0) + w
 
@@ -321,7 +297,7 @@ def build_graph_data(
                 user_category_weights[uid][c] = user_category_weights[uid].get(c, 0.0) + 0.3
 
     # ── Node feature tensors ──────────────────────────────────────────────────
-    user_x     = torch.tensor([_user_vec(u, categories_data, user_category_weights[u["id"]]) for u in users_raw], dtype=torch.float32)
+    user_x     = torch.tensor([_user_vec(u) for u in users_raw], dtype=torch.float32)
     event_x    = torch.tensor([_event_vec(e, categories_data) for e in events_raw], dtype=torch.float32)
     space_x    = torch.tensor([_space_vec(s, categories_data) for s in spaces_raw], dtype=torch.float32)
 
@@ -399,7 +375,7 @@ def build_graph_data(
     # 3. event → space (hosted_by)
     hosted_recs = [(e["id"], e.get("spaceId"), 1.0, "") for e in events_raw if e.get("spaceId")]
     hosted_src, hosted_dst, hosted_w = [], [], []
-    _split_and_fill(hosted_recs, "event", "hosted_by", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, rev_rel_type="rev_hosted_by", is_timestamped=False, allow_1_degree_holdout=True)
+    _split_and_fill(hosted_recs, "event", "hosted_by", "space", e_idx, s_idx, hosted_src, hosted_dst, hosted_w, rev_rel_type="rev_hosted_by", is_timestamped=False, allow_1_degree_holdout=False)
 
     # 4. user → user (similar_to via co-attendance)
     sim_raw_src, sim_raw_dst, sim_raw_w = _user_user_edges(events_raw, spaces_raw, attendees_raw, members_raw, u_idx, e_idx, s_idx, min_coattend, top_k_similar)
@@ -410,7 +386,7 @@ def build_graph_data(
 
     # 5. user → category (likes_category, from impressions)
     uc_recs = [
-        (imp.get("userId"), imp.get("categoryId"), float(imp.get("weight", 1.0)), imp.get("createdAt", ""))
+        (imp.get("userId"), imp.get("itemId"), float(imp.get("weight", 1.0)), imp.get("created_at", ""))
         for imp in cat_impressions_raw
     ]
     uc_src, uc_dst, uc_w = [], [], []
@@ -426,7 +402,7 @@ def build_graph_data(
     sc_src, sc_dst, sc_w = [], [], []
     _split_and_fill(sc_recs, "space", "tagged_with_space", "category", s_idx, c_idx, sc_src, sc_dst, sc_w, rev_rel_type="rev_tagged_with_space", is_timestamped=False)
 
-    # 8. Similarity discovery (validation only)
+    # 8. Similarity edges (shared categories) — used for message passing AND BPR structural regularisation
     ee_src, ee_dst, ee_w = _shared_category_edges(events_raw, e_idx, top_k=top_k_similar)
     for s, d, _ in zip(ee_src, ee_dst, ee_w):
         val_all[("event", event_ids[s], "similarity", "event")].append(event_ids[d])
@@ -438,6 +414,54 @@ def build_graph_data(
     cc_src, cc_dst, cc_w = _category_category_edges(categories_raw, c_idx, top_k=top_k_similar)
     for s, d, _ in zip(cc_src, cc_dst, cc_w):
         val_all[("category", category_ids[s], "similarity", "category")].append(category_ids[d])
+
+    # Cross-type similarity: space→event and event→space based on shared categories.
+    # "Which events are thematically relevant to this space?" is more meaningful than
+    # the 1-to-many hosted_by holdout which yields near-zero recall by chance.
+    cat_to_spaces: dict[str, set[str]] = defaultdict(set)
+    for s in spaces_raw:
+        for c in s.get("categories", []):
+            cat_to_spaces[c].add(s["id"])
+
+    cat_to_events: dict[str, set[str]] = defaultdict(set)
+    for e in events_raw:
+        for c in e.get("categories", []):
+            cat_to_events[c].add(e["id"])
+
+    se_overlap: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for c, sids in cat_to_spaces.items():
+        for sid in sids:
+            for eid in cat_to_events.get(c, set()):
+                se_overlap[sid][eid] += 1
+
+    # Also boost via co-membership: events attended by members of each space
+    space_members: dict[str, set[str]] = defaultdict(set)
+    for r in members_raw:
+        uid, sid = r.get("userId"), r.get("spaceId")
+        if uid and sid and sid in s_idx:
+            space_members[sid].add(uid)
+
+    user_events: dict[str, set[str]] = defaultdict(set)
+    for r in attendees_raw:
+        uid, eid = r.get("userId"), r.get("eventId")
+        if uid and eid and eid in e_idx:
+            user_events[uid].add(eid)
+
+    for sid, members in space_members.items():
+        if sid not in s_idx:
+            continue
+        for uid in members:
+            for eid in user_events.get(uid, set()):
+                se_overlap[sid][eid] += 1  # adds co-membership signal on top of category overlap
+
+    for sid, event_scores in se_overlap.items():
+        if sid not in s_idx:
+            continue
+        top_events = sorted(event_scores.items(), key=lambda x: x[1], reverse=True)[:top_k_similar]
+        for eid, _ in top_events:
+            if eid in e_idx:
+                val_all[("space", sid, "similarity", "event")].append(eid)
+                val_all[("event", eid, "similarity", "space")].append(sid)
 
     # ── Populate PyG HeteroData ───────────────────────────────────────────────
     data = HeteroData()
@@ -472,6 +496,16 @@ def build_graph_data(
     ei = _add_edge(sc_src, sc_src, sc_dst, "space", "tagged_with_space", "category")
     if ei is not None: data["category", "rev_tagged_with_space", "space"].edge_index = _reverse(ei)
 
+    # Similarity edges: added to the training graph for message passing and BPR structural regularisation.
+    # Both directions are added so the HGT can propagate in both ways.
+    if ee_src:
+        ee_ei = _to_edge_index(ee_src + ee_dst, ee_dst + ee_src)   # bidirectional
+        data["event", "similarity", "event"].edge_index = ee_ei
+
+    if ss_src:
+        ss_ei = _to_edge_index(ss_src + ss_dst, ss_dst + ss_src)   # bidirectional
+        data["space", "similarity", "space"].edge_index = ss_ei
+
     # ── Validation data ────────────────────────────────────────────────────────
     val_pairs_list = [
         (atype, aid, rel_type, itype, iid)
@@ -485,7 +519,7 @@ def build_graph_data(
 
     val_data = _build_val_data(
         users_raw, events_raw, spaces_raw,
-        seen_train_flattened, val_pairs_list, categories_data, user_category_weights,
+        seen_train_flattened, val_pairs_list, categories_data,
     )
 
     node_ids = {
@@ -515,7 +549,6 @@ def _build_val_data(
     seen_train: dict[tuple[str, str], set[str]],
     val_pairs: list[tuple[str, str, str, str, str]],
     categories_data: dict[str, list[float]],
-    user_category_weights: dict[str, dict[str, float]],
 ) -> dict:
     anchor_features: dict[tuple, list[float]] = {}
 
@@ -529,7 +562,7 @@ def _build_val_data(
         if atype == "user":
             u = user_by_id.get(aid)
             if u:
-                anchor_features[(atype, aid)] = _user_vec(u, categories_data, user_category_weights.get(aid, {}))
+                anchor_features[(atype, aid)] = _user_vec(u)
         elif atype == "event":
             e = event_by_id.get(aid)
             if e:
@@ -549,7 +582,7 @@ def _build_val_data(
     for s in spaces_raw:
         item_features[s["id"]] = ("space", _space_vec(s, categories_data))
     for u in users_raw:
-        item_features[u["id"]] = ("user", _user_vec(u, categories_data, user_category_weights.get(u["id"], {})))
+        item_features[u["id"]] = ("user", _user_vec(u))
 
     return {
         "anchor_features":      anchor_features,

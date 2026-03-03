@@ -1,6 +1,6 @@
-import { db } from "../drizzle";
-import { events } from "../../models/events/schema";
 import { spaces } from "../../models/spaces/schema";
+import { db } from "../drizzle";
+import { createEvent } from "../../models/events/operations";
 
 interface SeedEvent {
   spaceSlug: string;
@@ -12,7 +12,7 @@ interface SeedEvent {
   startsAt: Date;
   endsAt?: Date;
   maxAttendees?: number;
-  tags: string[];
+  categories: string[];
 }
 
 const now = new Date();
@@ -24,243 +24,324 @@ const d = (daysFromNow: number, hour = 18, minute = 0) => {
 };
 
 const SEED_EVENTS: SeedEvent[] = [
-  // Milano Singles
+  // sport
   {
-    spaceSlug: "milano-singles",
-    title: "Aperitivo al Naviglio Grande",
-    description: "Aperitivo di gruppo sui Navigli, ottimo per conoscere nuove persone in un'atmosfera rilassata.",
-    location: "Naviglio Grande, Milano",
-    lat: 45.4545,
-    lon: 9.1718,
-    startsAt: d(3, 19, 0),
-    endsAt: d(3, 22, 0),
-    maxAttendees: 20,
-    tags: ["parties", "restaurants"],
-  },
-  {
-    spaceSlug: "milano-singles",
-    title: "Speed Dating al Brera",
-    description: "Classico speed dating nel quartiere Brera. 5 minuti per fare colpo!",
-    location: "Caffè Letterario Brera, Milano",
-    lat: 45.4722,
-    lon: 9.1864,
-    startsAt: d(7, 20, 0),
-    endsAt: d(7, 23, 0),
-    maxAttendees: 30,
-    tags: ["parties", "cinema"],
-  },
-  {
-    spaceSlug: "milano-singles",
-    title: "Serata Cinema Anteo",
-    description: "Film + discussione post-proiezione. Un modo diverso per conoscersi.",
-    location: "Anteo Palazzo del Cinema, Milano",
-    lat: 45.4829,
-    lon: 9.1786,
-    startsAt: d(12, 20, 30),
-    endsAt: d(12, 23, 30),
+    spaceSlug: "fitness-partners",
+    title: "Running in Parco Sempione",
+    description: "Corsa di gruppo al mattino nel parco. Tutti i ritmi benvenuti!",
+    location: "Parco Sempione, Milano",
+    lat: 45.4754, lon: 9.1742,
+    startsAt: d(30, 7, 30), endsAt: d(30, 9, 0),
     maxAttendees: 25,
-    tags: ["cinema"],
+    categories: ["sport", "outdoor"],
   },
-
-  // Roma Dating
-  {
-    spaceSlug: "roma-dating",
-    title: "Cena a Trastevere",
-    description: "Cena romantica in gruppo nel cuore di Trastevere. Prenotiamo un tavolo per 12.",
-    location: "Piazza di Santa Maria in Trastevere, Roma",
-    lat: 41.8897,
-    lon: 12.4699,
-    startsAt: d(4, 20, 0),
-    endsAt: d(4, 23, 30),
-    maxAttendees: 12,
-    tags: ["restaurants", "wine"],
-  },
-  {
-    spaceSlug: "roma-dating",
-    title: "Tour al Colosseo al tramonto",
-    description: "Visita guidata al Colosseo durante il tramonto. Atmosfera unica.",
-    location: "Colosseo, Roma",
-    lat: 41.8902,
-    lon: 12.4922,
-    startsAt: d(9, 17, 30),
-    endsAt: d(9, 20, 0),
-    maxAttendees: 15,
-    tags: ["museums", "travel"],
-  },
-
-  // Outdoor Adventures
+  // outdoor
   {
     spaceSlug: "outdoor-adventures",
     title: "Trekking al Monte Generoso",
     description: "Escursione di media difficoltà con vista panoramica su Lombardia e Svizzera.",
     location: "Monte Generoso, Lombardia",
-    lat: 45.9319,
-    lon: 9.0197,
-    startsAt: d(5, 8, 0),
-    endsAt: d(5, 17, 0),
+    lat: 45.9319, lon: 9.0197,
+    startsAt: d(38, 8, 0), endsAt: d(38, 17, 0),
     maxAttendees: 15,
-    tags: ["trekking", "mountains"],
-  },
-  {
-    spaceSlug: "outdoor-adventures",
-    title: "Arrampicata alle Dolomiti",
-    description: "Weekend di arrampicata per tutti i livelli nelle Dolomiti Bellunesi.",
-    location: "Cortina d'Ampezzo, Belluno",
-    lat: 46.5362,
-    lon: 12.1355,
-    startsAt: d(14, 7, 0),
-    endsAt: d(16, 19, 0),
-    maxAttendees: 10,
-    tags: ["climbing", "mountains", "camping"],
+    categories: ["outdoor", "sport"],
   },
   {
     spaceSlug: "outdoor-adventures",
     title: "Ciclismo sul Lago di Garda",
-    description: "Giro in bici lungo la sponda bresciana del Lago di Garda. ~40km, livello medio.",
+    description: "Giro in bici lungo la sponda bresciana del Lago di Garda. ~40km.",
     location: "Desenzano del Garda, Brescia",
-    lat: 45.4664,
-    lon: 10.5351,
-    startsAt: d(8, 9, 0),
-    endsAt: d(8, 14, 0),
+    lat: 45.4664, lon: 10.5351,
+    startsAt: d(50, 9, 0), endsAt: d(50, 14, 0),
     maxAttendees: 20,
-    tags: ["cycling"],
+    categories: ["outdoor", "sport"],
   },
-
-  // Book Lovers Club
+  // music
   {
-    spaceSlug: "book-lovers-club",
-    title: "Book Club: Il nome della rosa",
-    description: "Discussione del capolavoro di Umberto Eco. Portate le vostre copie annotate!",
-    location: "Libreria Feltrinelli, Piazza Piemonte 2, Milano",
-    lat: 45.4721,
-    lon: 9.1651,
-    startsAt: d(6, 18, 30),
-    endsAt: d(6, 21, 0),
-    maxAttendees: 15,
-    tags: ["reading", "writing"],
+    spaceSlug: "music-live",
+    title: "Concerto Jazz al Blue Note",
+    description: "Serata jazz con musicisti emergenti. Cena opzionale inclusa.",
+    location: "Blue Note Milano",
+    lat: 45.4891, lon: 9.1973,
+    startsAt: d(45, 21, 0), endsAt: d(45, 24, 0),
+    maxAttendees: 50,
+    categories: ["music", "nightlife"],
   },
+  // art
   {
-    spaceSlug: "book-lovers-club",
-    title: "Laboratorio di Scrittura Creativa",
-    description: "Workshop pratico di scrittura creativa con un autore ospite.",
-    location: "Centro Culturale di Milano",
-    lat: 45.4641,
-    lon: 9.1919,
-    startsAt: d(18, 10, 0),
-    endsAt: d(18, 13, 0),
-    maxAttendees: 12,
-    tags: ["writing", "art"],
+    spaceSlug: "artists-creatives",
+    title: "Open Studio a Isola",
+    description: "Visita agli atelier degli artisti del quartiere Isola.",
+    location: "Quartiere Isola, Milano",
+    lat: 45.4890, lon: 9.1908,
+    startsAt: d(48, 15, 0), endsAt: d(48, 20, 0),
+    maxAttendees: 30,
+    categories: ["art", "photography"],
   },
-
-  // Foodies & Wine
+  // food
   {
     spaceSlug: "foodies-wine",
     title: "Degustazione Vini della Toscana",
     description: "Serata di degustazione con sommelier professionista. 6 etichette selezionate.",
     location: "Enoteca Pinchiorri, Firenze",
-    lat: 43.7711,
-    lon: 11.2600,
-    startsAt: d(10, 19, 30),
-    endsAt: d(10, 22, 30),
+    lat: 43.7711, lon: 11.2600,
+    startsAt: d(55, 19, 30), endsAt: d(55, 22, 30),
     maxAttendees: 16,
-    tags: ["wine", "restaurants"],
+    categories: ["food", "social"],
   },
   {
     spaceSlug: "foodies-wine",
     title: "Cooking Class: Pasta Fresca",
     description: "Impariamo a fare la pasta fresca all'uovo con uno chef professionista.",
     location: "Scuola di Cucina Eataly, Milano",
-    lat: 45.4641,
-    lon: 9.2026,
-    startsAt: d(13, 11, 0),
-    endsAt: d(13, 14, 30),
+    lat: 45.4641, lon: 9.2026,
+    startsAt: d(65, 11, 0), endsAt: d(65, 14, 30),
     maxAttendees: 12,
-    tags: ["cooking"],
+    categories: ["food", "social"],
   },
-
-  // Fitness Partners
+  // travel
   {
-    spaceSlug: "fitness-partners",
-    title: "Running in Parco Sempione",
-    description: "Corsa di gruppo al mattino nel parco. Tutti i ritmi benvenuti!",
-    location: "Parco Sempione, Milano",
-    lat: 45.4754,
-    lon: 9.1742,
-    startsAt: d(2, 7, 30),
-    endsAt: d(2, 9, 0),
-    maxAttendees: 25,
-    tags: ["running"],
+    spaceSlug: "milano-singles",
+    title: "Aperitivo al Naviglio Grande",
+    description: "Aperitivo di gruppo sui Navigli, ottimo per conoscere nuove persone.",
+    location: "Naviglio Grande, Milano",
+    lat: 45.4545, lon: 9.1718,
+    startsAt: d(32, 19, 0), endsAt: d(32, 22, 0),
+    maxAttendees: 20,
+    categories: ["travel", "social"],
   },
   {
-    spaceSlug: "fitness-partners",
+    spaceSlug: "roma-dating",
+    title: "Tour al Colosseo al tramonto",
+    description: "Visita guidata al Colosseo durante il tramonto. Atmosfera unica.",
+    location: "Colosseo, Roma",
+    lat: 41.8902, lon: 12.4922,
+    startsAt: d(70, 17, 30), endsAt: d(70, 20, 0),
+    maxAttendees: 15,
+    categories: ["travel", "culture"],
+  },
+  // wellness
+  {
+    spaceSlug: "mind-body",
     title: "Yoga all'alba a Villa Borghese",
     description: "Sessione di yoga all'aperto al sorgere del sole. Porta il tuo tappetino.",
     location: "Villa Borghese, Roma",
-    lat: 41.9136,
-    lon: 12.4921,
-    startsAt: d(4, 6, 30),
-    endsAt: d(4, 8, 0),
+    lat: 41.9136, lon: 12.4921,
+    startsAt: d(42, 6, 30), endsAt: d(42, 8, 0),
     maxAttendees: 20,
-    tags: ["yoga"],
+    categories: ["wellness", "sport", "spirituality"],
   },
-
-  // Tech Innovators
+  // tech
   {
     spaceSlug: "tech-innovators",
     title: "Hackathon AI Weekend",
-    description: "48 ore per costruire un progetto AI. Team di 3-4 persone. Premio per il migliore!",
+    description: "48 ore per costruire un progetto AI. Team di 3-4 persone.",
     location: "Impact Hub, Milano",
-    lat: 45.4669,
-    lon: 9.1890,
-    startsAt: d(20, 9, 0),
-    endsAt: d(22, 17, 0),
+    lat: 45.4669, lon: 9.1890,
+    startsAt: d(90, 9, 0), endsAt: d(92, 17, 0),
     maxAttendees: 40,
-    tags: ["coding", "gaming"],
+    categories: ["tech", "entrepreneurship"],
   },
+  {
+    spaceSlug: "tech-professionals",
+    title: "Meetup: LLM in produzione",
+    description: "Talk tecnico su come portare modelli linguistici in produzione.",
+    location: "Google for Startups Campus, Milano",
+    lat: 45.4654, lon: 9.1856,
+    startsAt: d(58, 18, 30), endsAt: d(58, 21, 0),
+    maxAttendees: 60,
+    categories: ["tech", "science"],
+  },
+  // culture
+  {
+    spaceSlug: "book-culture-club",
+    title: "Book Club: Il nome della rosa",
+    description: "Discussione del capolavoro di Umberto Eco.",
+    location: "Libreria Feltrinelli, Milano",
+    lat: 45.4721, lon: 9.1651,
+    startsAt: d(40, 18, 30), endsAt: d(40, 21, 0),
+    maxAttendees: 15,
+    categories: ["culture", "social"],
+  },
+  {
+    spaceSlug: "book-culture-club",
+    title: "Laboratorio di Scrittura Creativa",
+    description: "Workshop pratico di scrittura creativa con un autore ospite.",
+    location: "Centro Culturale di Milano",
+    lat: 45.4641, lon: 9.1919,
+    startsAt: d(80, 10, 0), endsAt: d(80, 13, 0),
+    maxAttendees: 12,
+    categories: ["culture", "art"],
+  },
+  // cinema
+  {
+    spaceSlug: "cinema-lovers",
+    title: "Serata Cinema Anteo",
+    description: "Film + discussione post-proiezione. Un modo diverso per conoscersi.",
+    location: "Anteo Palazzo del Cinema, Milano",
+    lat: 45.4829, lon: 9.1786,
+    startsAt: d(60, 20, 30), endsAt: d(60, 23, 30),
+    maxAttendees: 25,
+    categories: ["cinema", "social"],
+  },
+  // social / nightlife
+  {
+    spaceSlug: "milano-singles",
+    title: "Speed Dating al Brera",
+    description: "Classico speed dating nel quartiere Brera. 5 minuti per fare colpo!",
+    location: "Caffè Letterario Brera, Milano",
+    lat: 45.4722, lon: 9.1864,
+    startsAt: d(45, 20, 0), endsAt: d(45, 23, 0),
+    maxAttendees: 30,
+    categories: ["social", "nightlife"],
+  },
+  {
+    spaceSlug: "roma-dating",
+    title: "Cena a Trastevere",
+    description: "Cena romantica in gruppo nel cuore di Trastevere.",
+    location: "Piazza di Santa Maria in Trastevere, Roma",
+    lat: 41.8897, lon: 12.4699,
+    startsAt: d(35, 20, 0), endsAt: d(35, 23, 30),
+    maxAttendees: 12,
+    categories: ["social", "food", "nightlife"],
+  },
+  // dance
+  {
+    spaceSlug: "dance-move",
+    title: "Salsa Night a Milano",
+    description: "Serata di salsa cubana con lezione introduttiva per principianti.",
+    location: "La Salumeria della Musica, Milano",
+    lat: 45.4462, lon: 9.1895,
+    startsAt: d(36, 21, 0), endsAt: d(36, 24, 0),
+    maxAttendees: 40,
+    categories: ["dance", "music", "social"],
+  },
+  // animals
+  {
+    spaceSlug: "pet-lovers",
+    title: "Dog Social al Parco delle Cave",
+    description: "Passeggiata social con i nostri amici a quattro zampe.",
+    location: "Parco delle Cave, Milano",
+    lat: 45.4280, lon: 9.1080,
+    startsAt: d(33, 10, 0), endsAt: d(33, 12, 0),
+    maxAttendees: 30,
+    categories: ["animals", "outdoor", "social"],
+  },
+  // sustainability
+  {
+    spaceSlug: "green-community",
+    title: "Pulizia Spiagge a Ostia",
+    description: "Volontariato ambientale sulla spiaggia. Guanti e sacchi forniti.",
+    location: "Lungomare di Ostia, Roma",
+    lat: 41.7335, lon: 12.2388,
+    startsAt: d(44, 9, 0), endsAt: d(44, 13, 0),
+    maxAttendees: 50,
+    categories: ["sustainability", "volunteering", "outdoor"],
+  },
+  // languages
+  {
+    spaceSlug: "language-exchange",
+    title: "Language Exchange Aperitivo",
+    description: "Parla italiano, inglese, spagnolo e francese con madrelingua.",
+    location: "Bar Brera, Milano",
+    lat: 45.4722, lon: 9.1851,
+    startsAt: d(37, 19, 0), endsAt: d(37, 21, 30),
+    maxAttendees: 30,
+    categories: ["languages", "social", "culture"],
+  },
+  // comedy
+  {
+    spaceSlug: "comedy-fun",
+    title: "Stand-up Comedy Night",
+    description: "Serata di stand-up con comici emergenti della scena milanese.",
+    location: "The Comedy Club, Milano",
+    lat: 45.4654, lon: 9.1922,
+    startsAt: d(52, 21, 0), endsAt: d(52, 23, 30),
+    maxAttendees: 60,
+    categories: ["comedy", "social", "nightlife"],
+  },
+  // fashion
+  {
+    spaceSlug: "style-fashion",
+    title: "Vintage Market & Style Swap",
+    description: "Scambia capi vintage, scopri nuovi stili e connettiti.",
+    location: "BASE Milano",
+    lat: 45.4497, lon: 9.1873,
+    startsAt: d(62, 11, 0), endsAt: d(62, 18, 0),
+    maxAttendees: 80,
+    categories: ["fashion", "art", "social"],
+  },
+  // entrepreneurship
+  {
+    spaceSlug: "tech-professionals",
+    title: "Startup Pitch Night",
+    description: "Presenta la tua idea a investitori e mentor. Networking post-evento.",
+    location: "Talent Garden, Milano",
+    lat: 45.5015, lon: 9.2197,
+    startsAt: d(75, 18, 0), endsAt: d(75, 21, 0),
+    maxAttendees: 80,
+    categories: ["entrepreneurship", "tech", "social"],
+  },
+  // science
   {
     spaceSlug: "tech-innovators",
-    title: "Meetup: LLM in produzione",
-    description: "Talk tecnico su come portare modelli linguistici in produzione. Q&A aperto.",
-    location: "Google for Startups Campus, Milano",
-    lat: 45.4654,
-    lon: 9.1856,
-    startsAt: d(11, 18, 30),
-    endsAt: d(11, 21, 0),
-    maxAttendees: 60,
-    tags: ["coding"],
+    title: "Science Café: Intelligenza Artificiale",
+    description: "Talk divulgativo sull'AI per tutti. Q&A aperto.",
+    location: "Museo della Scienza e Tecnologia, Milano",
+    lat: 45.4635, lon: 9.1714,
+    startsAt: d(68, 18, 0), endsAt: d(68, 20, 30),
+    maxAttendees: 100,
+    categories: ["science", "tech", "culture"],
   },
-
-  // Artists & Creatives
+  // photography
   {
-    spaceSlug: "artists-creatives",
-    title: "Open Studio a Isola",
-    description: "Visita agli atelier degli artisti del quartiere Isola. Apertura straordinaria.",
-    location: "Quartiere Isola, Milano",
-    lat: 45.4890,
-    lon: 9.1908,
-    startsAt: d(6, 15, 0),
-    endsAt: d(6, 20, 0),
-    maxAttendees: 30,
-    tags: ["art", "photography"],
+    spaceSlug: "creators-hub",
+    title: "Urban Photography Walk",
+    description: "Passeggiata fotografica nei Navigli con feedback collettivo.",
+    location: "Navigli, Milano",
+    lat: 45.4500, lon: 9.1750,
+    startsAt: d(43, 16, 0), endsAt: d(43, 19, 0),
+    maxAttendees: 20,
+    categories: ["photography", "art", "outdoor"],
   },
+  // crafts
   {
-    spaceSlug: "artists-creatives",
-    title: "Concerto Jazz al Blue Note",
-    description: "Serata jazz con musicisti emergenti. Cena opzionale inclusa.",
-    location: "Blue Note Milano",
-    lat: 45.4891,
-    lon: 9.1973,
-    startsAt: d(15, 21, 0),
-    endsAt: d(15, 24, 0),
-    maxAttendees: 50,
-    tags: ["music"],
+    spaceSlug: "creators-hub",
+    title: "Workshop Ceramica",
+    description: "Impara le basi della ceramica a mano con un artigiano esperto.",
+    location: "Studio Artigiano, Milano",
+    lat: 45.4780, lon: 9.2010,
+    startsAt: d(56, 15, 0), endsAt: d(56, 18, 0),
+    maxAttendees: 12,
+    categories: ["crafts", "art", "social"],
+  },
+  // volunteering
+  {
+    spaceSlug: "soul-service",
+    title: "Mensa Solidale",
+    description: "Volontariato alla mensa per persone senza dimora.",
+    location: "Caritas Milano",
+    lat: 45.4654, lon: 9.1920,
+    startsAt: d(31, 11, 0), endsAt: d(31, 14, 0),
+    maxAttendees: 20,
+    categories: ["volunteering", "social"],
+  },
+  // spirituality
+  {
+    spaceSlug: "soul-service",
+    title: "Meditazione Guidata al Tramonto",
+    description: "Sessione di meditazione mindfulness all'aperto.",
+    location: "Giardini Pubblici Indro Montanelli, Milano",
+    lat: 45.4724, lon: 9.2006,
+    startsAt: d(34, 19, 0), endsAt: d(34, 20, 30),
+    maxAttendees: 25,
+    categories: ["spirituality", "wellness"],
   },
 ];
 
 export async function seedEvents(adminUserId: string) {
   console.log(`\n📅 Seeding ${SEED_EVENTS.length} events...`);
 
-  // Load all spaces once
   const allSpaces = await db.select({ id: spaces.id, slug: spaces.slug }).from(spaces);
   const spaceBySlug = Object.fromEntries(allSpaces.map((s) => [s.slug, s.id]));
 
@@ -276,16 +357,16 @@ export async function seedEvents(adminUserId: string) {
     }
 
     try {
-      await db.insert(events).values({
+      await createEvent({
         spaceId,
         title: ev.title,
         description: ev.description,
         location: ev.location,
-        coordinates: { x: ev.lon, y: ev.lat },
+        coordinates: { lat: ev.lat, lon: ev.lon },
         startsAt: ev.startsAt,
         endsAt: ev.endsAt,
         maxAttendees: ev.maxAttendees,
-        tags: ev.tags,
+        categories: ev.categories,
         createdBy: adminUserId,
       });
       console.log(`  ✓ ${ev.title}`);

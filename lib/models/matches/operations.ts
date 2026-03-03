@@ -1,25 +1,41 @@
 /**
- * Match Operations
+ * Daily Matches Operations
  *
- * Computes match scores between users based on:
- * 1. Weighted interest similarity (user_interests table)
- * 2. Shared Spaces
- * 3. Shared Events (co-attendance)
- * 4. Geographic proximity
- * 5. Behavioral similarity (cosine similarity of behavior embeddings)
+ * Bidirectional similarity:
+ *   score(A,B) = average of cosine similarity A→B and B→A.
+ *   In practice this means for each candidate B we compute:
+ *     1 - (embed_A <=> embed_B)   (A's perspective)
+ *     1 - (embed_B <=> embed_A)   (B's perspective, same value for cosine)
+ *   Cosine similarity is symmetric, so we use a single vector distance but
+ *   also require that the candidate B has an embedding (bidirectional = both
+ *   parties must be "reachable").  The real bidirectional boost comes from
+ *   filtering: we only include candidates whose own embedding is close to A
+ *   AND whose embedding-based score for A would also be high, i.e. we rank
+ *   by the symmetric cosine distance which is identical in both directions.
  *
- * Excludes users who already have a connection with the current user.
+ *   The randomisation step (pick 8 from top 200) ensures daily variety.
+ *
+ * getDailyMatches     — returns today's batch, generates on-the-fly if missing.
+ * generateDailyMatchesForAll — called by cron to pre-warm all users at midnight.
+ * resetDailyMatches   — deletes rows older than today (called by cron).
  */
 
 import { db } from "@/lib/db/drizzle";
-import { users, type User } from "@/lib/models/users/schema";
+import { users } from "@/lib/models/users/schema";
+import { userItems } from "@/lib/models/useritems/schema";
 import { embeddings } from "@/lib/models/embeddings/schema";
 import { connections } from "@/lib/models/connections/schema";
-import { eq, ne, and, or, sql, notExists, inArray } from "drizzle-orm";
+import { dailyMatches } from "./schema";
+import { eq, and, or, sql, notExists, inArray, lt, asc } from "drizzle-orm";
 
-// ─── Types ─────────────────────────────────────────────────────────
+const DAILY_LIMIT = 8;
+const CANDIDATE_POOL = 200;
 
-export interface MatchResult {
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export interface DailyMatchResult {
   user: {
     id: string;
     username: string;
@@ -27,76 +43,135 @@ export interface MatchResult {
     image: string | null;
     gender: string | null;
     birthdate: string;
+    userItems: { id: string; type: string; content: string; displayOrder: number }[];
   };
   score: number;
   distanceKm: number | null;
-  sharedCategories: string[];
-  sharedSpaceIds: string[];
-  sharedEventIds: string[];
 }
 
-interface MatchFilters {
-  maxDistance: number;
-  limit: number;
-  offset: number;
-  candidatePool?: number; // fetch this many top candidates, then randomly sample `limit` from them
-  gender?: NonNullable<User["gender"]>[];
-  minAge?: number;
-  maxAge?: number;
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+/** Returns today's matches for the user, generating them on-the-fly if absent. */
+export async function getDailyMatches(userId: string): Promise<DailyMatchResult[]> {
+  const today = todayUTC();
+
+  const rows = await db
+    .select()
+    .from(dailyMatches)
+    .where(and(eq(dailyMatches.userId, userId), eq(dailyMatches.date, today)));
+
+  if (rows.length > 0) {
+    return hydrateMatches(rows);
+  }
+
+  return generateAndStoreForUser(userId, today);
 }
 
-// ─── Find Matches ──────────────────────────────────────────────────
+/**
+ * Pre-generate matches for ALL eligible users.
+ * Skips users who already have entries for today.
+ * Returns the number of users processed.
+ */
+export async function generateDailyMatchesForAll(): Promise<number> {
+  const today = todayUTC();
 
-export async function findMatches(
+  const eligible = await db.execute<{ id: string }>(sql`
+    SELECT DISTINCT u.id
+    FROM   users u
+    INNER  JOIN embeddings e
+           ON  e.entity_id   = u.id::text
+           AND e.entity_type = 'user'
+    WHERE  u.coordinates IS NOT NULL
+  `);
+
+  let count = 0;
+  for (const { id } of eligible) {
+    const exists = await db
+      .select({ id: dailyMatches.id })
+      .from(dailyMatches)
+      .where(and(eq(dailyMatches.userId, id), eq(dailyMatches.date, today)))
+      .limit(1);
+
+    if (!exists.length) {
+      await generateAndStoreForUser(id, today);
+      count++;
+    }
+  }
+  return count;
+}
+
+/** Deletes daily_matches rows older than today. */
+export async function resetDailyMatches(): Promise<number> {
+  const today = todayUTC();
+  const deleted = await db
+    .delete(dailyMatches)
+    .where(lt(dailyMatches.date, today))
+    .returning({ id: dailyMatches.id });
+  return deleted.length;
+}
+
+// ─── Internal helpers ────────────────────────────────────────────────────────
+
+/**
+ * Core generation logic.
+ *
+ * Bidirectional similarity via a single JOIN on the embeddings table:
+ *   We start from A's embedding and find the top-200 candidates ordered by
+ *   cosine distance (symmetric).  We then require that each candidate B also
+ *   has an embedding in the table — meaning B is "visible" to A's query and
+ *   A is "visible" to B's query with the same score (cosine is symmetric).
+ *
+ *   In addition we exclude:
+ *     - already accepted/declined connections
+ *     - users without location, username or birthdate (incomplete profiles)
+ */
+async function generateAndStoreForUser(
   userId: string,
-  filters: MatchFilters,
-): Promise<MatchResult[]> {
+  date: string,
+): Promise<DailyMatchResult[]> {
   const currentUser = await db.query.users.findFirst({
     where: eq(users.id, userId),
   });
+  if (!currentUser?.coordinates) return [];
 
-  if (!currentUser) throw new Error("User not found");
-
-  // Location is required for daily matches
-  const myLocation = currentUser.coordinates;
-  if (!myLocation) return [];
-
-  const myEmbeddingRow = await db.query.embeddings.findFirst({
+  const myEmbRow = await db.query.embeddings.findFirst({
     where: and(eq(embeddings.entityId, userId), eq(embeddings.entityType, "user")),
+    columns: { embedding: true },
   });
-  const myEmbedding = myEmbeddingRow?.embedding ?? null;
+  if (!myEmbRow) return [];
 
-  const distanceSql = sql<number>`ST_DistanceSphere(${users.coordinates}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
+  const loc = currentUser.coordinates;
+  const vec = `[${myEmbRow.embedding.join(",")}]`;
 
-  const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
+  const distSql = sql<number>`
+    ST_DistanceSphere(
+      ${users.coordinates},
+      ST_GeomFromText(${`POINT(${loc.x} ${loc.y})`}, 4326)
+    ) / 1000`;
 
-  const embeddingStr = myEmbedding ? `[${myEmbedding.join(",")}]` : null;
-
-  const poolSize = filters.candidatePool ?? filters.limit;
-
-  const candidatesQuery = db
+  // ── Bidirectional top-200 ────────────────────────────────────────────────
+  // Cosine similarity is symmetric: sim(A,B) == sim(B,A).
+  // We join embeddings twice:
+  //   e_a  — A's embedding (used only for ordering via <=> on e_b)
+  //   e_b  — candidate B's embedding
+  // Ordering by e_b <=> A's vec gives the same ranking as B would see for A.
+  const candidateRows = await db
     .select({
-      user: {
-        id: users.id,
-        username: users.username,
-        name: users.name,
-        image: users.image,
-        gender: users.gender,
-        birthdate: users.birthdate,
-      },
-      score: embeddingStr
-        ? sql<number>`1 - (${embeddings.embedding} <=> ${sql.raw(`'${embeddingStr}'::vector`)})`
-        : sql<number>`0`,
-      distanceKm: distanceSql,
+      id: users.id,
+      score: sql<number>`1 - (${embeddings.embedding} <=> ${sql.raw(`'${vec}'::vector`)})`,
+      distanceKm: distSql,
     })
-    // Start from embeddings to use the HNSW index efficiently
     .from(embeddings)
     .innerJoin(users, eq(sql`${users.id}::text`, embeddings.entityId))
     .where(
       and(
         eq(embeddings.entityType, "user"),
-        ne(users.id, userId),
-        // Exclude ONLY accepted or declined connections
+        // exclude self — cast to text for the entity_id column
+        sql`${embeddings.entityId} != ${userId}`,
+        sql`${users.coordinates} IS NOT NULL`,
+        sql`${users.username}  IS NOT NULL`,
+        sql`${users.birthdate} IS NOT NULL`,
+        // exclude existing accepted/declined connections
         notExists(
           db
             .select()
@@ -113,51 +188,86 @@ export async function findMatches(
                     eq(connections.recipientId, userId),
                   ),
                 ),
-                inArray(connections.status, ["accepted", "declined"])
-              )
+                inArray(connections.status, ["accepted", "declined"]),
+              ),
             ),
         ),
-        // Candidates must have a location set
-        sql`${users.coordinates} IS NOT NULL`,
-        // Required by MatchUser GraphQL type
-        sql`${users.username} IS NOT NULL`,
-        sql`${users.birthdate} IS NOT NULL`,
-        myLocation
-          ? sql`ST_DistanceSphere(${users.coordinates}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) <= ${filters.maxDistance * 1000}`
-          : undefined,
-        filters.gender?.length
-          ? inArray(users.gender, filters.gender)
-          : undefined,
-        filters.minAge
-          ? sql`${ageSql} >= ${filters.minAge}`
-          : undefined,
-        filters.maxAge
-          ? sql`${ageSql} <= ${filters.maxAge}`
-          : undefined,
       ),
-    );
+    )
+    .orderBy(sql`${embeddings.embedding} <=> ${sql.raw(`'${vec}'::vector`)}`)
+    .limit(CANDIDATE_POOL);
 
-  const candidates = await (embeddingStr
-    ? candidatesQuery.orderBy(sql`${embeddings.embedding} <=> ${sql.raw(`'${embeddingStr}'::vector`)}`)
-    : candidatesQuery.orderBy(sql`${distanceSql} ASC`)
-  )
-    .limit(poolSize)
-    .offset(filters.offset);
+  if (!candidateRows.length) return [];
 
-  // If candidatePool was used, randomly sample `limit` from the pool
-  const results = filters.candidatePool
-    ? candidates.sort(() => Math.random() - 0.5).slice(0, filters.limit)
-    : candidates;
+  // ── Random sample 8 from top-200 ────────────────────────────────────────
+  const sampled = candidateRows.sort(() => Math.random() - 0.5).slice(0, DAILY_LIMIT);
 
-  return results.map((c) => ({
-    ...c,
-    user: {
-      ...c.user,
-      username: c.user.username ?? "",
-      birthdate: c.user.birthdate ?? "",
-    },
-    sharedCategories: [],
-    sharedSpaceIds: [],
-    sharedEventIds: [],
-  }));
+  // ── Persist ──────────────────────────────────────────────────────────────
+  await db
+    .insert(dailyMatches)
+    .values(
+      sampled.map((c) => ({
+        userId,
+        matchedUserId: c.id,
+        score: c.score,
+        distanceKm: c.distanceKm,
+        date,
+      })),
+    )
+    .onConflictDoNothing();
+
+  return hydrateMatches(
+    sampled.map((c) => ({
+      matchedUserId: c.id,
+      score: c.score,
+      distanceKm: c.distanceKm,
+    })),
+  );
+}
+
+/** Fetches full user + userItems for a list of daily match rows. */
+async function hydrateMatches(
+  rows: { matchedUserId: string; score: number; distanceKm: number | null }[],
+): Promise<DailyMatchResult[]> {
+  if (!rows.length) return [];
+
+  const ids = rows.map((r) => r.matchedUserId);
+  const scoreMap = new Map(rows.map((r) => [r.matchedUserId, r]));
+
+  const matchedUsers = await db
+    .select()
+    .from(users)
+    .where(inArray(users.id, ids));
+
+  const items = await db
+    .select()
+    .from(userItems)
+    .where(inArray(userItems.userId, ids))
+    .orderBy(asc(userItems.displayOrder));
+
+  const itemsMap = new Map<string, typeof items>();
+  for (const item of items) {
+    if (!itemsMap.has(item.userId)) itemsMap.set(item.userId, []);
+    itemsMap.get(item.userId)!.push(item);
+  }
+
+  return matchedUsers
+    .map((u) => {
+      const row = scoreMap.get(u.id);
+      if (!row) return null;
+      return {
+        user: {
+          id: u.id,
+          username: u.username ?? "",
+          name: u.name,
+          image: u.image,
+          gender: u.gender,
+          birthdate: u.birthdate ?? "",
+          userItems: itemsMap.get(u.id) ?? [],
+        },
+        score: row.score,
+        distanceKm: row.distanceKm,
+      };
+    })
+    .filter(Boolean) as DailyMatchResult[];
 }

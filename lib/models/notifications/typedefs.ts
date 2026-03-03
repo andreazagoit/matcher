@@ -1,7 +1,17 @@
 export const notificationTypeDefs = `#graphql
+  enum NotificationType {
+    new_match
+    match_mutual
+    new_message
+    space_joined
+    event_reminder
+    event_rsvp
+    generic
+  }
+
   type Notification {
     id: ID!
-    type: String!
+    type: NotificationType!
     text: String!
     image: String
     href: String
@@ -9,9 +19,13 @@ export const notificationTypeDefs = `#graphql
     createdAt: DateTime!
   }
 
-  extend type Query {
-    notifications(limit: Int, offset: Int): [Notification!]!
-    unreadNotificationsCount: Int!
+  type NotificationsResult {
+    items: [Notification!]!
+    unreadCount: Int!
+  }
+
+  extend type User {
+    notifications(limit: Int, offset: Int): NotificationsResult!
   }
 
   extend type Mutation {

@@ -1,4 +1,21 @@
 export const spaceTypeDefs = `#graphql
+  enum SpaceVisibility {
+    public
+    private
+    hidden
+  }
+
+  enum JoinPolicy {
+    open
+    apply
+    invite_only
+  }
+
+  enum SpaceType {
+    free
+    tiered
+  }
+
   type Space {
     id: ID!
     name: String!
@@ -6,29 +23,33 @@ export const spaceTypeDefs = `#graphql
     description: String
     image: String
     categories: [String!]!
-    visibility: String!
-    joinPolicy: String!
+    visibility: SpaceVisibility!
+    joinPolicy: JoinPolicy!
     createdAt: DateTime!
     isActive: Boolean
     membersCount: Int
-    type: String
+    type: SpaceType
     stripeAccountEnabled: Boolean!
+    """Events belonging to this space, ordered by startsAt."""
+    events(limit: Int, offset: Int): [Event!]!
+    """Upcoming events from other spaces with similar embeddings (AI-recommended)."""
+    recommendedEvents(limit: Int): [Event!]!
   }
 
   input CreateSpaceInput {
     name: String!
     slug: String
     description: String
-    visibility: String
-    joinPolicy: String
+    visibility: SpaceVisibility
+    joinPolicy: JoinPolicy
     categories: [String!]
   }
 
   input UpdateSpaceInput {
     name: String
     description: String
-    visibility: String
-    joinPolicy: String
+    visibility: SpaceVisibility
+    joinPolicy: JoinPolicy
     image: String
     categories: [String!]
   }
@@ -37,18 +58,6 @@ export const spaceTypeDefs = `#graphql
     space(id: ID, slug: String): Space
     spaces: [Space!]!
     mySpaces: [Space!]!
-
-    """
-    Search public spaces by categories.
-    matchAll=true requires ALL categories, false requires at least one.
-    """
-    spacesByCategories(categories: [String!]!, matchAll: Boolean): [Space!]!
-
-    """
-    Get recommended spaces based on behavioral similarity and category overlap.
-    Excludes spaces the user is already a member of.
-    """
-    recommendedSpaces(limit: Int): [Space!]!
   }
 
   extend type Mutation {

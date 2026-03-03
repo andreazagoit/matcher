@@ -31,14 +31,13 @@ interface UserItem {
 }
 
 interface QueryData {
-    userItems: UserItem[];
+    me: { id: string; userItems: UserItem[] } | null;
 }
 
-export function UserItemsEditor({ userId }: { userId: string }) {
+export function UserItemsEditor() {
     const tPrompts = useTranslations("prompts");
 
     const { data, loading, refetch } = useQuery<QueryData>(GET_PROFILE_ITEMS, {
-        variables: { userId },
         fetchPolicy: "network-only",
     });
 
@@ -53,7 +52,7 @@ export function UserItemsEditor({ userId }: { userId: string }) {
     const [newPromptKey, setNewPromptKey] = useState<string>("");
     const [newPromptContent, setNewPromptContent] = useState("");
 
-    const items: UserItem[] = data?.userItems ? [...data.userItems].sort((a, b) => a.displayOrder - b.displayOrder) : [];
+    const items: UserItem[] = data?.me?.userItems ? [...data.me.userItems].sort((a, b) => a.displayOrder - b.displayOrder) : [];
 
     const handleAddPhoto = async () => {
         if (!newPhotoUrl.trim()) return;

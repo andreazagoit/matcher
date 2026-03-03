@@ -9,36 +9,32 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   GET_NOTIFICATIONS,
-  GET_UNREAD_COUNT,
   MARK_NOTIFICATION_READ,
   MARK_ALL_NOTIFICATIONS_READ,
   DELETE_NOTIFICATION,
 } from "@/lib/models/notifications/gql";
-import type { GetNotificationsQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default function NotificationsPage() {
   const router = useRouter();
 
-  const { data, refetch } = useQuery<GetNotificationsQuery>(GET_NOTIFICATIONS, {
+  const { data, refetch } = useQuery(GET_NOTIFICATIONS, {
     variables: { limit: 50 },
   });
 
-  const { refetch: refetchCount } = useQuery(GET_UNREAD_COUNT);
-
   const [markRead] = useMutation(MARK_NOTIFICATION_READ, {
-    onCompleted: () => { refetch(); refetchCount(); },
+    onCompleted: () => refetch(),
   });
 
   const [markAllRead] = useMutation(MARK_ALL_NOTIFICATIONS_READ, {
-    onCompleted: () => { refetch(); refetchCount(); },
+    onCompleted: () => refetch(),
   });
 
   const [deleteNotification] = useMutation(DELETE_NOTIFICATION, {
-    onCompleted: () => { refetch(); refetchCount(); },
+    onCompleted: () => refetch(),
   });
 
-  const notifications = data?.notifications ?? [];
-  const unread = notifications.filter((n) => !n.read).length;
+  const notifications = data?.me?.notifications?.items ?? [];
+  const unread = data?.me?.notifications?.unreadCount ?? 0;
 
   const handleClick = async (id: string, href?: string | null) => {
     await markRead({ variables: { id } });

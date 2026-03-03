@@ -144,7 +144,7 @@ async function exportCategoryImpressions() {
   `;
 
   // Aggregate multiple impressions of the same user→category pair
-  const aggregated = new Map<string, { userId: string; categoryId: string; weight: number; createdAt: string }>();
+  const aggregated = new Map<string, { userId: string; itemId: string; weight: number; created_at: string }>();
   for (const r of rows) {
     const key = `${r.user_id}:${r.category_id}`;
     const existing = aggregated.get(key);
@@ -153,9 +153,9 @@ async function exportCategoryImpressions() {
     } else {
       aggregated.set(key, {
         userId: r.user_id,
-        categoryId: r.category_id,
+        itemId: r.category_id,
         weight: Number(r.weight),
-        createdAt: r.created_at,
+        created_at: r.created_at,
       });
     }
   }

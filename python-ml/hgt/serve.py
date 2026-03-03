@@ -106,7 +106,6 @@ def get_category_embeddings_for_list(categories: list[str]) -> list[list[float]]
 # ─── Request / Response schemas ───────────────────────────────────────────────
 
 class UserData(BaseModel):
-    categories: list[str] = []          # category IDs from impressions
     birthdate: Optional[str] = None     # "YYYY-MM-DD"
     gender: Optional[str] = None        # "man" | "woman" | "non_binary"
     relationshipIntent: list[str] = []
@@ -152,10 +151,8 @@ class EntityResponse(BaseModel):
 
 @app.post("/embed/user", response_model=EntityResponse)
 def embed_user(req: UserData):
-    cat_embs = get_category_embeddings_for_list(req.categories)
     features = build_user_features(
         birthdate=req.birthdate,
-        category_embeddings=cat_embs,
         gender=req.gender,
         relationship_intent=req.relationshipIntent,
         smoking=req.smoking,

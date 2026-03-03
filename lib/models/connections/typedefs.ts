@@ -18,6 +18,8 @@ export const connectionTypeDefs = `#graphql
     unreadCount: Int
     createdAt: DateTime!
     updatedAt: DateTime!
+    """Messages in this connection, newest first."""
+    messages: [Message!]!
   }
 
   type Message {
@@ -29,47 +31,23 @@ export const connectionTypeDefs = `#graphql
     createdAt: DateTime!
   }
 
-  extend type Query {
-    """
-    Get pending connection requests (inbox).
-    """
-    connectionRequests: [Connection!]!
-
-    """
-    Get accepted connections (Friends/Matches) for the authenticated user.
-    """
+  extend type User {
+    """Accepted connections (chats) for the authenticated user."""
     connections: [Connection!]!
-
-    """
-    Get a single connection by ID.
-    """
+    """Pending incoming connection requests."""
+    connectionRequests: [Connection!]!
+    """Single connection by ID (must belong to the authenticated user)."""
     connection(id: ID!): Connection
-
-    """
-    Get messages for a connection.
-    """
-    messages(connectionId: ID!): [Message!]!
   }
 
   extend type Mutation {
-    """
-    Send a connection request to another user by liking/commenting on their profile item.
-    """
+    """Send a connection request to another user."""
     sendConnectionRequest(recipientId: ID!, targetUserItemId: ID!, initialMessage: String): Connection!
-
-    """
-    Accept or decline a connection request.
-    """
+    """Accept or decline a connection request."""
     respondToRequest(connectionId: ID!, accept: Boolean!): Connection!
-
-    """
-    Send a message in an existing connection.
-    """
+    """Send a message in an existing connection."""
     sendMessage(connectionId: ID!, content: String!): Message!
-
-    """
-    Mark all messages in a connection as read.
-    """
+    """Mark all messages in a connection as read."""
     markAsRead(connectionId: ID!): Boolean
   }
 `;

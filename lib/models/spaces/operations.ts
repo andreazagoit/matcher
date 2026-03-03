@@ -5,8 +5,10 @@
 import { db } from "@/lib/db/drizzle";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
-import { generateEmbedding } from "@/lib/embeddings";
+import { events } from "@/lib/models/events/schema";
+import { embeddings } from "@/lib/models/embeddings/schema";
+import { eq, and, ne, sql, desc, gte, inArray } from "drizzle-orm";
+import { embedSpace } from "@/lib/ml/client";
 import { recordImpression } from "@/lib/models/impressions/operations";
 
 export function generateSlug(name: string): string {
@@ -61,13 +63,21 @@ export async function createSpace(params: {
     return { space };
   });
 
-  // Generate embedding in background
+  // Generate and store embedding
   const { space } = result;
-  const embText = [space.name, space.description, space.categories?.length ? `Categories: ${space.categories.join(", ")}` : ""].filter(Boolean).join("\n");
-  if (embText.trim()) {
-    generateEmbedding(embText)
-      .then((embedding) => db.update(spaces).set({ embedding }).where(eq(spaces.id, space.id)))
-      .catch(() => {});
+  const embedding = await embedSpace({
+    categories: space.categories ?? [],
+    memberCount: 1, // owner is the first member
+    eventCount: 0,
+  });
+  if (embedding) {
+    await db
+      .insert(embeddings)
+      .values({ entityId: space.id, entityType: "space", embedding })
+      .onConflictDoUpdate({
+        target: [embeddings.entityId, embeddings.entityType],
+        set: { embedding, updatedAt: new Date() },
+      });
   }
 
   return result;
@@ -137,15 +147,61 @@ export async function updateSpace(
     .returning();
 
   if (updated && (data.name !== undefined || data.description !== undefined || data.categories !== undefined)) {
-    const embText = [updated.name, updated.description, updated.categories?.length ? `Categories: ${updated.categories.join(", ")}` : ""].filter(Boolean).join("\n");
-    if (embText.trim()) {
-      generateEmbedding(embText)
-        .then((embedding) => db.update(spaces).set({ embedding }).where(eq(spaces.id, updated.id)))
-        .catch(() => {});
+    const embedding = await embedSpace({
+      categories: updated.categories ?? [],
+      memberCount: updated.membersCount ?? 0,
+      eventCount: 0,
+    });
+    if (embedding) {
+      await db
+        .insert(embeddings)
+        .values({ entityId: updated.id, entityType: "space", embedding })
+        .onConflictDoUpdate({
+          target: [embeddings.entityId, embeddings.entityType],
+          set: { embedding, updatedAt: new Date() },
+        });
     }
   }
 
   return updated || null;
+}
+
+/**
+ * AI-recommended events for a space — finds upcoming events whose embeddings
+ * are closest to this space's embedding (cross-entity cosine similarity).
+ * Excludes events that already belong to this space.
+ */
+export async function getSpaceRecommendedEvents(
+  spaceId: string,
+  limit = 6,
+) {
+  const row = await db.query.embeddings.findFirst({
+    where: and(eq(embeddings.entityId, spaceId), eq(embeddings.entityType, "space")),
+    columns: { embedding: true },
+  });
+  if (!row) return [];
+
+  const vec = `[${row.embedding.join(",")}]`;
+  const rows = await db
+    .select({ id: events.id })
+    .from(embeddings)
+    .innerJoin(events, eq(sql`${events.id}::text`, embeddings.entityId))
+    .where(
+      and(
+        eq(embeddings.entityType, "event"),
+        ne(events.spaceId, spaceId),
+        gte(events.startsAt, new Date()),
+      ),
+    )
+    .orderBy(sql`${embeddings.embedding} <=> ${sql.raw(`'${vec}'::vector`)}`)
+    .limit(limit);
+
+  if (!rows.length) return [];
+
+  const ids = rows.map((r) => r.id);
+  return db.query.events.findMany({
+    where: (e, { inArray }) => inArray(e.id, ids),
+  });
 }
 
 /**

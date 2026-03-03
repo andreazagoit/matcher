@@ -31,10 +31,6 @@ export const userItemTypeDefs = `#graphql
     promptKey: String
   }
 
-  extend type Query {
-    userItems(userId: ID!): [UserItem!]!
-  }
-
   extend type Mutation {
     addUserItem(input: AddUserItemInput!): UserItem!
     updateUserItem(itemId: ID!, input: UpdateUserItemInput!): UserItem!

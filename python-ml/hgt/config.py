@@ -19,11 +19,11 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/match
 # ─── Model ─────────────────────────────────────────────────────────────────────
 EMBED_DIM  = 256
 HIDDEN_DIM = 256   # must be ≥ EMBED_DIM: encoder compresses → HGT operates → proj scales down
-LEARNING_RATE = 0.001
+LEARNING_RATE = 5e-4
 EPOCHS = 100
 BATCH_SIZE = 256
 NEGATIVE_SAMPLES = 5       # negatives per positive interaction
-DROPOUT = 0.1
+DROPOUT = 0.2
 NUM_WORKERS = 0          # 0 = single-threaded (safest on MPS); set to 2-4 on CUDA
 
 CATEGORY_EMBED_DIM = 64  # text-embedding-3-small output dimension
@@ -46,16 +46,17 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 # ─── Feature vector layouts ────────────────────────────────────────────────────
 # Model Dimension Layouts
 #
-# User (USER_DIM = CATEGORY_EMBED_DIM + 18 = 82):
-#   [0:CATEGORY_EMBED_DIM] category impressions mean-pool  (64)
-#   [CATEGORY_EMBED_DIM]   age norm                        (1)
-#   [+1:+4]                gender one-hot                  (3)
-#   [+4:+8]                rel_intent multi-hot            (4)
-#   [+8:+11]               smoking one-hot                 (3)
-#   [+11:+14]              drinking one-hot                (3)
-#   [+14:+19]              activity one-hot                (5)
-# Note: num_categories removed — now implicit in pooled vector magnitude
-USER_DIM  = CATEGORY_EMBED_DIM + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB)
+# User (USER_DIM = 18):
+#   Category preferences are NOT encoded in the node vector — they live
+#   entirely in the graph as user→likes_category edges. The node vector
+#   contains only demographic / behavioural profile data.
+#   [0]    age norm                        (1)
+#   [1:4]  gender one-hot                  (3)
+#   [4:8]  rel_intent multi-hot            (4)
+#   [8:11] smoking one-hot                 (3)
+#   [11:14] drinking one-hot               (3)
+#   [14:19] activity one-hot               (5)
+USER_DIM  = 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB)
 
 # Event (EVENT_DIM = CATEGORY_EMBED_DIM + 11 = 75):
 #   [0:CATEGORY_EMBED_DIM] categories mean-pool    (64)
@@ -107,6 +108,9 @@ EDGE_TYPES: list[tuple[str, str, str]] = [
     ("category", "rev_tagged_with_event",     "event"),
     ("space",    "tagged_with_space",         "category"),
     ("category", "rev_tagged_with_space",     "space"),
+    # structural similarity edges (bidirectional, used for message passing + BPR regularisation)
+    ("event",    "similarity",               "event"),
+    ("space",    "similarity",               "space"),
 ]
 
 METADATA: tuple = (NODE_TYPES, EDGE_TYPES)

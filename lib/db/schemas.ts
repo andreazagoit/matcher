@@ -34,3 +34,6 @@ export * from "../models/notifications/schema";
 
 // 12. Categories (with Dense Embeddings, replaces Tags)
 export * from "../models/categories/schema";
+
+// 13. Matches (swipes + daily_matches)
+export * from "../models/matches/schema";

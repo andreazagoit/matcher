@@ -2,6 +2,7 @@ import { db } from "@/lib/db/drizzle";
 import { categories } from "./schema";
 import { embeddings } from "../embeddings/schema";
 import { asc, eq } from "drizzle-orm";
+import { embedCategory } from "@/lib/ml/client";
 
 export async function getCategories() {
   return db.select().from(categories).orderBy(asc(categories.name));
@@ -35,27 +36,9 @@ export async function createCategory(name: string): Promise<string> {
     .limit(1);
   if (existing.length > 0) return id;
 
-  let mlVector: number[] = [];
-  let graphVector: number[] = [];
-  try {
-    const mlResponse = await fetch(
-      `${process.env.ML_SERVICE_URL ?? "http://localhost:8000"}/embed/category`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      },
-    );
-    if (!mlResponse.ok)
-      throw new Error(`ML service returned ${mlResponse.status}`);
-    const mlData = await mlResponse.json();
-    mlVector = mlData.category_embedding;
-    graphVector = mlData.embedding;
-  } catch (err) {
-    console.warn("ML service unavailable for category embedding:", err);
-    mlVector = new Array(64).fill(0.0);
-    graphVector = new Array(256).fill(0.0);
-  }
+  const emb = await embedCategory(name);
+  const mlVector = emb?.categoryEmbedding ?? new Array(64).fill(0.0);
+  const graphVector = emb?.embedding ?? new Array(256).fill(0.0);
 
   await db.transaction(async (tx) => {
     await tx
@@ -63,7 +46,11 @@ export async function createCategory(name: string): Promise<string> {
       .values({ id, name: id, embedding: mlVector });
     await tx
       .insert(embeddings)
-      .values({ entityId: id, entityType: "category", embedding: graphVector });
+      .values({ entityId: id, entityType: "category", embedding: graphVector })
+      .onConflictDoUpdate({
+        target: [embeddings.entityId, embeddings.entityType],
+        set: { embedding: graphVector, updatedAt: new Date() },
+      });
   });
 
   return id;

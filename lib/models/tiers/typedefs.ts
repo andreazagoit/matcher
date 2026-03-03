@@ -1,11 +1,17 @@
 export const tierTypeDefs = `#graphql
+  enum TierInterval {
+    month
+    year
+    one_time
+  }
+
   type MembershipTier {
     id: ID!
     name: String!
     description: String
     price: Int!
     currency: String!
-    interval: String!
+    interval: TierInterval!
     isActive: Boolean!
     spaceId: ID!
   }
@@ -14,14 +20,14 @@ export const tierTypeDefs = `#graphql
     name: String!
     description: String
     price: Int!
-    interval: String!
+    interval: TierInterval!
   }
 
   input UpdateTierInput {
     name: String
     description: String
     price: Int
-    interval: String
+    interval: TierInterval
     isActive: Boolean
   }
 

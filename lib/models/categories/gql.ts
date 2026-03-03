@@ -4,16 +4,51 @@ export const GET_CATEGORIES = gql`
   query GetCategories {
     categories {
       id
-      name
     }
   }
 `;
 
 export const GET_CATEGORY = gql`
-  query GetCategory($id: String!) {
+  query GetCategory($id: String!, $eventsLimit: Int, $spacesLimit: Int) {
     category(id: $id) {
       id
-      name
+      recommendedEvents(limit: $eventsLimit) {
+        id
+        title
+        location
+        startsAt
+        endsAt
+        spaceId
+        price
+        currency
+        isPaid
+        attendeeCount
+      }
+      recommendedSpaces(limit: $spacesLimit) {
+        id
+        name
+        slug
+        description
+        image
+        categories
+        visibility
+        joinPolicy
+        createdAt
+        isActive
+        membersCount
+        type
+        stripeAccountEnabled
+      }
+      recommendedCategories(limit: 6)
+    }
+  }
+`;
+
+export const GET_RECOMMENDED_CATEGORIES = gql`
+  query GetRecommendedCategories($limit: Int, $offset: Int) {
+    me {
+      id
+      recommendedCategories(limit: $limit, offset: $offset)
     }
   }
 `;

@@ -3,10 +3,14 @@ Feature engineering: transforms raw entity data into typed float vectors.
 
 Each entity type has its own feature space (different dims, different semantics):
 
-  User     → 82-dim  (category impressions pool, profile)
+  User     → 18-dim  (demographic / behavioural profile only)
   Event    → 75-dim  (categories pool, attendees, timing, price)
   Space    → 67-dim  (categories pool, avg_member_age, member_count, event_count)
   Category → 64-dim  (64d text-embedding-3-small directly)
+
+User category preferences are NOT stored in the user node vector.
+They are represented exclusively by user→likes_category edges in the graph,
+which is where the HGT convolution layers pick them up.
 
 See hgt.config for exact layout documentation.
 """
@@ -70,8 +74,6 @@ def _pool_category_embeddings(
 
 def build_user_features(
     birthdate,
-    category_embeddings: list[list[float]] | None = None,
-    category_weights: list[float] | None = None,
     gender: Optional[str] = None,
     relationship_intent: list[str] | None = None,
     smoking: Optional[str] = None,
@@ -79,35 +81,34 @@ def build_user_features(
     activity_level: Optional[str] = None,
 ) -> list[float]:
     """
-    Builds a user feature vector using pooled category impression embeddings.
-    Category interest is captured entirely by the pooled embedding vector —
-    no separate count needed since it's now implicit in the graph edges.
-    """
-    # [0:CATEGORY_EMBED_DIM] category weighted pool (from impressions)
-    categories_vec = _pool_category_embeddings(category_embeddings, weights=category_weights)
+    Builds a user feature vector from demographic and behavioural profile data.
 
-    # [+1] age
+    Category preferences are intentionally excluded — they are represented
+    entirely by user→likes_category edges in the graph, where the HGT
+    convolution layers aggregate them via message passing.
+    """
+    # [0] age
     age_vec = [normalize_age(calculate_age(birthdate))]
 
-    # [+3] gender one-hot
+    # [1:4] gender one-hot
     gender_vec = _onehot(GENDER_TO_IDX, len(GENDER_VOCAB), gender)
 
-    # [+4] relationship_intent multi-hot
+    # [4:8] relationship_intent multi-hot
     rel_vec = [0.0] * len(REL_INTENT_VOCAB)
     for val in (relationship_intent or []):
         if val in REL_INTENT_TO_IDX:
             rel_vec[REL_INTENT_TO_IDX[val]] = 1.0
 
-    # [+3] smoking one-hot
+    # [8:11] smoking one-hot
     smoking_vec = _onehot(SMOKING_TO_IDX, len(SMOKING_VOCAB), smoking)
 
-    # [+3] drinking one-hot
+    # [11:14] drinking one-hot
     drinking_vec = _onehot(DRINKING_TO_IDX, len(DRINKING_VOCAB), drinking)
 
-    # [+5] activity one-hot
+    # [14:19] activity one-hot
     activity_vec = _onehot(ACTIVITY_TO_IDX, len(ACTIVITY_VOCAB), activity_level)
 
-    vec = categories_vec + age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec
+    vec = age_vec + gender_vec + rel_vec + smoking_vec + drinking_vec + activity_vec
     assert len(vec) == USER_DIM, f"Expected {USER_DIM}, got {len(vec)}"
     return vec
 

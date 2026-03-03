@@ -38,15 +38,6 @@ export const USER_FRAGMENT = gql`
 // QUERIES
 // ============================================
 
-export const GET_ME = gql`
-  ${USER_FRAGMENT}
-  query GetMe {
-    me {
-      ...UserFields
-    }
-  }
-`;
-
 export const GET_USER = gql`
   ${USER_FRAGMENT}
   query GetUser($username: String!) {
@@ -91,11 +82,59 @@ export const UPDATE_USER = gql`
   }
 `;
 
-export const GET_RECOMMENDED_CATEGORIES = gql`
-  query GetRecommendedCategories($limit: Int) {
+export const UPDATE_LOCATION = gql`
+  mutation UpdateLocation($lat: Float!, $lon: Float!, $location: String) {
+    updateLocation(lat: $lat, lon: $lon, location: $location) {
+      id
+      coordinates {
+        lat
+        lon
+      }
+      location
+      locationUpdatedAt
+    }
+  }
+`;
+
+export const GET_USER_RECOMMENDED_EVENTS = gql`
+  query GetUserRecommendedEvents($limit: Int, $offset: Int) {
     me {
       id
-      recommendedCategories(limit: $limit)
+      recommendedEvents(limit: $limit, offset: $offset) {
+        id
+        title
+        description
+        location
+        coordinates { lat lon }
+        startsAt
+        endsAt
+        attendeeCount
+        categories
+        spaceId
+      }
+    }
+  }
+`;
+
+export const GET_RECOMMENDED_SPACES = gql`
+  query GetRecommendedSpaces($limit: Int, $offset: Int) {
+    me {
+      id
+      recommendedSpaces(limit: $limit, offset: $offset) {
+        id
+        name
+        slug
+        description
+        image
+        categories
+        visibility
+        joinPolicy
+        createdAt
+        isActive
+        membersCount
+        type
+        stripeAccountEnabled
+      }
     }
   }
 `;
@@ -104,7 +143,7 @@ export const GET_RECOMMENDED_USERS = gql`
   query GetRecommendedUsers($limit: Int, $offset: Int) {
     me {
       id
-      recommendedUserUsers(limit: $limit, offset: $offset) {
+      recommendedUsers(limit: $limit, offset: $offset) {
         id
         username
         name
@@ -122,16 +161,24 @@ export const GET_RECOMMENDED_USERS = gql`
   }
 `;
 
-export const UPDATE_LOCATION = gql`
-  mutation UpdateLocation($lat: Float!, $lon: Float!, $location: String) {
-    updateLocation(lat: $lat, lon: $lon, location: $location) {
+export const GET_RECOMMENDED_CATEGORIES = gql`
+  query GetRecommendedCategories($limit: Int, $offset: Int) {
+    me {
       id
-      coordinates {
-        lat
-        lon
+      recommendedCategories(limit: $limit, offset: $offset) {
+        id
+        recommendedEvents(limit: 8) {
+          id
+          title
+          description
+          location
+          startsAt
+          endsAt
+          attendeeCount
+          categories
+          spaceId
+        }
       }
-      location
-      locationUpdatedAt
     }
   }
 `;

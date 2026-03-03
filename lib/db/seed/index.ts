@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { seedUsers } from "./users";
 import { seedSpaces } from "./spaces";
-import { seedProfiles } from "./interests";
+import { seedCategories, seedProfiles } from "./interests";
 import { seedEvents } from "./events";
 import { seedProfileCards } from "./useritems";
 
@@ -10,6 +10,8 @@ async function seed() {
   console.log("🌱 Starting seed...\n");
 
   try {
+    await seedCategories();
+
     const usersByEmail = await seedUsers();
 
     const adminUser = usersByEmail["admin@matcher.local"];

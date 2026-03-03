@@ -10,23 +10,20 @@ import type { GraphQLContext } from "@/lib/graphql/context";
 import {
   createEvent,
   updateEvent,
-  getSpaceEvents,
   getUpcomingEventsForUser,
-  getEventAttendees,
-  getEventsByCategories,
   respondToEvent,
   markEventCompleted,
   getEventById,
-  getAccessibleSpaceIds,
   getMyAttendeeStatus,
+  getEventRecommendedEvents,
+  getEventAttendees,
 } from "./operations";
 import { events } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
 import { getUserById } from "@/lib/models/users/operations";
 import { db } from "@/lib/db/drizzle";
-import { getStoredEmbedding, embedEvent, recommendEventsForUser } from "@/lib/models/embeddings/operations";
-import { users } from "@/lib/models/users/schema";
-import { eq, sql, gte, and, inArray } from "drizzle-orm";
+import { embedEvent } from "@/lib/models/embeddings/operations";
+import { eq } from "drizzle-orm";
 
 function requireAuth(context: GraphQLContext) {
   if (!context.auth.user) {
@@ -52,16 +49,6 @@ export const eventResolvers = {
       return await getEventById(id, userId);
     },
 
-    spaceEvents: async (
-      _: unknown,
-      { spaceId }: { spaceId: string },
-      context: GraphQLContext,
-    ) => {
-      requireAuth(context);
-      const userId = context.auth.user!.id;
-      return await getSpaceEvents(spaceId, userId);
-    },
-
     myUpcomingEvents: async (
       _: unknown,
       __: unknown,
@@ -69,98 +56,6 @@ export const eventResolvers = {
     ) => {
       if (!context.auth.user) return [];
       return await getUpcomingEventsForUser(context.auth.user.id);
-    },
-
-    eventAttendees: async (
-      _: unknown,
-      { eventId }: { eventId: string },
-      context: GraphQLContext,
-    ) => {
-      requireAuth(context);
-      return await getEventAttendees(eventId);
-    },
-
-    eventsByCategories: async (
-      _: unknown,
-      { categories, matchAll }: { categories: string[]; matchAll?: boolean },
-      context: GraphQLContext,
-    ) => {
-      requireAuth(context);
-      const userId = context.auth.user!.id;
-      return await getEventsByCategories(categories, matchAll ?? false, userId);
-    },
-
-    recommendedEvents: async (
-      _: unknown,
-      { limit }: { limit?: number },
-      context: GraphQLContext,
-    ) => {
-      const maxResults = limit ?? 10;
-      const userId = context.auth.user?.id;
-
-      // Build accessible space filter once
-      const accessibleIds = await getAccessibleSpaceIds(userId);
-      const accessFilter = Array.isArray(accessibleIds) && accessibleIds.length > 0
-        ? inArray(events.spaceId, accessibleIds)
-        : eq(events.spaceId, "00000000-0000-0000-0000-000000000000"); // no results if nothing accessible
-
-      const baseConditions = and(
-        gte(events.startsAt, new Date()),
-        accessFilter,
-      );
-
-      if (!userId) {
-        return await db.query.events.findMany({
-          where: baseConditions,
-          orderBy: [sql`${events.startsAt} ASC`],
-          limit: maxResults,
-        });
-      }
-
-      const userRow = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true } });
-      const userCategories: string[] = [];
-      const userEmbedding = await getStoredEmbedding(userId, "user");
-
-      // Strategy 1: ML behavioral embedding (via HGT)
-      if (userEmbedding) {
-        const recommendedIds = await recommendEventsForUser(userId!, maxResults * 2);
-        if (recommendedIds.length > 0) {
-          const results = await db
-            .select()
-            .from(events)
-            .where(
-              and(
-                baseConditions,
-                inArray(events.id, recommendedIds)
-              )
-            )
-            .limit(maxResults);
-
-          if (results.length > 0) {
-            const orderMap = new Map(recommendedIds.map((id, i) => [id, i]));
-            return results.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
-          }
-        }
-      }
-
-      // Strategy 2: category overlap (cold start)
-      if (userCategories.length > 0) {
-        const catArray = `{${userCategories.join(",")}}`;
-        const results = await db
-          .select()
-          .from(events)
-          .where(and(baseConditions, sql`${events.categories} && ${catArray}::text[]`))
-          .orderBy(sql`${events.startsAt} ASC`)
-          .limit(maxResults);
-        if (results.length > 0) return results;
-      }
-
-      // Strategy 3: chronological fallback
-      return await db.query.events.findMany({
-        where: baseConditions,
-        orderBy: [sql`${events.startsAt} ASC`],
-        limit: maxResults,
-      });
     },
   },
 
@@ -352,6 +247,14 @@ export const eventResolvers = {
       return { lat: parent.coordinates.y, lon: parent.coordinates.x };
     },
 
+    createdBy: async (
+      event: { createdBy: string },
+      _: unknown,
+      context: GraphQLContext,
+    ) => {
+      return context.loaders.userLoader.load(event.createdBy);
+    },
+
     attendees: async (event: { id: string }) => {
       return await getEventAttendees(event.id);
     },
@@ -393,6 +296,13 @@ export const eventResolvers = {
       return await db.query.spaces.findFirst({
         where: eq(spaces.id, event.spaceId),
       });
+    },
+
+    recommendedEvents: async (
+      event: { id: string },
+      { limit = 6 }: { limit?: number },
+    ) => {
+      return getEventRecommendedEvents(event.id, limit);
     },
   },
 

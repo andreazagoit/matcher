@@ -3,6 +3,12 @@
  */
 
 export const eventTypeDefs = `#graphql
+  enum PaymentStatus {
+    pending
+    paid
+    refunded
+  }
+
   type Event {
     id: ID!
     spaceId: ID!
@@ -15,7 +21,7 @@ export const eventTypeDefs = `#graphql
     maxAttendees: Int
     categories: [String!]!
 
-    createdBy: ID!
+    createdBy: User!
     createdAt: DateTime!
     updatedAt: DateTime!
     attendees: [EventAttendee!]!
@@ -31,7 +37,9 @@ export const eventTypeDefs = `#graphql
     """True when the event requires purchasing a ticket"""
     isPaid: Boolean!
     """Payment status for the currently authenticated user (null if free event or no purchase)"""
-    myPaymentStatus: String
+    myPaymentStatus: PaymentStatus
+    """Events with similar embeddings (AI-recommended). Excludes this event."""
+    recommendedEvents(limit: Int): [Event!]!
   }
 
   type EventAttendee {
@@ -42,7 +50,7 @@ export const eventTypeDefs = `#graphql
     status: AttendeeStatus!
     registeredAt: DateTime!
     attendedAt: DateTime
-    paymentStatus: String
+    paymentStatus: PaymentStatus
   }
 
 
@@ -84,37 +92,8 @@ export const eventTypeDefs = `#graphql
   }
 
   extend type Query {
-    """
-    Get a single event by ID.
-    """
     event(id: ID!): Event
-
-    """
-    Get events for a specific space.
-    """
-    spaceEvents(spaceId: ID!): [Event!]!
-
-    """
-    Get the authenticated user's upcoming events.
-    """
     myUpcomingEvents: [Event!]!
-
-    """
-    Get attendees for an event.
-    """
-    eventAttendees(eventId: ID!): [EventAttendee!]!
-
-    """
-    Search upcoming events by categories.
-    matchAll=true requires ALL categories, false requires at least one.
-    """
-    eventsByCategories(categories: [String!]!, matchAll: Boolean): [Event!]!
-
-    """
-    Get recommended events based on behavioral similarity and tag overlap.
-    Falls back to upcoming events for new users.
-    """
-    recommendedEvents(limit: Int): [Event!]!
   }
 
   extend type Mutation {

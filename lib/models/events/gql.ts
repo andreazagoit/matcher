@@ -6,20 +6,26 @@ import { gql } from "graphql-tag";
 
 export const GET_SPACE_EVENTS = gql`
   query SpaceEvents($spaceId: ID!) {
-    spaceEvents(spaceId: $spaceId) {
+    space(id: $spaceId) {
       id
-      title
-      description
-      location
-      startsAt
-      endsAt
-      maxAttendees
-      attendeeCount
-      createdBy
-      categories
-      price
-      currency
-      isPaid
+      events {
+        id
+        title
+        description
+        location
+        startsAt
+        endsAt
+        maxAttendees
+        attendeeCount
+        createdBy {
+          id
+          name
+        }
+        categories
+        price
+        currency
+        isPaid
+      }
     }
   }
 `;
@@ -40,7 +46,11 @@ export const GET_EVENT = gql`
       myPaymentStatus
       categories
       spaceId
-      createdBy
+      createdBy {
+        id
+        name
+        username
+      }
       createdAt
       price
       currency
@@ -71,23 +81,6 @@ export const GET_EVENT = gql`
   }
 `;
 
-export const UPDATE_EVENT = gql`
-  mutation UpdateEvent($id: ID!, $input: UpdateEventInput!) {
-    updateEvent(id: $id, input: $input) {
-      id
-      title
-      description
-      location
-      startsAt
-      endsAt
-      maxAttendees
-      categories
-      price
-      currency
-    }
-  }
-`;
-
 export const GET_MY_UPCOMING_EVENTS = gql`
   query MyUpcomingEvents {
     myUpcomingEvents {
@@ -106,46 +99,26 @@ export const GET_MY_UPCOMING_EVENTS = gql`
   }
 `;
 
-export const GET_RECOMMENDED_EVENTS = gql`
-  query RecommendedEvents($limit: Int) {
-    recommendedEvents(limit: $limit) {
-      id
-      title
-      description
-      location
-      coordinates { lat lon }
-      startsAt
-      endsAt
-      maxAttendees
-      attendeeCount
-      categories
-      spaceId
-    }
-  }
-`;
-
-export const GET_EVENTS_BY_CATEGORIES = gql`
-  query GetEventsByCategories($categories: [String!]!, $matchAll: Boolean) {
-    eventsByCategories(categories: $categories, matchAll: $matchAll) {
-      id
-      title
-      description
-      location
-      startsAt
-      endsAt
-      categories
-      attendeeCount
-      spaceId
-      price
-      currency
-      isPaid
-    }
-  }
-`;
-
 // ============================================
 // MUTATIONS
 // ============================================
+
+export const UPDATE_EVENT = gql`
+  mutation UpdateEvent($id: ID!, $input: UpdateEventInput!) {
+    updateEvent(id: $id, input: $input) {
+      id
+      title
+      description
+      location
+      startsAt
+      endsAt
+      maxAttendees
+      categories
+      price
+      currency
+    }
+  }
+`;
 
 export const CREATE_EVENT = gql`
   mutation CreateEvent($input: CreateEventInput!) {
@@ -168,7 +141,30 @@ export const MARK_EVENT_COMPLETED = gql`
   mutation MarkEventCompleted($eventId: ID!) {
     markEventCompleted(eventId: $eventId) {
       id
+    }
+  }
+`;
 
+export const GET_EVENT_RECOMMENDED_EVENTS = gql`
+  query GetEventRecommendedEvents($id: ID!, $limit: Int) {
+    event(id: $id) {
+      id
+      recommendedEvents(limit: $limit) {
+        id
+        title
+        location
+        startsAt
+        endsAt
+        attendeeCount
+        categories
+        price
+        isPaid
+        space {
+          id
+          name
+          slug
+        }
+      }
     }
   }
 `;

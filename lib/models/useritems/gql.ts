@@ -15,9 +15,12 @@ export const PROFILE_ITEM_FRAGMENT = gql`
 
 export const GET_PROFILE_ITEMS = gql`
   ${PROFILE_ITEM_FRAGMENT}
-  query GetUserItems($userId: ID!) {
-    userItems(userId: $userId) {
-      ...UserItemFields
+  query GetUserItems {
+    me {
+      id
+      userItems {
+        ...UserItemFields
+      }
     }
   }
 `;

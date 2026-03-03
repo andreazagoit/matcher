@@ -16,14 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   GET_NOTIFICATIONS,
-  GET_UNREAD_COUNT,
   MARK_NOTIFICATION_READ,
   MARK_ALL_NOTIFICATIONS_READ,
 } from "@/lib/models/notifications/gql";
-import type {
-  GetNotificationsQuery,
-  GetUnreadNotificationsCountQuery,
-} from "@/lib/graphql/__generated__/graphql";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
@@ -31,29 +26,23 @@ export function NotificationBell() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  const { data: countData, refetch: refetchCount } =
-    useQuery<GetUnreadNotificationsCountQuery>(GET_UNREAD_COUNT, {
-      skip: !session?.user,
-      pollInterval: 30000,
-    });
-
-  const { data, refetch: refetchList } = useQuery<GetNotificationsQuery>(
-    GET_NOTIFICATIONS,
-    { skip: !session?.user, variables: { limit: 8 } },
-  );
+  const { data, refetch } = useQuery(GET_NOTIFICATIONS, {
+    skip: !session?.user,
+    variables: { limit: 8 },
+  });
 
   const [markRead] = useMutation(MARK_NOTIFICATION_READ, {
-    onCompleted: () => { refetchCount(); refetchList(); },
+    onCompleted: () => refetch(),
   });
 
   const [markAllRead] = useMutation(MARK_ALL_NOTIFICATIONS_READ, {
-    onCompleted: () => { refetchCount(); refetchList(); },
+    onCompleted: () => refetch(),
   });
 
   if (!session?.user) return null;
 
-  const unread = countData?.unreadNotificationsCount ?? 0;
-  const notifications = data?.notifications ?? [];
+  const unread = data?.me?.notifications?.unreadCount ?? 0;
+  const notifications = data?.me?.notifications?.items ?? [];
 
   const handleClick = async (id: string, href?: string | null) => {
     await markRead({ variables: { id } });

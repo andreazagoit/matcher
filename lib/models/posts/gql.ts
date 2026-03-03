@@ -9,8 +9,6 @@ export const POST_FRAGMENT = gql`
     id
     content
     mediaUrls
-    likesCount
-    commentsCount
     createdAt
     author {
       id
@@ -32,8 +30,11 @@ export const POST_FRAGMENT = gql`
 export const GET_USER_FEED = gql`
   ${POST_FRAGMENT}
   query GetUserFeed($limit: Int, $offset: Int) {
-    userFeed(limit: $limit, offset: $offset) {
-      ...PostFields
+    me {
+      id
+      feed(limit: $limit, offset: $offset) {
+        ...PostFields
+      }
     }
   }
 `;

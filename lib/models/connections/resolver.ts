@@ -15,55 +15,33 @@ import {
 } from "./operations";
 import type { Connection } from "./schema";
 
-function requireAuth(context: GraphQLContext) {
-  if (!context.auth.user) {
-    throw new GraphQLError("Authentication required", {
-      extensions: { code: "UNAUTHENTICATED" },
-    });
-  }
-  return context.auth.user;
-}
-
 export const connectionResolvers = {
-  Query: {
-    connectionRequests: async (
+  User: {
+    connections: async (
+      parent: { id: string },
       _: unknown,
-      __: unknown,
       context: GraphQLContext,
     ) => {
-      const user = requireAuth(context);
-      return getMessageRequests(user.id);
+      if (context.auth.user?.id !== parent.id) return [];
+      return getActiveConnections(parent.id);
     },
 
-    connections: async (
+    connectionRequests: async (
+      parent: { id: string },
       _: unknown,
-      __: unknown,
       context: GraphQLContext,
     ) => {
-      const user = requireAuth(context);
-      return getActiveConnections(user.id);
+      if (context.auth.user?.id !== parent.id) return [];
+      return getMessageRequests(parent.id);
     },
 
     connection: async (
-      _: unknown,
+      parent: { id: string },
       { id }: { id: string },
       context: GraphQLContext,
     ) => {
-      const user = requireAuth(context);
-      return getConnectionById(id, user.id);
-    },
-
-    messages: async (
-      _: unknown,
-      { connectionId }: { connectionId: string },
-      context: GraphQLContext,
-    ) => {
-      const user = requireAuth(context);
-      const connection = await getConnectionById(connectionId, user.id);
-      if (!connection) {
-        throw new GraphQLError("Connection not found or access denied");
-      }
-      return getMessages(connectionId);
+      if (context.auth.user?.id !== parent.id) return null;
+      return getConnectionById(id, parent.id);
     },
   },
 
@@ -81,18 +59,10 @@ export const connectionResolvers = {
       if (user.id === recipientId) {
         throw new GraphQLError("Cannot connect to yourself");
       }
-
       try {
-        return await sendConnectionRequest(
-          user.id,
-          recipientId,
-          targetUserItemId,
-          initialMessage || null,
-        );
+        return await sendConnectionRequest(user.id, recipientId, targetUserItemId, initialMessage || null);
       } catch (err) {
-        throw new GraphQLError(
-          err instanceof Error ? err.message : "Failed to send request",
-        );
+        throw new GraphQLError(err instanceof Error ? err.message : "Failed to send request");
       }
     },
 
@@ -102,16 +72,10 @@ export const connectionResolvers = {
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-
       try {
-        const updated = await respondToRequest(connectionId, user.id, accept);
-
-
-        return updated;
+        return await respondToRequest(connectionId, user.id, accept);
       } catch (err) {
-        throw new GraphQLError(
-          err instanceof Error ? err.message : "Failed to respond",
-        );
+        throw new GraphQLError(err instanceof Error ? err.message : "Failed to respond");
       }
     },
 
@@ -124,9 +88,7 @@ export const connectionResolvers = {
       try {
         return await sendMessage(connectionId, user.id, content);
       } catch (err) {
-        throw new GraphQLError(
-          err instanceof Error ? err.message : "Failed to send message",
-        );
+        throw new GraphQLError(err instanceof Error ? err.message : "Failed to send message");
       }
     },
 
@@ -137,9 +99,7 @@ export const connectionResolvers = {
     ) => {
       const user = requireAuth(context);
       const connection = await getConnectionById(connectionId, user.id);
-      if (!connection) {
-        throw new GraphQLError("Connection not found");
-      }
+      if (!connection) throw new GraphQLError("Connection not found");
 
       await db
         .update(messages)
@@ -151,32 +111,22 @@ export const connectionResolvers = {
             sql`read_at IS NULL`,
           ),
         );
-
       return true;
     },
   },
 
   Connection: {
     initiator: async (parent: Connection) => {
-      return db.query.users.findFirst({
-        where: eq(users.id, parent.initiatorId),
-      });
+      return db.query.users.findFirst({ where: eq(users.id, parent.initiatorId) });
     },
 
     recipient: async (parent: Connection) => {
-      return db.query.users.findFirst({
-        where: eq(users.id, parent.recipientId),
-      });
+      return db.query.users.findFirst({ where: eq(users.id, parent.recipientId) });
     },
 
-    otherUser: async (
-      parent: Connection,
-      _: unknown,
-      context: GraphQLContext,
-    ) => {
+    otherUser: async (parent: Connection, _: unknown, context: GraphQLContext) => {
       const myId = context.auth.user?.id;
-      const otherId =
-        parent.initiatorId === myId ? parent.recipientId : parent.initiatorId;
+      const otherId = parent.initiatorId === myId ? parent.recipientId : parent.initiatorId;
       return db.query.users.findFirst({ where: eq(users.id, otherId) });
     },
 
@@ -187,14 +137,9 @@ export const connectionResolvers = {
       });
     },
 
-    unreadCount: async (
-      parent: Connection,
-      _: unknown,
-      context: GraphQLContext,
-    ) => {
+    unreadCount: async (parent: Connection, _: unknown, context: GraphQLContext) => {
       const myId = context.auth.user?.id;
       if (!myId) return 0;
-
       return db.$count(
         messages,
         and(
@@ -203,6 +148,10 @@ export const connectionResolvers = {
           sql`read_at IS NULL`,
         ),
       );
+    },
+
+    messages: async (parent: Connection) => {
+      return getMessages(parent.id);
     },
   },
 

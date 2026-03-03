@@ -1,35 +1,16 @@
-/**
- * GraphQL types for matching engine v2.
- */
-
 export const matchTypeDefs = `#graphql
-
-  type Match {
-    user: MatchUser!
+  type DailyMatch {
+    user: User!
     score: Float!
     distanceKm: Float
-    sharedCategories: [String!]!
-    sharedSpaceIds: [String!]!
-    sharedEventIds: [String!]!
   }
 
-  type MatchUser {
-    id: ID!
-    username: String!
-    name: String!
-    image: String
-    gender: String
-    birthdate: String!
-    userItems: [UserItem!]!
-  }
-
-  # ── Queries ────────────────────────────────────────────────────
-
-  extend type Query {
+  extend type User {
     """
-    Find compatible matches for the authenticated user.
-    Uses tag overlap, shared spaces/events, proximity, and behavioral similarity.
+    Today's 8 pre-computed matches based on bidirectional embedding similarity.
+    Generates on-the-fly for the first request of the day, then cached in DB.
+    Only visible to the authenticated user on their own profile.
     """
-    findMatches(maxDistance: Float! = 50, limit: Int, offset: Int, gender: [String!], minAge: Int, maxAge: Int): [Match!]!
+    dailyMatches: [DailyMatch!]!
   }
 `;

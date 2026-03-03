@@ -21,14 +21,14 @@ export const userTypeDefs = `#graphql
     userItems: [UserItem!]!
     gender: Gender
 
-    """Categories recommended based on embedding similarity. Only visible to own profile."""
-    recommendedCategories(limit: Int, offset: Int): [String!]!
-    """Users with similar embeddings. Only visible to own profile."""
-    recommendedUserUsers(limit: Int, offset: Int): [User!]!
-    """Events closest to user embedding. Only visible to own profile."""
+    """Recommended events based on embedding similarity. Only visible to own profile."""
     recommendedEvents(limit: Int, offset: Int): [Event!]!
-    """Spaces closest to user embedding. Only visible to own profile."""
+    """Recommended spaces based on embedding similarity. Only visible to own profile."""
     recommendedSpaces(limit: Int, offset: Int): [Space!]!
+    """Users with similar embeddings. Only visible to own profile."""
+    recommendedUsers(limit: Int, offset: Int): [User!]!
+    """Categories recommended based on embedding similarity. Only visible to own profile."""
+    recommendedCategories(limit: Int, offset: Int): [Category!]!
 
     # Orientation & identity
     sexualOrientation: [String!]!
@@ -52,13 +52,6 @@ export const userTypeDefs = `#graphql
     schoolName: String
     languages: [String!]!
     ethnicity: Ethnicity
-  }
-
-  input CreateUserInput {
-    name: String!
-    email: String!
-    birthdate: String!
-    gender: Gender
   }
 
   input UpdateUserInput {
@@ -173,13 +166,12 @@ export const userTypeDefs = `#graphql
 
   extend type Query {
     user(username: String!): User
-    users: [User!]!
-    me: User
+    """Check if a username is already taken."""
     checkUsername(username: String!): Boolean!
+    me: User
   }
 
   extend type Mutation {
-    createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
     updateLocation(lat: Float!, lon: Float!, location: String): User!

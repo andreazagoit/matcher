@@ -7,7 +7,6 @@ import { UserCard } from "@/components/user-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowRightIcon, UsersIcon } from "lucide-react";
-import type { GetRecommendedUsersQuery, GetRecommendedUsersQueryVariables } from "@/lib/graphql/__generated__/graphql";
 
 const PAGE_SIZE = 12;
 
@@ -27,12 +26,12 @@ export default async function UsersPage({
   const offset = (page - 1) * PAGE_SIZE;
   await cookies();
 
-  const response = await query<GetRecommendedUsersQuery, GetRecommendedUsersQueryVariables>({
+  const response = await query<{ me: { id: string; recommendedUsers: { id: string; username?: string; name: string; image?: string; birthdate: string; gender?: string; userItems: { id: string; type: string; content: string; displayOrder: number }[] }[] } | null }>({
     query: GET_RECOMMENDED_USERS,
     variables: { limit: PAGE_SIZE + 1, offset },
   }).catch(() => ({ data: { me: null } }));
 
-  const allUsers = response.data?.me?.recommendedUserUsers ?? [];
+  const allUsers = response.data?.me?.recommendedUsers ?? [];
   const hasNextPage = allUsers.length > PAGE_SIZE;
   const users = hasNextPage ? allUsers.slice(0, PAGE_SIZE) : allUsers;
   const hasPrevPage = page > 1;

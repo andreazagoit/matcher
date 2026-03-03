@@ -45,6 +45,11 @@ const data = {
             icon: Compass,
         },
         {
+            title: "Categories",
+            url: "/categories",
+            icon: LayoutGrid,
+        },
+        {
             title: "Feed",
             url: "/feed",
             icon: Rss,
@@ -54,7 +59,7 @@ const data = {
         {
             title: "Spaces",
             url: "/spaces",
-            icon: LayoutGrid,
+            icon: GalleryVerticalEnd,
         },
         {
             title: "Events",

@@ -22,17 +22,6 @@ import {
   RESPOND_TO_EVENT,
   MARK_EVENT_COMPLETED,
 } from "@/lib/models/events/gql";
-import {
-  AttendeeStatus,
-  type SpaceEventsQuery,
-  type SpaceEventsQueryVariables,
-  type CreateEventMutation,
-  type CreateEventMutationVariables,
-  type RespondToEventMutation,
-  type RespondToEventMutationVariables,
-  type MarkEventCompletedMutation,
-  type MarkEventCompletedMutationVariables,
-} from "@/lib/graphql/__generated__/graphql";
 import { EventCard, type EventCardEvent } from "@/components/event-card";
 
 interface EventListProps {

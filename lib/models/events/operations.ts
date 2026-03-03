@@ -7,8 +7,10 @@ import {
 } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
 import { members } from "@/lib/models/members/schema";
-import { eq, and, gte, desc, asc, sql, inArray } from "drizzle-orm";
+import { embeddings } from "@/lib/models/embeddings/schema";
+import { eq, and, ne, gte, desc, asc, sql, inArray } from "drizzle-orm";
 import { recordImpression } from "@/lib/models/impressions/operations";
+import { embedEvent } from "@/lib/ml/client";
 
 // ─── Access Control ─────────────────────────────────────────────────
 
@@ -101,6 +103,26 @@ export async function createEvent(data: {
       createdBy: data.createdBy,
     })
     .returning();
+
+  // Generate and store embedding
+  const embedding = await embedEvent({
+    categories: data.categories,
+    startsAt: data.startsAt,
+    attendeeCount: 0,
+    maxAttendees: data.maxAttendees,
+    isPaid: (data.price ?? 0) > 0,
+    priceCents: data.price ?? null,
+  });
+  if (embedding) {
+    await db
+      .insert(embeddings)
+      .values({ entityId: event.id, entityType: "event", embedding })
+      .onConflictDoUpdate({
+        target: [embeddings.entityId, embeddings.entityType],
+        set: { embedding, updatedAt: new Date() },
+      });
+  }
+
   return event;
 }
 
@@ -136,6 +158,28 @@ export async function updateEvent(
 
 
   if (!updated) throw new Error("Event not found");
+
+  // Regenerate embedding if relevant fields changed
+  if (data.categories !== undefined || data.startsAt !== undefined || data.price !== undefined) {
+    const embedding = await embedEvent({
+      categories: updated.categories ?? [],
+      startsAt: updated.startsAt,
+      attendeeCount: 0,
+      maxAttendees: updated.maxAttendees,
+      isPaid: (updated.price ?? 0) > 0,
+      priceCents: updated.price ?? null,
+    });
+    if (embedding) {
+      await db
+        .insert(embeddings)
+        .values({ entityId: updated.id, entityType: "event", embedding })
+        .onConflictDoUpdate({
+          target: [embeddings.entityId, embeddings.entityType],
+          set: { embedding, updatedAt: new Date() },
+        });
+    }
+  }
+
   return updated;
 }
 
@@ -162,13 +206,15 @@ export async function getEventById(id: string, userId?: string): Promise<Event |
 /**
  * Get events for a space (only if the user has access).
  */
-export async function getSpaceEvents(spaceId: string, userId?: string): Promise<Event[]> {
+export async function getSpaceEvents(spaceId: string, userId?: string, limit?: number, offset?: number): Promise<Event[]> {
   const accessible = await canAccessSpace(spaceId, userId);
   if (!accessible) return [];
 
   return await db.query.events.findMany({
     where: eq(events.spaceId, spaceId),
     orderBy: [asc(events.startsAt)],
+    ...(limit !== undefined ? { limit } : {}),
+    ...(offset !== undefined ? { offset } : {}),
   });
 }
 
@@ -301,4 +347,44 @@ export async function markEventCompleted(eventId: string): Promise<Event> {
     );
 
   return updated;
+}
+
+/**
+ * AI-recommended events similar to a given event — cosine similarity between
+ * this event's embedding and all other upcoming event embeddings.
+ */
+export async function getEventRecommendedEvents(
+  eventId: string,
+  limit = 6,
+): Promise<Event[]> {
+  const row = await db.query.embeddings.findFirst({
+    where: and(
+      eq(embeddings.entityId, eventId),
+      eq(embeddings.entityType, "event"),
+    ),
+    columns: { embedding: true },
+  });
+  if (!row) return [];
+
+  const vec = `[${row.embedding.join(",")}]`;
+  const rows = await db
+    .select({ id: events.id })
+    .from(embeddings)
+    .innerJoin(events, eq(sql`${events.id}::text`, embeddings.entityId))
+    .where(
+      and(
+        eq(embeddings.entityType, "event"),
+        ne(events.id, eventId),
+        gte(events.startsAt, new Date()),
+      ),
+    )
+    .orderBy(sql`${embeddings.embedding} <=> ${sql.raw(`'${vec}'::vector`)}`)
+    .limit(limit);
+
+  if (!rows.length) return [];
+
+  const ids = rows.map((r) => r.id);
+  return db.query.events.findMany({
+    where: (e, { inArray }) => inArray(e.id, ids),
+  });
 }

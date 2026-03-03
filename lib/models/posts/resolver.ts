@@ -8,17 +8,17 @@ import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 
 export const postResolvers = {
-    Query: {
-        userFeed: async (
-            _: unknown,
+    User: {
+        feed: async (
+            parent: { id: string },
             { limit = 20, offset = 0 }: { limit?: number; offset?: number },
             { auth }: GraphQLContext
         ) => {
-            if (!auth.user) throw new GraphQLError("Unauthorized");
+            if (!auth.user || auth.user.id !== parent.id) return [];
 
             const memberships = await db.query.members.findMany({
                 where: and(
-                    eq(members.userId, auth.user.id),
+                    eq(members.userId, parent.id),
                     eq(members.status, "active")
                 ),
                 columns: { spaceId: true },

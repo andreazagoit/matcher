@@ -1,10 +1,8 @@
 import { db } from "@/lib/db/drizzle";
-import { eq, and, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
-import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
-import { users } from "@/lib/models/users/schema";
-import { createSpace, updateSpace, deleteSpace, getSpacesByCategories } from "./operations";
+import { createSpace, updateSpace, deleteSpace, getSpaceRecommendedEvents } from "./operations";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 
@@ -37,86 +35,6 @@ export const spaceResolvers = {
                 where: eq(spaces.visibility, "public"),
                 orderBy: (spaces, { desc }) => [desc(spaces.createdAt)],
             });
-        },
-
-        spacesByCategories: async (
-            _: unknown,
-            { categories, matchAll }: { categories: string[]; matchAll?: boolean },
-            { auth }: GraphQLContext,
-        ) => {
-            if (!auth.user) throw new GraphQLError("Unauthorized");
-            return await getSpacesByCategories(categories, matchAll ?? false);
-        },
-
-        recommendedSpaces: async (
-            _: unknown,
-            { limit }: { limit?: number },
-            { auth }: GraphQLContext,
-        ) => {
-            if (!auth.user) throw new GraphQLError("Unauthorized");
-            const maxResults = limit ?? 10;
-
-            const [userEmbedding, userRow] = await Promise.all([
-                getStoredEmbedding(auth.user.id, "user"),
-                db.query.users.findFirst({ where: eq(users.id, auth.user.id), columns: { id: true } }),
-            ]);
-            const userCategories: string[] = [];
-
-            // Exclude spaces user is already a member of
-            const myMemberships = await db
-                .select({ spaceId: members.spaceId })
-                .from(members)
-                .where(eq(members.userId, auth.user.id));
-            const mySpaceIds = myMemberships.map((m) => m.spaceId);
-
-            const excludeMine = (results: Space[]) =>
-                results.filter((s) => !mySpaceIds.includes(s.id)).slice(0, maxResults);
-
-            // Strategy 1: OpenAI behavioral embedding
-            if (userEmbedding) {
-                const embeddingStr = `[${userEmbedding.join(",")}]`;
-                const results = await db
-                    .select()
-                    .from(spaces)
-                    .where(
-                        and(
-                            eq(spaces.visibility, "public"),
-                            eq(spaces.isActive, true),
-                            sql`${spaces.embedding} IS NOT NULL`,
-                        ),
-                    )
-                    .orderBy(sql`${spaces.embedding} <=> ${embeddingStr}::vector`)
-                    .limit(maxResults + mySpaceIds.length);
-                return excludeMine(results);
-            }
-
-            // Strategy 2: category overlap (cold start)
-            if (userCategories.length > 0) {
-                const catArray = `{${userCategories.join(",")}}`;
-                const results = await db
-                    .select()
-                    .from(spaces)
-                    .where(
-                        and(
-                            eq(spaces.visibility, "public"),
-                            eq(spaces.isActive, true),
-                            sql`${spaces.categories} && ${catArray}::text[]`,
-                        ),
-                    )
-                    .limit(maxResults + mySpaceIds.length);
-                const filtered = excludeMine(results);
-                if (filtered.length > 0) return filtered;
-            }
-
-            // Strategy 3: fallback
-            const results = await db.query.spaces.findMany({
-                where: and(
-                    eq(spaces.visibility, "public"),
-                    eq(spaces.isActive, true),
-                ),
-                limit: maxResults + mySpaceIds.length,
-            });
-            return excludeMine(results);
         },
 
         mySpaces: async (_: unknown, __: unknown, { auth }: GraphQLContext) => {
@@ -182,6 +100,22 @@ export const spaceResolvers = {
     Space: {
         membersCount: async (parent: Space, _: unknown, { loaders }: GraphQLContext) => {
             return loaders.membersCountLoader.load(parent.id);
+        },
+
+        events: async (
+            parent: Space,
+            { limit = 50, offset = 0 }: { limit?: number; offset?: number },
+            context: GraphQLContext,
+        ) => {
+            const { getSpaceEvents } = await import("@/lib/models/events/operations");
+            return getSpaceEvents(parent.id, context.auth.user?.id, limit, offset);
+        },
+
+        recommendedEvents: async (
+            parent: Space,
+            { limit = 6 }: { limit?: number },
+        ) => {
+            return getSpaceRecommendedEvents(parent.id, limit);
         },
     },
 };

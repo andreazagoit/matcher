@@ -19,9 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ALL_TAGS } from "@/lib/models/tags/data";
 import { Badge } from "@/components/ui/badge";
-import { useMutation } from "@apollo/client/react";
+import { useQuery, useMutation } from "@apollo/client/react";
+import { GET_CATEGORIES } from "@/lib/models/categories/gql";
 import { CREATE_SPACE } from "@/lib/models/spaces/gql";
 import type { CreateSpaceMutation, CreateSpaceMutationVariables } from "@/lib/graphql/__generated__/graphql";
 
@@ -35,6 +35,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
   const router = useRouter();
   const [createSpace, { loading }] = useMutation<CreateSpaceMutation, CreateSpaceMutationVariables>(CREATE_SPACE);
   const [error, setError] = useState<string | null>(null);
+  const { data: categoriesData } = useQuery<{ categories: { id: string }[] }>(GET_CATEGORIES);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -146,7 +147,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
             <div className="space-y-2">
               <Label>Tags</Label>
               <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-md border p-2">
-                {ALL_TAGS.map((tag) => {
+                {(categoriesData?.categories ?? []).map(({ id: tag }) => {
                   const isSelected = formData.tags.includes(tag);
                   return (
                     <Badge

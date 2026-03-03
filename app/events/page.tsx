@@ -5,43 +5,35 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { Page } from "@/components/page";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Loader2Icon, SparklesIcon, CalendarCheckIcon } from "lucide-react";
-import { GET_MY_UPCOMING_EVENTS, GET_RECOMMENDED_EVENTS, RESPOND_TO_EVENT } from "@/lib/models/events/gql";
-import {
-  AttendeeStatus,
-  type MyUpcomingEventsQuery,
-  type RecommendedEventsQuery,
-  type RespondToEventMutation,
-  type RespondToEventMutationVariables,
-} from "@/lib/graphql/__generated__/graphql";
+import { GET_MY_UPCOMING_EVENTS, RESPOND_TO_EVENT } from "@/lib/models/events/gql";
+import { GET_USER_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
 import { EventCard, type EventCardEvent } from "@/components/event-card";
-
-type EventItem = NonNullable<RecommendedEventsQuery["recommendedEvents"]>[number];
 
 export default function EventsPage() {
   const [tab, setTab] = useState<"recommended" | "mine">("recommended");
 
   const { data: recommendedData, loading: loadingRec, refetch: refetchRec } =
-    useQuery<RecommendedEventsQuery>(GET_RECOMMENDED_EVENTS, {
+    useQuery<{ me: { id: string; recommendedEvents: EventCardEvent[] } | null }>(GET_USER_RECOMMENDED_EVENTS, {
       variables: { limit: 20 },
       skip: tab !== "recommended",
     });
 
   const { data: myData, loading: loadingMine, refetch: refetchMine } =
-    useQuery<MyUpcomingEventsQuery>(GET_MY_UPCOMING_EVENTS, {
+    useQuery<{ myUpcomingEvents: EventCardEvent[] }>(GET_MY_UPCOMING_EVENTS, {
       skip: tab !== "mine",
     });
 
-  const [respondToEvent] = useMutation<RespondToEventMutation, RespondToEventMutationVariables>(
+  const [respondToEvent] = useMutation(
     RESPOND_TO_EVENT,
     { onCompleted: () => { refetchRec(); refetchMine(); } },
   );
 
-  const handleRespond = (eventId: string, status: AttendeeStatus) => {
+  const handleRespond = (eventId: string, status: string) => {
     respondToEvent({ variables: { eventId, status } }).catch(console.error);
   };
 
-  const recommended = recommendedData?.recommendedEvents ?? [];
-  const mine = (myData?.myUpcomingEvents ?? []) as EventItem[];
+  const recommended = (recommendedData?.me?.recommendedEvents ?? []) as EventCardEvent[];
+  const mine = (myData?.myUpcomingEvents ?? []) as EventCardEvent[];
   const loading = tab === "recommended" ? loadingRec : loadingMine;
   const events = tab === "recommended" ? recommended : mine;
 

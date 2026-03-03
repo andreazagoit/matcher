@@ -2,14 +2,13 @@
 
 import { useQuery } from "@apollo/client/react";
 import { GET_USER_FEED } from "@/lib/models/posts/gql";
-import type { GetUserFeedQuery, GetUserFeedQueryVariables } from "@/lib/graphql/__generated__/graphql";
 import { Loader2 } from "lucide-react";
 import { Page } from "@/components/page";
 import { PostCard } from "@/components/feed/post-card";
 
 export default function FeedPage() {
-    const { data, loading } = useQuery<GetUserFeedQuery, GetUserFeedQueryVariables>(GET_USER_FEED);
-    const posts = data?.userFeed || [];
+    const { data, loading } = useQuery(GET_USER_FEED);
+    const posts = data?.me?.feed ?? [];
 
     if (loading && posts.length === 0) {
         return (

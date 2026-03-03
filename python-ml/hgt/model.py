@@ -81,6 +81,8 @@ class HetEncoder(nn.Module):
             ("event",    "similarity", "event"),
             ("space",    "similarity", "space"),
             ("category", "similarity", "category"),
+            ("space",    "similarity", "event"),
+            ("event",    "similarity", "space"),
         ]
         for src, rel, dst in discovery_rels:
             key = f"{src}__{rel}__{dst}"
