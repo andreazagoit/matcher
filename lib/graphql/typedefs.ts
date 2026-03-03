@@ -7,7 +7,7 @@ import { memberTypeDefs } from "../models/members/typedefs";
 import { postTypeDefs } from "../models/posts/typedefs";
 import { userItemTypeDefs } from "../models/useritems/typedefs";
 import { spaceTypeDefs } from "../models/spaces/typedefs";
-import { tagTypeDefs } from "../models/tags/typedefs";
+import { categoryTypeDefs } from "../models/categories/typedefs";
 import { tierTypeDefs } from "../models/tiers/typedefs";
 import { userTypeDefs } from "../models/users/typedefs";
 
@@ -30,7 +30,7 @@ export const typeDefs = [
   postTypeDefs,
   userItemTypeDefs,
   spaceTypeDefs,
-  tagTypeDefs,
+  categoryTypeDefs,
   tierTypeDefs,
   userTypeDefs,
   notificationTypeDefs,

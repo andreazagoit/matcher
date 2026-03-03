@@ -259,7 +259,7 @@ def evaluate(
             per_task_n[(atype, dst_type)].append(n)
 
     # Ensure all 16 combinations (4x4 matrix) are reported for full observability
-    node_types = ["user", "event", "space", "tag"]
+    node_types = ["user", "event", "space", "category"]
     for a in node_types:
         for b in node_types:
             key = (a, b)
@@ -283,7 +283,7 @@ def evaluate(
     )
     
     # Primary signal: mean recall across CORE interaction types
-    core_keys = ["user->event", "user->space", "user->tag"]
+    core_keys = ["user->event", "user->space", "user->category"]
     active_core = [per_task[k]["recall@k"] for k in core_keys if k in per_task]
     primary_r = sum(active_core) / len(active_core) if active_core else micro_r
 

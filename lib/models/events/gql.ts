@@ -14,10 +14,9 @@ export const GET_SPACE_EVENTS = gql`
       startsAt
       endsAt
       maxAttendees
-
       attendeeCount
       createdBy
-      tags
+      categories
       price
       currency
       isPaid
@@ -36,11 +35,10 @@ export const GET_EVENT = gql`
       startsAt
       endsAt
       maxAttendees
-
       attendeeCount
       myAttendeeStatus
       myPaymentStatus
-      tags
+      categories
       spaceId
       createdBy
       createdAt
@@ -83,8 +81,7 @@ export const UPDATE_EVENT = gql`
       startsAt
       endsAt
       maxAttendees
-
-      tags
+      categories
       price
       currency
     }
@@ -102,9 +99,8 @@ export const GET_MY_UPCOMING_EVENTS = gql`
       startsAt
       endsAt
       maxAttendees
-
       attendeeCount
-      tags
+      categories
       spaceId
     }
   }
@@ -121,10 +117,28 @@ export const GET_RECOMMENDED_EVENTS = gql`
       startsAt
       endsAt
       maxAttendees
-
       attendeeCount
-      tags
+      categories
       spaceId
+    }
+  }
+`;
+
+export const GET_EVENTS_BY_CATEGORIES = gql`
+  query GetEventsByCategories($categories: [String!]!, $matchAll: Boolean) {
+    eventsByCategories(categories: $categories, matchAll: $matchAll) {
+      id
+      title
+      description
+      location
+      startsAt
+      endsAt
+      categories
+      attendeeCount
+      spaceId
+      price
+      currency
+      isPaid
     }
   }
 `;

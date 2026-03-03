@@ -8,7 +8,7 @@ export const matchTypeDefs = `#graphql
     user: MatchUser!
     score: Float!
     distanceKm: Float
-    sharedTags: [String!]!
+    sharedCategories: [String!]!
     sharedSpaceIds: [String!]!
     sharedEventIds: [String!]!
   }

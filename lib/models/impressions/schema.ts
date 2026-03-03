@@ -12,11 +12,12 @@ import { users } from "@/lib/models/users/schema";
  * Impressions — behavioral interaction log for ML training.
  *
  * Every time the app shows or the user interacts with an entity
- * (user, event, space), an impression is recorded.
+ * (user, event, space, category), an impression is recorded.
  *
  * This is the primary training signal for the recommendation model.
- * Positive signals: clicked, joined, messaged.
+ * Positive signals: clicked, joined, messaged, liked.
  * Negative signals: skipped, shown (with no follow-up action).
+ * Passive signals: viewed (page visit).
  */
 export const impressionActionEnum = [
   "shown",      // item was displayed to user (no action taken = implicit negative)
@@ -24,9 +25,11 @@ export const impressionActionEnum = [
   "skipped",    // user explicitly dismissed/swiped away
   "joined",     // user joined a space or RSVP'd to an event
   "messaged",   // user sent a message request to a person
+  "liked",      // user explicitly liked (e.g. onboarding category selection)
+  "viewed",     // user visited a detail page (e.g. /categories/[id])
 ] as const;
 
-export const impressionItemTypeEnum = ["user", "event", "space"] as const;
+export const impressionItemTypeEnum = ["user", "event", "space", "category"] as const;
 
 export const impressions = pgTable(
   "impressions",
@@ -37,7 +40,8 @@ export const impressions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    itemId: uuid("item_id").notNull(),
+    // text instead of uuid to support category IDs (string names like "sport")
+    itemId: text("item_id").notNull(),
 
     itemType: text("item_type", { enum: impressionItemTypeEnum }).notNull(),
 

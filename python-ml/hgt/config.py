@@ -26,7 +26,7 @@ NEGATIVE_SAMPLES = 5       # negatives per positive interaction
 DROPOUT = 0.1
 NUM_WORKERS = 0          # 0 = single-threaded (safest on MPS); set to 2-4 on CUDA
 
-TAG_EMBED_DIM = 64
+CATEGORY_EMBED_DIM = 64  # text-embedding-3-small output dimension
 
 # ─── Profile enum vocabularies ────────────────────────────────────────────────
 # Must stay in sync with lib/models/users/schema.ts pgEnums
@@ -46,39 +46,39 @@ ACTIVITY_TO_IDX: dict[str, int]     = {v: i for i, v in enumerate(ACTIVITY_VOCAB
 # ─── Feature vector layouts ────────────────────────────────────────────────────
 # Model Dimension Layouts
 #
-# User (USER_DIM = TAG_EMBED_DIM + 19 = 83):
-#   [0:TAG_EMBED_DIM] tags mean-pool         (64)
-#   [TAG_EMBED_DIM]   age norm               (1)
-#   [+1:+4]           gender one-hot         (3)
-#   [+4:+8]           rel_intent multi-hot   (4)
-#   [+8:+11]          smoking one-hot        (3)
-#   [+11:+14]         drinking one-hot       (3)
-#   [+14:+19]         activity one-hot       (5)
-#   [+19]             num_tags               (1)
-USER_DIM  = TAG_EMBED_DIM + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB) + 1
+# User (USER_DIM = CATEGORY_EMBED_DIM + 18 = 82):
+#   [0:CATEGORY_EMBED_DIM] category impressions mean-pool  (64)
+#   [CATEGORY_EMBED_DIM]   age norm                        (1)
+#   [+1:+4]                gender one-hot                  (3)
+#   [+4:+8]                rel_intent multi-hot            (4)
+#   [+8:+11]               smoking one-hot                 (3)
+#   [+11:+14]              drinking one-hot                (3)
+#   [+14:+19]              activity one-hot                (5)
+# Note: num_categories removed — now implicit in pooled vector magnitude
+USER_DIM  = CATEGORY_EMBED_DIM + 1 + len(GENDER_VOCAB) + len(REL_INTENT_VOCAB) + len(SMOKING_VOCAB) + len(DRINKING_VOCAB) + len(ACTIVITY_VOCAB)
 
-# Event (EVENT_DIM = TAG_EMBED_DIM + 11 = 75):
-#   [0:TAG_EMBED_DIM] tags mean-pool         (64)
-#   [TAG_EMBED_DIM]   avg attendee age norm  (1)
-#   [+1]              attendee count norm    (1)
-#   [+2]              days until event norm  (1)
-#   [+3]              capacity fill rate     (1)
-#   [+4]              is_paid                (1)
-#   [+5]              price log norm         (1)
-#   [+6:+8]           start hour cyclical    (2)
-#   [+8:+10]          start weekday cyclical (2)
-#   [+10]             is_weekend             (1)
-EVENT_DIM = TAG_EMBED_DIM + 1 + 1 + 1 + 1 + 1 + 1 + 5 + 1
+# Event (EVENT_DIM = CATEGORY_EMBED_DIM + 11 = 75):
+#   [0:CATEGORY_EMBED_DIM] categories mean-pool    (64)
+#   [CATEGORY_EMBED_DIM]   avg attendee age norm   (1)
+#   [+1]                   attendee count norm     (1)
+#   [+2]                   days until event norm   (1)
+#   [+3]                   capacity fill rate      (1)
+#   [+4]                   is_paid                 (1)
+#   [+5]                   price log norm          (1)
+#   [+6:+8]                start hour cyclical     (2)
+#   [+8:+10]               start weekday cyclical  (2)
+#   [+10]                  is_weekend              (1)
+EVENT_DIM = CATEGORY_EMBED_DIM + 1 + 1 + 1 + 1 + 1 + 1 + 5
 
-# Space (SPACE_DIM = TAG_EMBED_DIM + 3 = 67):
-#   [0:TAG_EMBED_DIM] tags mean-pool         (64)
-#   [TAG_EMBED_DIM]   avg member age norm    (1)
-#   [+1]              member count norm      (1)
-#   [+2]              event count norm       (1)
-SPACE_DIM = TAG_EMBED_DIM + 1 + 1 + 1
+# Space (SPACE_DIM = CATEGORY_EMBED_DIM + 3 = 67):
+#   [0:CATEGORY_EMBED_DIM] categories mean-pool    (64)
+#   [CATEGORY_EMBED_DIM]   avg member age norm     (1)
+#   [+1]                   member count norm       (1)
+#   [+2]                   event count norm        (1)
+SPACE_DIM = CATEGORY_EMBED_DIM + 1 + 1 + 1
 
-# Tag Node 
-TAG_DIM = TAG_EMBED_DIM
+# Category node: 64D dense embedding from text-embedding-3-small
+CATEGORY_DIM = CATEGORY_EMBED_DIM
 
 # Entity types
 ENTITY_TYPES = ["user", "event", "space"]
@@ -89,24 +89,24 @@ AGE_MIN = 18.0
 AGE_MAX = 65.0
 
 # ─── Graph topology (HGTConv metadata) ────────────────────────────────────────
-NODE_TYPES: list[str] = ["user", "event", "space", "tag"]
+NODE_TYPES: list[str] = ["user", "event", "space", "category"]
 
 EDGE_TYPES: list[tuple[str, str, str]] = [
     # behavioural edges
-    ("user",  "attends",                "event"),
-    ("event", "rev_attends",            "user"),
-    ("user",  "joins",                  "space"),
-    ("space", "rev_joins",              "user"),
-    ("event", "hosted_by",              "space"),
-    ("space", "rev_hosted_by",          "event"),
-    ("user",  "similar_to",             "user"),
-    # tag edges
-    ("user",  "likes",                  "tag"),
-    ("tag",   "rev_likes",              "user"),
-    ("event", "tagged_with",            "tag"),
-    ("tag",   "rev_tagged_with_event",  "event"),
-    ("space", "tagged_with_space",      "tag"),
-    ("tag",   "rev_tagged_with_space",  "space"),
+    ("user",     "attends",                   "event"),
+    ("event",    "rev_attends",               "user"),
+    ("user",     "joins",                     "space"),
+    ("space",    "rev_joins",                 "user"),
+    ("event",    "hosted_by",                 "space"),
+    ("space",    "rev_hosted_by",             "event"),
+    ("user",     "similar_to",               "user"),
+    # category edges
+    ("user",     "likes_category",            "category"),
+    ("category", "rev_likes_category",        "user"),
+    ("event",    "tagged_with",               "category"),
+    ("category", "rev_tagged_with_event",     "event"),
+    ("space",    "tagged_with_space",         "category"),
+    ("category", "rev_tagged_with_space",     "space"),
 ]
 
 METADATA: tuple = (NODE_TYPES, EDGE_TYPES)

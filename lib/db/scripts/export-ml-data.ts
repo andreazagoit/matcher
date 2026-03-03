@@ -2,11 +2,14 @@
  * Exports all data needed for ML training to JSON files.
  *
  * Output directory: python-ml/training-data/
- *   users.json        — user profiles + tags + stats
- *   events.json       — events + real attendance stats
- *   spaces.json       — spaces + member/event stats
- *   interactions.json — positive interaction pairs
- *   connections.json  — user-to-user connections (pending/accepted/declined)
+ *   users.json               — user profiles + stats (no categories array)
+ *   events.json              — events + real attendance stats + categories
+ *   spaces.json              — spaces + member/event stats + categories
+ *   categories.json          — category nodes with 64d embeddings
+ *   category_impressions.json— user→category edges (liked + viewed impressions)
+ *   event_attendees.json     — user→event weighted edges
+ *   members.json             — user→space weighted edges
+ *   connections.json         — user→user connection edges
  *
  * Usage: npm run ml:export
  */
@@ -27,7 +30,6 @@ function write(filename: string, data: unknown) {
 }
 
 async function exportUsers() {
-  // Profile fields + pre-computed stats
   const rows = await client`
     SELECT
       u.id::text,
@@ -36,10 +38,7 @@ async function exportUsers() {
       u.relationship_intent,
       u.smoking,
       u.drinking,
-      u.activity_level,
-      u.tags,
-      u.activity_level,
-      u.tags
+      u.activity_level
     FROM users u
     ORDER BY u.id
   `;
@@ -52,22 +51,15 @@ async function exportUsers() {
     smoking: u.smoking ?? null,
     drinking: u.drinking ?? null,
     activityLevel: u.activity_level ?? null,
-    tags: u.tags ?? [],
   }));
 }
 
 async function exportEvents() {
-  /**
-   * For each event:
-   *   past     → attendee_count = users with status='attended' (real data)
-   *   upcoming → attendee_count = users with status='going'    (intent)
-   * avg_attendee_age follows the same logic.
-   */
   const rows = await client`
     SELECT
       e.id::text,
       e.space_id::text,
-      e.tags,
+      e.categories,
       e.starts_at::text,
       e.max_attendees,
       e.price,
@@ -84,7 +76,7 @@ async function exportEvents() {
            ON ea_going.event_id = e.id AND ea_going.status = 'going'
     LEFT JOIN users u_going
            ON u_going.id = ea_going.user_id AND u_going.birthdate IS NOT NULL
-    GROUP BY e.id, e.space_id, e.tags, e.starts_at, e.max_attendees, e.price
+    GROUP BY e.id, e.space_id, e.categories, e.starts_at, e.max_attendees, e.price
     ORDER BY e.id
   `;
 
@@ -96,7 +88,7 @@ async function exportEvents() {
     return {
       id: e.id,
       spaceId: e.space_id ?? null,
-      tags: e.tags ?? [],
+      categories: e.categories ?? [],
       startsAt: e.starts_at ?? null,
       maxAttendees: e.max_attendees ? Number(e.max_attendees) : null,
       isPaid: e.price != null && Number(e.price) > 0,
@@ -107,29 +99,75 @@ async function exportEvents() {
   });
 }
 
-async function exportTags() {
+async function exportCategories() {
   const rows = await client`
     SELECT
-      id::text,
+      id,
       name,
-      category,
       embedding::text
-    FROM tags
+    FROM categories
     ORDER BY id ASC
   `;
-  return rows.map((t) => ({
-    id: t.id,
-    name: t.name,
-    category: t.category,
-    embedding: t.embedding ? JSON.parse(t.embedding) : null,
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    embedding: c.embedding ? JSON.parse(c.embedding) : null,
   }));
+}
+
+/**
+ * Export user→category edges from impressions.
+ * Weight: liked=1.0, viewed=0.3 (page visit is weaker signal than explicit like).
+ * Multiple impressions of the same pair are summed and capped at 1.0.
+ */
+async function exportCategoryImpressions() {
+  const HALF_LIFE_SECS = 90 * 86400; // 90 days — category interest decays faster
+
+  const rows = await client`
+    SELECT
+      user_id::text,
+      item_id         AS category_id,
+      action,
+      LEAST(1.0, GREATEST(0.05,
+        CASE action
+          WHEN 'liked'  THEN 1.0
+          WHEN 'viewed' THEN 0.3
+          ELSE 0.1
+        END
+        * EXP(-EXTRACT(EPOCH FROM (NOW() - created_at)) / ${HALF_LIFE_SECS})
+      ))::float AS weight,
+      created_at::text
+    FROM impressions
+    WHERE item_type = 'category'
+      AND action IN ('liked', 'viewed')
+    ORDER BY user_id, item_id, created_at ASC
+  `;
+
+  // Aggregate multiple impressions of the same user→category pair
+  const aggregated = new Map<string, { userId: string; categoryId: string; weight: number; createdAt: string }>();
+  for (const r of rows) {
+    const key = `${r.user_id}:${r.category_id}`;
+    const existing = aggregated.get(key);
+    if (existing) {
+      existing.weight = Math.min(1.0, existing.weight + Number(r.weight));
+    } else {
+      aggregated.set(key, {
+        userId: r.user_id,
+        categoryId: r.category_id,
+        weight: Number(r.weight),
+        createdAt: r.created_at,
+      });
+    }
+  }
+
+  return Array.from(aggregated.values());
 }
 
 async function exportSpaces() {
   const rows = await client`
     SELECT
       s.id::text,
-      s.tags,
+      s.categories,
       COUNT(DISTINCT m.user_id)::int                        AS member_count,
       AVG(date_part('year', age(u.birthdate)))::float       AS avg_member_age,
       COUNT(DISTINCT e.id)::int                             AS event_count
@@ -139,13 +177,13 @@ async function exportSpaces() {
     LEFT JOIN events e  ON e.space_id = s.id
               AND e.starts_at IS NOT NULL
     WHERE s.is_active = true
-    GROUP BY s.id, s.tags
+    GROUP BY s.id, s.categories
     ORDER BY s.id
   `;
 
   return rows.map((s) => ({
     id: s.id,
-    tags: s.tags ?? [],
+    categories: s.categories ?? [],
     memberCount: Number(s.member_count),
     avgMemberAge: s.avg_member_age != null ? Number(s.avg_member_age) : null,
     eventCount: Number(s.event_count),
@@ -153,9 +191,8 @@ async function exportSpaces() {
 }
 
 async function exportEventAttendees() {
-  const HALF_LIFE_SECS = 180 * 86400; // 180 days in seconds
+  const HALF_LIFE_SECS = 180 * 86400;
   const rows = await client`
-    -- attended (past events) — strongest signal
     SELECT
       ea.user_id::text,
       ea.event_id::text,
@@ -170,7 +207,6 @@ async function exportEventAttendees() {
 
     UNION ALL
 
-    -- going (upcoming events) — intent signal
     SELECT
       ea.user_id::text,
       ea.event_id::text,
@@ -192,9 +228,8 @@ async function exportEventAttendees() {
 }
 
 async function exportMembers() {
-  const HALF_LIFE_SECS = 180 * 86400; // 180 days in seconds
+  const HALF_LIFE_SECS = 180 * 86400;
   const rows = await client`
-    -- space members
     SELECT
       m.user_id::text,
       m.space_id::text,
@@ -237,20 +272,23 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const [users, events, spaces, tags, eventAttendees, members, connections] = await Promise.all([
-    exportUsers(),
-    exportEvents(),
-    exportSpaces(),
-    exportTags(),
-    exportEventAttendees(),
-    exportMembers(),
-    exportConnections(),
-  ]);
+  const [users, events, spaces, categories, categoryImpressions, eventAttendees, members, connections] =
+    await Promise.all([
+      exportUsers(),
+      exportEvents(),
+      exportSpaces(),
+      exportCategories(),
+      exportCategoryImpressions(),
+      exportEventAttendees(),
+      exportMembers(),
+      exportConnections(),
+    ]);
 
   write("users.json", users);
   write("events.json", events);
   write("spaces.json", spaces);
-  write("tags.json", tags);
+  write("categories.json", categories);
+  write("category_impressions.json", categoryImpressions);
   write("event_attendees.json", eventAttendees);
   write("members.json", members);
   write("connections.json", connections);

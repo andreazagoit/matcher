@@ -7,6 +7,7 @@ import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { generateEmbedding } from "@/lib/embeddings";
+import { recordImpression } from "@/lib/models/impressions/operations";
 
 export function generateSlug(name: string): string {
   return name
@@ -31,7 +32,7 @@ export async function createSpace(params: {
   visibility?: "public" | "private" | "hidden";
   joinPolicy?: "open" | "apply" | "invite_only";
   image?: string;
-  tags?: string[];
+  categories?: string[];
 }): Promise<CreateSpaceResult> {
   const slug = params.slug || generateSlug(params.name);
 
@@ -45,7 +46,7 @@ export async function createSpace(params: {
         image: params.image,
         visibility: params.visibility || "public",
         joinPolicy: params.joinPolicy || "open",
-        tags: params.tags ?? [],
+        categories: params.categories ?? [],
         ownerId: params.ownerId,
       })
       .returning();
@@ -62,7 +63,7 @@ export async function createSpace(params: {
 
   // Generate embedding in background
   const { space } = result;
-  const embText = [space.name, space.description, space.tags?.length ? `Tags: ${space.tags.join(", ")}` : ""].filter(Boolean).join("\n");
+  const embText = [space.name, space.description, space.categories?.length ? `Categories: ${space.categories.join(", ")}` : ""].filter(Boolean).join("\n");
   if (embText.trim()) {
     generateEmbedding(embText)
       .then((embedding) => db.update(spaces).set({ embedding }).where(eq(spaces.id, space.id)))
@@ -72,11 +73,16 @@ export async function createSpace(params: {
   return result;
 }
 
-export async function getSpaceById(id: string): Promise<Space | null> {
+export async function getSpaceById(id: string, userId?: string): Promise<Space | null> {
   const result = await db.query.spaces.findFirst({
     where: eq(spaces.id, id),
   });
-  return result || null;
+  if (!result) return null;
+
+  // Track the visit server-side (fire-and-forget)
+  if (userId) recordImpression(userId, id, "space", "viewed");
+
+  return result;
 }
 
 export async function getSpaceBySlug(slug: string): Promise<Space | null> {
@@ -95,13 +101,13 @@ export async function getAllSpaces(): Promise<Space[]> {
 /**
  * Search spaces by tags. matchAll=true requires all tags, false requires at least one.
  */
-export async function getSpacesByTags(
-  tags: string[],
+export async function getSpacesByCategories(
+  categories: string[],
   matchAll: boolean = false,
 ): Promise<Space[]> {
-  if (tags.length === 0) return [];
+  if (categories.length === 0) return [];
 
-  const tagArray = `{${tags.join(",")}}`;
+  const catArray = `{${categories.join(",")}}`;
   const operator = matchAll ? "@>" : "&&";
 
   return await db
@@ -109,7 +115,7 @@ export async function getSpacesByTags(
     .from(spaces)
     .where(
       and(
-        sql`${spaces.tags} ${sql.raw(operator)} ${tagArray}::text[]`,
+        sql`${spaces.categories} ${sql.raw(operator)} ${catArray}::text[]`,
         eq(spaces.visibility, "public"),
         eq(spaces.isActive, true),
       ),
@@ -122,7 +128,7 @@ export async function getSpacesByTags(
  */
 export async function updateSpace(
   id: string,
-  data: Partial<Pick<Space, "name" | "slug" | "description" | "isActive" | "visibility" | "image" | "joinPolicy" | "tags">>
+  data: Partial<Pick<Space, "name" | "slug" | "description" | "isActive" | "visibility" | "image" | "joinPolicy" | "categories">>
 ): Promise<Space | null> {
   const [updated] = await db
     .update(spaces)
@@ -130,8 +136,8 @@ export async function updateSpace(
     .where(eq(spaces.id, id))
     .returning();
 
-  if (updated && (data.name !== undefined || data.description !== undefined || data.tags !== undefined)) {
-    const embText = [updated.name, updated.description, updated.tags?.length ? `Tags: ${updated.tags.join(", ")}` : ""].filter(Boolean).join("\n");
+  if (updated && (data.name !== undefined || data.description !== undefined || data.categories !== undefined)) {
+    const embText = [updated.name, updated.description, updated.categories?.length ? `Categories: ${updated.categories.join(", ")}` : ""].filter(Boolean).join("\n");
     if (embText.trim()) {
       generateEmbedding(embText)
         .then((embedding) => db.update(spaces).set({ embedding }).where(eq(spaces.id, updated.id)))

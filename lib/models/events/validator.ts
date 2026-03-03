@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { tagSchema, coordinatesSchema } from "@/lib/models/shared/validator";
+import { categorySchema, coordinatesSchema } from "@/lib/models/shared/validator";
 import { attendeeStatusEnum } from "./schema";
+
 export const createEventSchema = z.object({
   spaceId: z.string().uuid(),
   title: z.string().min(1).max(200),
@@ -10,7 +11,7 @@ export const createEventSchema = z.object({
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date().optional(),
   maxAttendees: z.number().int().positive().optional(),
-  tags: z.array(tagSchema).max(10).default([]),
+  categories: z.array(categorySchema).max(10).default([]),
   price: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).toLowerCase().default("eur"),
 });
@@ -23,7 +24,7 @@ export const updateEventSchema = z.object({
   startsAt: z.coerce.date().optional(),
   endsAt: z.coerce.date().optional(),
   maxAttendees: z.number().int().positive().optional(),
-  tags: z.array(tagSchema).max(10).optional(),
+  categories: z.array(categorySchema).max(10).optional(),
   price: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).toLowerCase().optional(),
 });

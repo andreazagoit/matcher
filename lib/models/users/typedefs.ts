@@ -18,12 +18,11 @@ export const userTypeDefs = `#graphql
     locationUpdatedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
-    tags: [String!]!
     userItems: [UserItem!]!
     gender: Gender
 
-    """Tags recommended based on embedding similarity. Only visible to own profile."""
-    recommendedUserTags(limit: Int, offset: Int): [String!]!
+    """Categories recommended based on embedding similarity. Only visible to own profile."""
+    recommendedCategories(limit: Int, offset: Int): [String!]!
     """Users with similar embeddings. Only visible to own profile."""
     recommendedUserUsers(limit: Int, offset: Int): [User!]!
     """Events closest to user embedding. Only visible to own profile."""
@@ -177,7 +176,6 @@ export const userTypeDefs = `#graphql
     users: [User!]!
     me: User
     checkUsername(username: String!): Boolean!
-    myTags: [String!]!
   }
 
   extend type Mutation {
@@ -185,6 +183,5 @@ export const userTypeDefs = `#graphql
     updateUser(id: ID!, input: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
     updateLocation(lat: Float!, lon: Float!, location: String): User!
-    updateMyTags(tags: [String!]!): User!
   }
 `;

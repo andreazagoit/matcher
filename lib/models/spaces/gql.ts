@@ -11,7 +11,7 @@ export const SPACE_FRAGMENT = gql`
     slug
     description
     image
-    tags
+    categories
     visibility
     joinPolicy
     createdAt
@@ -118,6 +118,15 @@ export const UPDATE_SPACE = gql`
   ${SPACE_FRAGMENT}
   mutation UpdateSpace($id: ID!, $input: UpdateSpaceInput!) {
     updateSpace(id: $id, input: $input) {
+      ...SpaceFields
+    }
+  }
+`;
+
+export const GET_SPACES_BY_CATEGORIES = gql`
+  ${SPACE_FRAGMENT}
+  query GetSpacesByCategories($categories: [String!]!, $matchAll: Boolean) {
+    spacesByCategories(categories: $categories, matchAll: $matchAll) {
       ...SpaceFields
     }
   }

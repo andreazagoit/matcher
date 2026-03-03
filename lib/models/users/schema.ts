@@ -107,7 +107,7 @@ export const users = pgTable(
     // ==========================================
     // PROFILE — INTERESTS
     // ==========================================
-    tags: text("tags").array().default(sql`'{}'::text[]`).notNull(),
+    // Interest categories are tracked via impressions (action: 'liked'), not stored here.
 
     // ==========================================
     // PROFILE — IDENTITY & BACKGROUND

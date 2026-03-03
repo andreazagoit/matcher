@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ALL_TAGS } from "@/lib/models/tags/data";
+import { CATEGORIES } from "@/lib/models/categories/data";
 import {
   GET_SPACE_EVENTS,
   CREATE_EVENT,
@@ -57,7 +57,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
     location: "",
     startsAt: "",
     endsAt: "",
-    tags: [] as string[],
+    categories: [] as string[],
   });
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -72,12 +72,12 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
             location: newEvent.location || undefined,
             startsAt: new Date(newEvent.startsAt).toISOString(),
             endsAt: newEvent.endsAt ? new Date(newEvent.endsAt).toISOString() : undefined,
-            tags: newEvent.tags.length > 0 ? newEvent.tags : undefined,
+            categories: newEvent.categories.length > 0 ? newEvent.categories : undefined,
           },
         },
       });
       setShowCreate(false);
-      setNewEvent({ title: "", description: "", location: "", startsAt: "", endsAt: "", tags: [] });
+      setNewEvent({ title: "", description: "", location: "", startsAt: "", endsAt: "", categories: [] });
       refetch();
     } catch (err) {
       console.error("Failed to create event:", err);
@@ -159,23 +159,23 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Tags</Label>
+                  <Label>Categorie</Label>
                   <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                    {ALL_TAGS.map((tag) => {
-                      const isSelected = newEvent.tags.includes(tag);
+                    {CATEGORIES.map((cat) => {
+                      const isSelected = newEvent.categories.includes(cat);
                       return (
                         <Badge
-                          key={tag}
+                          key={cat}
                           variant={isSelected ? "default" : "outline"}
-                          className="cursor-pointer text-xs py-1 px-2"
+                          className="cursor-pointer text-xs py-1 px-2 capitalize"
                           onClick={() =>
                             setNewEvent((p) => ({
                               ...p,
-                              tags: isSelected ? p.tags.filter((t) => t !== tag) : [...p.tags, tag],
+                              categories: isSelected ? p.categories.filter((c) => c !== cat) : [...p.categories, cat],
                             }))
                           }
                         >
-                          {tag}
+                          {cat}
                         </Badge>
                       );
                     })}

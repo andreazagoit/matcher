@@ -1,26 +1,29 @@
 import { db } from "../drizzle";
-import { users } from "../../models/users/schema";
-import { ALL_TAGS } from "../../models/tags/data";
-import { eq } from "drizzle-orm";
+import { impressions } from "../../models/impressions/schema";
+import { CATEGORIES } from "../../models/categories/data";
 
 function pickRandom<T>(arr: T[], count: number): T[] {
   return [...arr].sort(() => Math.random() - 0.5).slice(0, count);
 }
 
 /**
- * Seed tags for a list of user IDs.
- * Each user gets 5–10 random tags stored directly on users.tags.
+ * Seed category interests for a list of user IDs.
+ * Each user gets 3–6 random liked category impressions.
  */
 export async function seedProfiles(userIds: string[]) {
-  console.log(`\n📋 Seeding ${userIds.length} users' tags...`);
+  console.log(`\n📋 Seeding ${userIds.length} users' category interests...`);
 
   for (const userId of userIds) {
-    const tags = pickRandom(ALL_TAGS, 5 + Math.floor(Math.random() * 6));
-    await db
-      .update(users)
-      .set({ tags, updatedAt: new Date() })
-      .where(eq(users.id, userId));
+    const selected = pickRandom(CATEGORIES, 3 + Math.floor(Math.random() * 4));
+    await db.insert(impressions).values(
+      selected.map((categoryId) => ({
+        userId,
+        itemId: categoryId,
+        itemType: "category" as const,
+        action: "liked" as const,
+      }))
+    ).onConflictDoNothing();
   }
 
-  console.log(`  → ${userIds.length} users' tags seeded`);
+  console.log(`  → ${userIds.length} users' category interests seeded`);
 }

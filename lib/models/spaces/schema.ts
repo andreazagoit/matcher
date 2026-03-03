@@ -47,10 +47,10 @@ export const spaces = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
 
-    // Tags (shared vocabulary from models/tags/data.ts)
-    tags: text("tags").array().default([]),
+    // Categories (shared vocabulary from models/categories/data.ts)
+    categories: text("categories").array().default([]),
 
-    // AI embedding for recommendations (name + description + tags)
+    // AI embedding for recommendations (name + description + categories)
     embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
 
     // Timestamps
@@ -59,7 +59,7 @@ export const spaces = pgTable(
   },
   (table) => [
     index("spaces_slug_idx").on(table.slug),
-    index("spaces_tags_idx").using("gin", table.tags),
+    index("spaces_categories_idx").using("gin", table.categories),
   ]
 );
 

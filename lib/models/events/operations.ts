@@ -8,6 +8,7 @@ import {
 import { spaces } from "@/lib/models/spaces/schema";
 import { members } from "@/lib/models/members/schema";
 import { eq, and, gte, desc, asc, sql, inArray } from "drizzle-orm";
+import { recordImpression } from "@/lib/models/impressions/operations";
 
 // ─── Access Control ─────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ export async function createEvent(data: {
   startsAt: Date;
   endsAt?: Date;
   maxAttendees?: number;
-  tags?: string[];
+  categories?: string[];
   price?: number;
   currency?: string;
   createdBy: string;
@@ -94,7 +95,7 @@ export async function createEvent(data: {
       startsAt: data.startsAt,
       endsAt: data.endsAt,
       maxAttendees: data.maxAttendees,
-      tags: data.tags ?? [],
+      categories: data.categories ?? [],
       price: data.price ?? null,
       currency: data.currency ?? "eur",
       createdBy: data.createdBy,
@@ -113,7 +114,7 @@ export async function updateEvent(
     startsAt?: Date;
     endsAt?: Date;
     maxAttendees?: number;
-    tags?: string[];
+    categories?: string[];
     price?: number;
     currency?: string;
   },
@@ -151,6 +152,9 @@ export async function getEventById(id: string, userId?: string): Promise<Event |
 
   const accessible = await canAccessSpace(event.spaceId, userId);
   if (!accessible) return null;
+
+  // Track the visit server-side (fire-and-forget)
+  if (userId) recordImpression(userId, id, "event", "viewed");
 
   return event;
 }
@@ -194,19 +198,19 @@ export async function getUpcomingEventsForUser(
   });
 }
 
-// ─── Search by tags ─────────────────────────────────────────────────
+// ─── Search by categories ───────────────────────────────────────────
 
-export async function getEventsByTags(
-  tags: string[],
+export async function getEventsByCategories(
+  categories: string[],
   matchAll: boolean = false,
   userId?: string,
 ): Promise<Event[]> {
-  if (tags.length === 0) return [];
+  if (categories.length === 0) return [];
 
   const accessibleIds = await getAccessibleSpaceIds(userId);
   if (typeof accessibleIds !== "string" && accessibleIds.length === 0) return [];
 
-  const tagArray = `{${tags.join(",")}}`;
+  const catArray = `{${categories.join(",")}}`;
   const operator = matchAll ? "@>" : "&&";
 
   const accessFilter =
@@ -219,7 +223,7 @@ export async function getEventsByTags(
     .from(events)
     .where(
       and(
-        sql`${events.tags} ${sql.raw(operator)} ${tagArray}::text[]`,
+        sql`${events.categories} ${sql.raw(operator)} ${catArray}::text[]`,
         gte(events.startsAt, new Date()),
         accessFilter,
       ),

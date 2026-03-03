@@ -22,7 +22,7 @@ import {
 import { embeddings } from "@/lib/models/embeddings/schema";
 import { db } from "@/lib/db/drizzle";
 import { eq, inArray, and, gte, sql } from "drizzle-orm";
-import { isValidTag } from "@/lib/models/tags/data";
+import { isValidCategory as _isValidCategory } from "@/lib/models/categories/data"; // kept for potential future use
 import { getUserItems } from "@/lib/models/useritems/operations";
 import type { UserItem } from "@/lib/models/useritems/schema";
 import { events, eventAttendees } from "@/lib/models/events/schema";
@@ -39,21 +39,17 @@ class AuthError extends Error {
 
 export const userResolvers = {
   Query: {
-    myTags: async (_: unknown, __: unknown, context: GraphQLContext) => {
-      if (!context.auth.user) return [];
-      const u = await db.query.users.findFirst({
-        where: eq(users.id, context.auth.user.id),
-        columns: { tags: true },
-      });
-      return u?.tags ?? [];
+    me: async (_: unknown, __: unknown, context: GraphQLContext) => {
+      if (!context.auth.user) {
+        return null;
+      }
+      return context.auth.user;
     },
 
     user: async (
       _: unknown,
       { username }: { username: string },
     ) => {
-      // Public profile lookup by username (used by /users/[username]).
-      // Sensitive fields are still controlled at schema/query level.
       return await getUserByUsername(username);
     },
 
@@ -62,13 +58,6 @@ export const userResolvers = {
         throw new AuthError("Authentication required");
       }
       return await getAllUsers();
-    },
-
-    me: async (_: unknown, __: unknown, context: GraphQLContext) => {
-      if (!context.auth.user) {
-        return null;
-      }
-      return context.auth.user;
     },
 
     checkUsername: async (_: unknown, { username }: { username: string }) => {
@@ -107,7 +96,6 @@ export const userResolvers = {
       // Regenerate embedding in background when profile data changes
       (async () => {
         await embedUser(id, {
-          tags: updatedUser.tags ?? [],
           birthdate: updatedUser.birthdate ?? null,
           gender: updatedUser.gender ?? null,
           relationshipIntent: updatedUser.relationshipIntent ?? null,
@@ -147,42 +135,6 @@ export const userResolvers = {
 
       return await updateUserLocation(context.auth.user.id, lat, lon);
     },
-
-    updateMyTags: async (
-      _: unknown,
-      { tags }: { tags: string[] },
-      context: GraphQLContext,
-    ) => {
-      if (!context.auth.user) {
-        throw new AuthError("Authentication required");
-      }
-
-      const invalidTags = tags.filter((t) => !isValidTag(t));
-      if (invalidTags.length > 0) {
-        throw new GraphQLError(`Invalid tags: ${invalidTags.join(", ")}`);
-      }
-
-      const [updated] = await db
-        .update(users)
-        .set({ tags, updatedAt: new Date() })
-        .where(eq(users.id, context.auth.user.id))
-        .returning();
-
-      if (!updated) throw new GraphQLError("User not found");
-
-      // Regenerate embedding in background
-      embedUser(context.auth.user.id, {
-        tags,
-        birthdate: updated.birthdate ?? null,
-        gender: updated.gender ?? null,
-        relationshipIntent: updated.relationshipIntent ?? null,
-        smoking: updated.smoking ?? null,
-        drinking: updated.drinking ?? null,
-        activityLevel: updated.activityLevel ?? null,
-      }).catch(() => { });
-
-      return updated;
-    },
   },
 
   User: {
@@ -190,12 +142,11 @@ export const userResolvers = {
       if (!parent.coordinates) return null;
       return { lat: parent.coordinates.y, lon: parent.coordinates.x };
     },
-    tags: (parent: { tags?: string[] | null }) => parent.tags ?? [],
     userItems: (parent: { id: string }): Promise<UserItem[]> => {
       return getUserItems(parent.id);
     },
 
-    recommendedUserTags: async (
+    recommendedCategories: async (
       parent: { id: string },
       { limit = 10, offset = 0 }: { limit?: number; offset?: number },
       context: GraphQLContext,
@@ -213,7 +164,7 @@ export const userResolvers = {
       const rows = await db.execute<{ entity_id: string }>(sql`
         SELECT entity_id
         FROM   embeddings
-        WHERE  entity_type = 'tag'
+        WHERE  entity_type = 'category'
         ORDER BY embedding <=> ${sql.raw(`'${vec}'::vector`)}
         LIMIT  ${sql.raw(String(limit))}
         OFFSET ${sql.raw(String(offset))}

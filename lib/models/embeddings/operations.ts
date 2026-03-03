@@ -19,7 +19,6 @@ const ML_SERVICE_URL =
 // ─── Input types ───────────────────────────────────────────────────────────────
 
 export interface UserEmbedInput {
-  tags: string[];
   birthdate?: string | null;
   gender?: string | null;
   relationshipIntent?: string[] | null;
@@ -29,14 +28,13 @@ export interface UserEmbedInput {
 }
 
 export interface EventEmbedInput {
-  tags?: string[];
-  startsAt?: string | null;        // ISO string — used to compute daysUntilEvent
+  categories?: string[];
+  startsAt?: string | null;
   priceCents?: number | null;
   avgAttendeeAge?: number | null;
   attendeeCount?: number;
   maxAttendees?: number | null;
   isPaid?: boolean;
-  // kept for forward compatibility; not used by the current model
   title?: string;
   description?: string | null;
 }
@@ -122,7 +120,7 @@ export async function embedEvent(
  */
 export async function getStoredEmbedding(
   entityId: string,
-  entityType: "user" | "event" | "space" | "tag",
+  entityType: "user" | "event" | "space" | "category",
 ): Promise<number[] | null> {
   const row = await db.query.embeddings.findFirst({
     where: and(

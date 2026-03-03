@@ -15,7 +15,6 @@ export const USER_FRAGMENT = gql`
     image
     createdAt
     updatedAt
-    tags
     sexualOrientation
     heightCm
     relationshipIntent
@@ -92,11 +91,11 @@ export const UPDATE_USER = gql`
   }
 `;
 
-export const GET_RECOMMENDED_TAGS = gql`
-  query GetRecommendedTags($limit: Int) {
+export const GET_RECOMMENDED_CATEGORIES = gql`
+  query GetRecommendedCategories($limit: Int) {
     me {
       id
-      recommendedUserTags(limit: $limit)
+      recommendedCategories(limit: $limit)
     }
   }
 `;
@@ -119,15 +118,6 @@ export const GET_RECOMMENDED_USERS = gql`
           displayOrder
         }
       }
-    }
-  }
-`;
-
-export const UPDATE_MY_TAGS = gql`
-  mutation UpdateMyTags($tags: [String!]!) {
-    updateMyTags(tags: $tags) {
-      id
-      tags
     }
   }
 `;

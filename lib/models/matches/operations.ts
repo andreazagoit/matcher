@@ -30,7 +30,7 @@ export interface MatchResult {
   };
   score: number;
   distanceKm: number | null;
-  sharedTags: string[];
+  sharedCategories: string[];
   sharedSpaceIds: string[];
   sharedEventIds: string[];
 }
@@ -65,25 +65,12 @@ export async function findMatches(
     where: and(eq(embeddings.entityId, userId), eq(embeddings.entityType, "user")),
   });
   const myEmbedding = myEmbeddingRow?.embedding ?? null;
-  const myTags = currentUser.tags ?? [];
 
   const distanceSql = sql<number>`ST_DistanceSphere(${users.coordinates}, ST_GeomFromText(${`POINT(${myLocation.x} ${myLocation.y})`}, 4326)) / 1000`;
 
   const ageSql = sql<number>`date_part('year', age(${users.birthdate}))`;
 
   const embeddingStr = myEmbedding ? `[${myEmbedding.join(",")}]` : null;
-
-  // Shared tags for display (array intersection)
-  const sharedTagsSql =
-    myTags.length > 0
-      ? sql<string[]>`(
-          SELECT ARRAY(
-            SELECT UNNEST(${users.tags})
-            INTERSECT
-            SELECT UNNEST(${sql.raw(`ARRAY[${myTags.map((t) => `'${t}'`).join(",")}]::text[]`)})
-          )
-        )`
-      : sql<string[]>`'{}'::text[]`;
 
   const poolSize = filters.candidatePool ?? filters.limit;
 
@@ -101,7 +88,6 @@ export async function findMatches(
         ? sql<number>`1 - (${embeddings.embedding} <=> ${sql.raw(`'${embeddingStr}'::vector`)})`
         : sql<number>`0`,
       distanceKm: distanceSql,
-      sharedTags: sharedTagsSql,
     })
     // Start from embeddings to use the HNSW index efficiently
     .from(embeddings)
@@ -170,6 +156,7 @@ export async function findMatches(
       username: c.user.username ?? "",
       birthdate: c.user.birthdate ?? "",
     },
+    sharedCategories: [],
     sharedSpaceIds: [],
     sharedEventIds: [],
   }));

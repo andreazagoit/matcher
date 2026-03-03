@@ -13,7 +13,7 @@ import {
   getSpaceEvents,
   getUpcomingEventsForUser,
   getEventAttendees,
-  getEventsByTags,
+  getEventsByCategories,
   respondToEvent,
   markEventCompleted,
   getEventById,
@@ -80,14 +80,14 @@ export const eventResolvers = {
       return await getEventAttendees(eventId);
     },
 
-    eventsByTags: async (
+    eventsByCategories: async (
       _: unknown,
-      { tags, matchAll }: { tags: string[]; matchAll?: boolean },
+      { categories, matchAll }: { categories: string[]; matchAll?: boolean },
       context: GraphQLContext,
     ) => {
       requireAuth(context);
       const userId = context.auth.user!.id;
-      return await getEventsByTags(tags, matchAll ?? false, userId);
+      return await getEventsByCategories(categories, matchAll ?? false, userId);
     },
 
     recommendedEvents: async (
@@ -117,8 +117,8 @@ export const eventResolvers = {
         });
       }
 
-      const userRow = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { tags: true } });
-      const userTags = userRow?.tags ?? [];
+      const userRow = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true } });
+      const userCategories: string[] = [];
       const userEmbedding = await getStoredEmbedding(userId, "user");
 
       // Strategy 1: ML behavioral embedding (via HGT)
@@ -143,13 +143,13 @@ export const eventResolvers = {
         }
       }
 
-      // Strategy 2: tag overlap (cold start)
-      if (userTags.length > 0) {
-        const tagArray = `{${userTags.join(",")}}`;
+      // Strategy 2: category overlap (cold start)
+      if (userCategories.length > 0) {
+        const catArray = `{${userCategories.join(",")}}`;
         const results = await db
           .select()
           .from(events)
-          .where(and(baseConditions, sql`${events.tags} && ${tagArray}::text[]`))
+          .where(and(baseConditions, sql`${events.categories} && ${catArray}::text[]`))
           .orderBy(sql`${events.startsAt} ASC`)
           .limit(maxResults);
         if (results.length > 0) return results;
@@ -180,7 +180,7 @@ export const eventResolvers = {
           startsAt: string;
           endsAt?: string;
           maxAttendees?: number;
-          tags?: string[];
+          categories?: string[];
           price?: number;
           currency?: string;
         };
@@ -215,7 +215,7 @@ export const eventResolvers = {
         startsAt: new Date(input.startsAt),
         endsAt: input.endsAt ? new Date(input.endsAt) : undefined,
         maxAttendees: input.maxAttendees,
-        tags: input.tags,
+        categories: input.categories,
         price: input.price,
         currency: input.currency,
         createdBy: user.id,
@@ -223,7 +223,7 @@ export const eventResolvers = {
 
       // Generate ML embedding in background (non-blocking)
       embedEvent(event.id, {
-        tags: event.tags ?? [],
+        categories: event.categories ?? [],
         startsAt: event.startsAt?.toISOString() ?? null,
         isPaid: (event.price ?? 0) > 0,
         priceCents: event.price ?? null,
@@ -248,7 +248,7 @@ export const eventResolvers = {
           startsAt?: string;
           endsAt?: string;
           maxAttendees?: number;
-          tags?: string[];
+          categories?: string[];
           price?: number;
           currency?: string;
         };
@@ -285,7 +285,7 @@ export const eventResolvers = {
         startsAt: input.startsAt ? new Date(input.startsAt) : undefined,
         endsAt: input.endsAt ? new Date(input.endsAt) : undefined,
         maxAttendees: input.maxAttendees,
-        tags: input.tags,
+        categories: input.categories,
         price: input.price,
         currency: input.currency,
       });

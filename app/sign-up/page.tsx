@@ -24,7 +24,7 @@ import { ArrowLeftIcon, ArrowRightIcon, Loader2Icon, UserPlusIcon } from "lucide
 import Link from "next/link";
 import { useLazyQuery } from "@apollo/client/react";
 import { CHECK_USERNAME } from "@/lib/models/users/gql";
-import { TAG_CATEGORIES } from "@/lib/models/tags/data";
+import { CATEGORIES } from "@/lib/models/categories/data";
 
 type Step = "identity" | "intent" | "about" | "background" | "lifestyle" | "interests" | "account" | "verify";
 const STEPS: Step[] = ["identity", "intent", "about", "background", "lifestyle", "interests", "account", "verify"];
@@ -191,7 +191,7 @@ function SignUpForm() {
         await fetch("/api/users/interests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tags: data.initialInterests }),
+          body: JSON.stringify({ categories: data.initialInterests }),
         }).catch(() => { });
       }
       window.location.href = `/users/${data.username}`;
@@ -484,25 +484,18 @@ function SignUpForm() {
             {/* ── Step 6: Interests ── */}
             {step === "interests" && (
               <form onSubmit={(e) => { e.preventDefault(); next(); }} className="space-y-5">
-                {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
-                  <div key={category} className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {category}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag: string) => {
-                        const active = (data.initialInterests as string[]).includes(tag);
-                        return (
-                          <button key={tag} type="button" onClick={() => toggle("initialInterests", tag)}
-                            className={["inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                              active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
-                            {tag}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((cat) => {
+                    const active = (data.initialInterests as string[]).includes(cat);
+                    return (
+                      <button key={cat} type="button" onClick={() => toggle("initialInterests", cat)}
+                        className={["inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                          active ? "bg-foreground text-background border-foreground" : "text-muted-foreground hover:border-foreground/40"].join(" ")}>
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className="flex gap-2 pt-2">
                   <BackButton />
                   <Button type="submit" className="flex-1 gap-2">Continua <ArrowRightIcon className="w-4 h-4" /></Button>

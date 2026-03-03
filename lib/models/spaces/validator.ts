@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { tagSchema } from "@/lib/models/shared/validator";
+import { categorySchema } from "@/lib/models/shared/validator";
 
 const visibilityValues = ["public", "private", "hidden"] as const;
 const joinPolicyValues = ["open", "apply", "invite_only"] as const;
@@ -10,7 +10,7 @@ export const createSpaceSchema = z.object({
   image: z.url().optional(),
   visibility: z.enum(visibilityValues).default("public"),
   joinPolicy: z.enum(joinPolicyValues).default("open"),
-  tags: z.array(tagSchema).max(10).default([]),
+  categories: z.array(categorySchema).max(10).default([]),
 });
 
 export const updateSpaceSchema = z.object({
@@ -20,14 +20,14 @@ export const updateSpaceSchema = z.object({
   visibility: z.enum(visibilityValues).optional(),
   joinPolicy: z.enum(joinPolicyValues).optional(),
   isActive: z.boolean().optional(),
-  tags: z.array(tagSchema).max(10).optional(),
+  categories: z.array(categorySchema).max(10).optional(),
 });
 
-export const spacesByTagsSchema = z.object({
-  tags: z.array(tagSchema).min(1),
+export const spacesByCategoriesSchema = z.object({
+  categories: z.array(categorySchema).min(1),
   matchAll: z.boolean().default(false),
 });
 
 export type CreateSpaceInput = z.infer<typeof createSpaceSchema>;
 export type UpdateSpaceInput = z.infer<typeof updateSpaceSchema>;
-export type SpacesByTagsInput = z.infer<typeof spacesByTagsSchema>;
+export type SpacesByCategoriesInput = z.infer<typeof spacesByCategoriesSchema>;

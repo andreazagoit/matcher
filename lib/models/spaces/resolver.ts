@@ -4,7 +4,7 @@ import { spaces, type Space } from "./schema";
 import { members } from "@/lib/models/members/schema";
 import { getStoredEmbedding } from "@/lib/models/embeddings/operations";
 import { users } from "@/lib/models/users/schema";
-import { createSpace, updateSpace, deleteSpace, getSpacesByTags } from "./operations";
+import { createSpace, updateSpace, deleteSpace, getSpacesByCategories } from "./operations";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 
@@ -15,7 +15,7 @@ interface CreateSpaceInput {
     visibility?: "public" | "private" | "hidden";
     joinPolicy?: "open" | "apply" | "invite_only";
     image?: string;
-    tags?: string[];
+    categories?: string[];
 }
 
 type UpdateSpaceInput = Partial<CreateSpaceInput>;
@@ -39,13 +39,13 @@ export const spaceResolvers = {
             });
         },
 
-        spacesByTags: async (
+        spacesByCategories: async (
             _: unknown,
-            { tags, matchAll }: { tags: string[]; matchAll?: boolean },
+            { categories, matchAll }: { categories: string[]; matchAll?: boolean },
             { auth }: GraphQLContext,
         ) => {
             if (!auth.user) throw new GraphQLError("Unauthorized");
-            return await getSpacesByTags(tags, matchAll ?? false);
+            return await getSpacesByCategories(categories, matchAll ?? false);
         },
 
         recommendedSpaces: async (
@@ -58,9 +58,9 @@ export const spaceResolvers = {
 
             const [userEmbedding, userRow] = await Promise.all([
                 getStoredEmbedding(auth.user.id, "user"),
-                db.query.users.findFirst({ where: eq(users.id, auth.user.id), columns: { tags: true } }),
+                db.query.users.findFirst({ where: eq(users.id, auth.user.id), columns: { id: true } }),
             ]);
-            const userTags = userRow?.tags ?? [];
+            const userCategories: string[] = [];
 
             // Exclude spaces user is already a member of
             const myMemberships = await db
@@ -90,9 +90,9 @@ export const spaceResolvers = {
                 return excludeMine(results);
             }
 
-            // Strategy 2: tag overlap
-            if (userTags.length > 0) {
-                const tagArray = `{${userTags.join(",")}}`;
+            // Strategy 2: category overlap (cold start)
+            if (userCategories.length > 0) {
+                const catArray = `{${userCategories.join(",")}}`;
                 const results = await db
                     .select()
                     .from(spaces)
@@ -100,7 +100,7 @@ export const spaceResolvers = {
                         and(
                             eq(spaces.visibility, "public"),
                             eq(spaces.isActive, true),
-                            sql`${spaces.tags} && ${tagArray}::text[]`,
+                            sql`${spaces.categories} && ${catArray}::text[]`,
                         ),
                     )
                     .limit(maxResults + mySpaceIds.length);

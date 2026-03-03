@@ -13,7 +13,7 @@ export const eventTypeDefs = `#graphql
     startsAt: DateTime!
     endsAt: DateTime
     maxAttendees: Int
-    tags: [String!]!
+    categories: [String!]!
 
     createdBy: ID!
     createdAt: DateTime!
@@ -63,7 +63,7 @@ export const eventTypeDefs = `#graphql
     startsAt: String!
     endsAt: String
     maxAttendees: Int
-    tags: [String!]
+    categories: [String!]
     price: Int
     currency: String
   }
@@ -77,7 +77,7 @@ export const eventTypeDefs = `#graphql
     startsAt: String
     endsAt: String
     maxAttendees: Int
-    tags: [String!]
+    categories: [String!]
 
     price: Int
     currency: String
@@ -105,10 +105,10 @@ export const eventTypeDefs = `#graphql
     eventAttendees(eventId: ID!): [EventAttendee!]!
 
     """
-    Search upcoming events by tags.
-    matchAll=true requires ALL tags, false requires at least one.
+    Search upcoming events by categories.
+    matchAll=true requires ALL categories, false requires at least one.
     """
-    eventsByTags(tags: [String!]!, matchAll: Boolean): [Event!]!
+    eventsByCategories(categories: [String!]!, matchAll: Boolean): [Event!]!
 
     """
     Get recommended events based on behavioral similarity and tag overlap.

@@ -6,7 +6,7 @@ import { memberResolvers } from "../models/members/resolver";
 import { postResolvers } from "../models/posts/resolver";
 import { userItemResolvers } from "../models/useritems/resolver";
 import { spaceResolvers } from "../models/spaces/resolver";
-import { tagResolvers } from "../models/tags/resolver";
+import { categoryResolvers } from "../models/categories/resolver";
 import { tierResolvers } from "../models/tiers/resolver";
 import { userResolvers } from "../models/users/resolver";
 
@@ -22,12 +22,13 @@ export const resolvers = {
     ...postResolvers.Query,
     ...userItemResolvers.Query,
     ...spaceResolvers.Query,
-    ...tagResolvers.Query,
+    ...categoryResolvers.Query,
     ...userResolvers.Query,
     ...notificationResolvers.Query,
   },
 
   Mutation: {
+    ...categoryResolvers.Mutation,
     ...connectionResolvers.Mutation,
     ...eventResolvers.Mutation,
     ...memberResolvers.Mutation,

@@ -14,9 +14,9 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { UPDATE_USER, UPDATE_MY_TAGS, UPDATE_LOCATION } from "@/lib/models/users/gql";
+import { UPDATE_USER, UPDATE_LOCATION } from "@/lib/models/users/gql";
 import type { UpdateLocationMutation } from "@/lib/graphql/__generated__/graphql";
-import { TAG_CATEGORIES } from "@/lib/models/tags/data";
+import { CATEGORIES } from "@/lib/models/categories/data";
 import { UserItemsEditor } from "./user-items-editor";
 
 import {
@@ -84,8 +84,6 @@ const ENUM_VALUES: Record<EnumKey, readonly string[]> = {
 
 export function EditProfileForm({ user }: Props) {
     const tEnums = useTranslations("enums");
-    const tTags = useTranslations("tags");
-    const tTagCats = useTranslations("tagCategories");
     const router = useRouter();
 
     // Form state
@@ -101,9 +99,6 @@ export function EditProfileForm({ user }: Props) {
     );
     const [selectedIntents, setSelectedIntents] = useState<Set<string>>(
         new Set(user.relationshipIntent ?? [])
-    );
-    const [selectedTags, setSelectedTags] = useState<Set<string>>(
-        new Set(user.tags ?? [])
     );
     const [enumFields, setEnumFields] = useState<Record<EnumKey, string | null>>({
         gender: user.gender ?? null,
@@ -123,7 +118,6 @@ export function EditProfileForm({ user }: Props) {
     const [currentCityName, setCurrentCityName] = useState<string | null>(user.location || null);
 
     const [updateUser, { loading: saving }] = useMutation(UPDATE_USER);
-    const [updateMyTags, { loading: savingTags }] = useMutation(UPDATE_MY_TAGS);
     const [updateLocation] = useMutation<UpdateLocationMutation>(UPDATE_LOCATION);
 
     function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) {
@@ -138,7 +132,6 @@ export function EditProfileForm({ user }: Props) {
     function toggleLanguage(lang: string) { toggleSet(setSelectedLanguages, lang); }
     function toggleOrientation(v: string) { toggleSet(setSelectedOrientations, v); }
     function toggleIntent(v: string) { toggleSet(setSelectedIntents, v); }
-    function toggleTag(tag: string) { toggleSet(setSelectedTags, tag); }
     function setEnum(key: EnumKey, value: string) {
         setEnumFields((prev) => ({ ...prev, [key]: value === "__clear__" ? null : value }));
     }
@@ -185,27 +178,24 @@ export function EditProfileForm({ user }: Props) {
 
     async function handleSave() {
         try {
-            await Promise.all([
-                updateUser({
-                    variables: {
-                        id: user.id,
-                        input: {
-                            name: name.trim() || undefined,
-                            heightCm: height ? parseInt(height, 10) : undefined,
-                            jobTitle: jobTitle.trim() || undefined,
-                            schoolName: schoolName.trim() || undefined,
-                            sexualOrientation: Array.from(selectedOrientations),
-                            relationshipIntent: Array.from(selectedIntents),
-                            languages: Array.from(selectedLanguages),
-                            ...Object.fromEntries(
-                                (Object.keys(enumFields) as EnumKey[])
-                                    .map((k) => [k, enumFields[k] ?? undefined])
-                            ),
-                        },
+            await updateUser({
+                variables: {
+                    id: user.id,
+                    input: {
+                        name: name.trim() || undefined,
+                        heightCm: height ? parseInt(height, 10) : undefined,
+                        jobTitle: jobTitle.trim() || undefined,
+                        schoolName: schoolName.trim() || undefined,
+                        sexualOrientation: Array.from(selectedOrientations),
+                        relationshipIntent: Array.from(selectedIntents),
+                        languages: Array.from(selectedLanguages),
+                        ...Object.fromEntries(
+                            (Object.keys(enumFields) as EnumKey[])
+                                .map((k) => [k, enumFields[k] ?? undefined])
+                        ),
                     },
-                }),
-                updateMyTags({ variables: { tags: Array.from(selectedTags) } }),
-            ]);
+                },
+            });
             toast.success("Profilo aggiornato con successo");
             router.push(`/users/${user.username}`);
             router.refresh();
@@ -339,43 +329,21 @@ export function EditProfileForm({ user }: Props) {
 
             <Separator />
 
-            {/* ── Interessi / Tags ──────────────────────────────────────── */}
-            <section className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-semibold">Interessi e Hobby</h3>
-                    {selectedTags.size > 0 && (
-                        <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-                            {selectedTags.size} selezionati
-                        </span>
-                    )}
-                </div>
-                <div className="space-y-6">
-                    {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
-                        <div key={category} className="space-y-3">
-                            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                                {tTagCats(category as Parameters<typeof tTagCats>[0])}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {tags.map((tag) => {
-                                    const active = selectedTags.has(tag);
-                                    return (
-                                        <button
-                                            key={tag}
-                                            type="button"
-                                            onClick={() => toggleTag(tag)}
-                                            className={[
-                                                "inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                                                active
-                                                    ? "bg-foreground text-background border-foreground"
-                                                    : "text-muted-foreground hover:border-foreground/40",
-                                            ].join(" ")}
-                                        >
-                                            {tTags(tag as Parameters<typeof tTags>[0])}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
+            {/* ── Interessi / Categorie ──────────────────────────────────────── */}
+            <section className="space-y-4">
+                <h3 className="text-xl font-semibold">Interessi e Hobby</h3>
+                <p className="text-sm text-muted-foreground">
+                    Le tue preferenze vengono aggiornate automaticamente visitando le pagine delle categorie.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((cat) => (
+                        <a
+                            key={cat}
+                            href={`/categories/${cat}`}
+                            className="inline-flex items-center rounded-full border bg-card px-4 py-1.5 text-sm font-medium capitalize hover:bg-accent transition-colors"
+                        >
+                            {cat}
+                        </a>
                     ))}
                 </div>
             </section>

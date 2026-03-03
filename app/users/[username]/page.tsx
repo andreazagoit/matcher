@@ -216,26 +216,7 @@ export default async function UserProfilePage({
                         </div>
                     )}
 
-                    {/* ── Tags card ────────────────────────────────────────────── */}
-                    {(user.tags?.length ?? 0) > 0 && (
-                        <div className="space-y-2">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                                {tProfile("sections.interests")}
-                            </p>
-                            <div className="rounded-2xl border bg-card px-4 py-3">
-                                <div className="flex flex-wrap gap-2">
-                                    {user.tags!.map((tag) => (
-                                        <span
-                                            key={tag}
-                                            className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground"
-                                        >
-                                            {tTags(tag as Parameters<typeof tTags>[0])}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Interessi visibili tramite /categories */}
 
                 </div>{/* fine container largo */}
 

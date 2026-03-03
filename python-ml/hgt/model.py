@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import HGTConv
 
 from hgt.config import (
-    USER_DIM, EVENT_DIM, SPACE_DIM, TAG_DIM,
+    USER_DIM, EVENT_DIM, SPACE_DIM, CATEGORY_DIM,
     HIDDEN_DIM, EMBED_DIM, DROPOUT,
     NODE_TYPES, METADATA,
     HGT_HEADS, HGT_LAYERS,
@@ -34,10 +34,10 @@ _AUTOCAST = device.type in ("mps", "cuda")
 _DTYPE    = torch.bfloat16 if _AUTOCAST else torch.float32
 
 _INPUT_DIM: dict[str, int] = {
-    "user":  USER_DIM,
-    "event": EVENT_DIM,
-    "space": SPACE_DIM,
-    "tag":   TAG_DIM,
+    "user":     USER_DIM,
+    "event":    EVENT_DIM,
+    "space":    SPACE_DIM,
+    "category": CATEGORY_DIM,
 }
 
 
@@ -78,9 +78,9 @@ class HetEncoder(nn.Module):
 
         # Adding discovery validation relations for validation phase
         discovery_rels = [
-            ("event", "similarity", "event"),
-            ("space", "similarity", "space"),
-            ("tag", "similarity", "tag")
+            ("event",    "similarity", "event"),
+            ("space",    "similarity", "space"),
+            ("category", "similarity", "category"),
         ]
         for src, rel, dst in discovery_rels:
             key = f"{src}__{rel}__{dst}"

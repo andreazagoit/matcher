@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { query } from "@/lib/graphql/apollo-client";
 import { GET_ALL_SPACES, GET_RECOMMENDED_SPACES } from "@/lib/models/spaces/gql";
 import { GET_FIND_MATCHES } from "@/lib/models/matches/gql";
-import { GET_RECOMMENDED_TAGS } from "@/lib/models/users/gql";
+import { GET_RECOMMENDED_CATEGORIES } from "@/lib/models/users/gql";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Page } from "@/components/page";
 import { SpaceCard } from "@/components/spaces/space-card";
@@ -10,16 +10,16 @@ import { UserCard } from "@/components/user-card";
 import { LocationSelector } from "@/components/location-selector";
 import { LocationBanner } from "@/components/location-banner";
 import { ItemCarousel } from "@/components/item-carousel";
-import { getTranslations } from "next-intl/server";
-import { Tag } from "lucide-react";
+import Link from "next/link";
+import { LayoutGrid } from "lucide-react";
 import type {
     GetAllSpacesQuery,
     GetFindMatchesQuery,
     GetFindMatchesQueryVariables,
     GetRecommendedSpacesQuery,
     GetRecommendedSpacesQueryVariables,
-    GetRecommendedTagsQuery,
-    GetRecommendedTagsQueryVariables,
+    GetRecommendedCategoriesQuery,
+    GetRecommendedCategoriesQueryVariables,
 } from "@/lib/graphql/__generated__/graphql";
 
 const DEFAULT_RADIUS = 50;
@@ -28,7 +28,7 @@ export default async function DiscoverPage() {
     const cookieStore = await cookies();
     const radius = Number(cookieStore.get("matcher_radius")?.value) || DEFAULT_RADIUS;
 
-    const [spacesRes, recommendedRes, matchesRes, tagsRes, tTags] = await Promise.all([
+    const [spacesRes, recommendedRes, matchesRes, categoriesRes] = await Promise.all([
         query<GetAllSpacesQuery>({ query: GET_ALL_SPACES }),
         query<GetRecommendedSpacesQuery, GetRecommendedSpacesQueryVariables>({
             query: GET_RECOMMENDED_SPACES,
@@ -41,17 +41,16 @@ export default async function DiscoverPage() {
             console.error("GET_FIND_MATCHES error:", e);
             return { data: { findMatches: [] as GetFindMatchesQuery["findMatches"] } };
         }),
-        query<GetRecommendedTagsQuery, GetRecommendedTagsQueryVariables>({
-            query: GET_RECOMMENDED_TAGS,
+        query<GetRecommendedCategoriesQuery, GetRecommendedCategoriesQueryVariables>({
+            query: GET_RECOMMENDED_CATEGORIES,
             variables: { limit: 12 },
         }).catch(() => ({ data: { me: null } })),
-        getTranslations("tags"),
     ]);
 
     const allSpaces = spacesRes.data?.spaces ?? [];
     const recommended = recommendedRes.data?.recommendedSpaces ?? [];
     const matches = matchesRes.data?.findMatches ?? [];
-    const recommendedTags = tagsRes.data?.me?.recommendedUserTags ?? [];
+    const recommendedCategories = categoriesRes.data?.me?.recommendedCategories ?? [];
 
     const recommendedIds = new Set(recommended.map((s) => s.id));
     const otherSpaces = allSpaces.filter((s) => !recommendedIds.has(s.id));
@@ -93,20 +92,21 @@ export default async function DiscoverPage() {
                     </ItemCarousel>
                 )}
 
-                {recommendedTags.length > 0 && (
+                {recommendedCategories.length > 0 && (
                     <section className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-muted-foreground" />
-                            <h2 className="text-lg font-semibold tracking-tight">Tag consigliati per te</h2>
+                            <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                            <h2 className="text-lg font-semibold tracking-tight">Categorie consigliate per te</h2>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {recommendedTags.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="inline-flex items-center rounded-full border bg-card px-4 py-1.5 text-sm font-medium text-foreground shadow-sm"
+                            {recommendedCategories.map((cat) => (
+                                <Link
+                                    key={cat}
+                                    href={`/categories/${cat}`}
+                                    className="inline-flex items-center rounded-full border bg-card px-4 py-1.5 text-sm font-medium text-foreground shadow-sm capitalize hover:bg-accent transition-colors"
                                 >
-                                    {tTags(tag as Parameters<typeof tTags>[0])}
-                                </span>
+                                    {cat}
+                                </Link>
                             ))}
                         </div>
                     </section>

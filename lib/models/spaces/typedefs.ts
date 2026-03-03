@@ -5,7 +5,7 @@ export const spaceTypeDefs = `#graphql
     slug: String!
     description: String
     image: String
-    tags: [String!]!
+    categories: [String!]!
     visibility: String!
     joinPolicy: String!
     createdAt: DateTime!
@@ -21,7 +21,7 @@ export const spaceTypeDefs = `#graphql
     description: String
     visibility: String
     joinPolicy: String
-    tags: [String!]
+    categories: [String!]
   }
 
   input UpdateSpaceInput {
@@ -30,7 +30,7 @@ export const spaceTypeDefs = `#graphql
     visibility: String
     joinPolicy: String
     image: String
-    tags: [String!]
+    categories: [String!]
   }
 
   extend type Query {
@@ -39,13 +39,13 @@ export const spaceTypeDefs = `#graphql
     mySpaces: [Space!]!
 
     """
-    Search public spaces by tags.
-    matchAll=true requires ALL tags, false requires at least one.
+    Search public spaces by categories.
+    matchAll=true requires ALL categories, false requires at least one.
     """
-    spacesByTags(tags: [String!]!, matchAll: Boolean): [Space!]!
+    spacesByCategories(categories: [String!]!, matchAll: Boolean): [Space!]!
 
     """
-    Get recommended spaces based on behavioral similarity and tag overlap.
+    Get recommended spaces based on behavioral similarity and category overlap.
     Excludes spaces the user is already a member of.
     """
     recommendedSpaces(limit: Int): [Space!]!

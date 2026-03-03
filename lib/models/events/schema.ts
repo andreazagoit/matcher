@@ -46,8 +46,8 @@ export const events = pgTable(
     price: integer("price"),
     currency: text("currency").default("eur"),
 
-    // Tags (shared vocabulary from models/tags/data.ts)
-    tags: text("tags").array().default([]),
+    // Categories (shared vocabulary from models/categories/data.ts)
+    categories: text("categories").array().default([]),
 
     createdBy: uuid("created_by")
       .notNull()
@@ -61,7 +61,7 @@ export const events = pgTable(
     index("events_starts_at_idx").on(table.startsAt),
     index("events_created_by_idx").on(table.createdBy),
     index("events_coordinates_gist_idx").using("gist", table.coordinates),
-    index("events_tags_idx").using("gin", table.tags),
+    index("events_categories_idx").using("gin", table.categories),
   ],
 );
 
