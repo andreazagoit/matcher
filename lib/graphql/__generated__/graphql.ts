@@ -552,6 +552,7 @@ export type Query = {
   /** Check if a username is already taken. */
   checkUsername: Scalars['Boolean']['output'];
   event: Maybe<Event>;
+  events: Array<Event>;
   me: Maybe<User>;
   mySpaces: Array<Space>;
   myUpcomingEvents: Array<Event>;
@@ -573,6 +574,12 @@ export type QueryCheckUsernameArgs = {
 
 export type QueryEventArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryEventsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -945,12 +952,14 @@ export type MarkAsReadMutationVariables = Exact<{
 
 export type MarkAsReadMutation = { markAsRead: boolean | null };
 
+export type EventCardFieldsFragment = { __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean };
+
 export type SpaceEventsQueryVariables = Exact<{
   spaceId: Scalars['ID']['input'];
 }>;
 
 
-export type SpaceEventsQuery = { space: { __typename: 'Space', id: string, events: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, categories: Array<string>, price: number | null, currency: string | null, isPaid: boolean, createdBy: { __typename: 'User', id: string, name: string } }> } | null };
+export type SpaceEventsQuery = { space: { __typename: 'Space', id: string, events: Array<{ __typename: 'Event', currency: string | null, id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean, createdBy: { __typename: 'User', id: string, name: string } }> } | null };
 
 export type GetEventQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -962,7 +971,15 @@ export type GetEventQuery = { event: { __typename: 'Event', id: string, title: s
 export type MyUpcomingEventsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MyUpcomingEventsQuery = { myUpcomingEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, categories: Array<string>, spaceId: string, coordinates: { __typename: 'Coordinates', lat: number, lon: number } | null }> };
+export type MyUpcomingEventsQuery = { myUpcomingEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> };
+
+export type GetAllEventsQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GetAllEventsQuery = { events: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> };
 
 export type UpdateEventMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -1000,7 +1017,7 @@ export type GetEventRecommendedEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetEventRecommendedEventsQuery = { event: { __typename: 'Event', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, location: string | null, startsAt: unknown, endsAt: unknown | null, attendeeCount: number, categories: Array<string>, price: number | null, isPaid: boolean, space: { __typename: 'Space', id: string, name: string, slug: string } | null }> } | null };
+export type GetEventRecommendedEventsQuery = { event: { __typename: 'Event', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean, space: { __typename: 'Space', id: string, name: string, slug: string } | null }> } | null };
 
 export type GetDailyMatchesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1260,7 +1277,7 @@ export type GetUserRecommendedEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetUserRecommendedEventsQuery = { me: { __typename: 'User', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, attendeeCount: number, categories: Array<string>, spaceId: string, coordinates: { __typename: 'Coordinates', lat: number, lon: number } | null }> } | null };
+export type GetUserRecommendedEventsQuery = { me: { __typename: 'User', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> } | null };
 
 export type GetRecommendedSpacesQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -1268,7 +1285,7 @@ export type GetRecommendedSpacesQueryVariables = Exact<{
 }>;
 
 
-export type GetRecommendedSpacesQuery = { me: { __typename: 'User', id: string, recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } | null };
+export type GetRecommendedSpacesQuery = { me: { __typename: 'User', id: string, recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } | null };
 
 export type GetRecommendedUsersQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -1284,4 +1301,4 @@ export type GetRecommendedCategoriesWithEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetRecommendedCategoriesWithEventsQuery = { me: { __typename: 'User', id: string, recommendedCategories: Array<{ __typename: 'Category', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, attendeeCount: number, categories: Array<string>, spaceId: string }> }> } | null };
+export type GetRecommendedCategoriesWithEventsQuery = { me: { __typename: 'User', id: string, recommendedCategories: Array<{ __typename: 'Category', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> }> } | null };

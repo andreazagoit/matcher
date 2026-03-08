@@ -95,6 +95,7 @@ export const eventTypeDefs = `#graphql
 
   extend type Query {
     event(id: ID!): Event
+    events(limit: Int, offset: Int): [Event!]!
     myUpcomingEvents: [Event!]!
   }
 

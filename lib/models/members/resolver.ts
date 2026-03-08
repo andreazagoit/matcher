@@ -4,6 +4,7 @@ import { members, type Member } from "./schema";
 import { spaces, type Space } from "@/lib/models/spaces/schema";
 import { membershipTiers } from "@/lib/models/tiers/schema";
 import { embedUser } from "@/lib/models/embeddings/operations";
+import { updateMembersCount } from "@/lib/models/spaces/operations";
 import { users } from "@/lib/models/users/schema";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
@@ -83,6 +84,7 @@ export const memberResolvers = {
 
             // Regenerate embedding in background after joining a space
             if (status === "active") {
+                await updateMembersCount(spaceId, 1);
                 const userId = auth.user.id;
                 (async () => {
                     const userData = await db.query.users.findFirst({ where: eq(users.id, userId) });
@@ -130,6 +132,8 @@ export const memberResolvers = {
                 });
             }
 
+            await updateMembersCount(spaceId, 1);
+
             return updated;
         },
 
@@ -143,6 +147,7 @@ export const memberResolvers = {
                 ))
                 .returning();
 
+            if (result.length > 0) await updateMembersCount(spaceId, -1);
             return result.length > 0;
         },
 
@@ -188,6 +193,7 @@ export const memberResolvers = {
                 .where(and(eq(members.spaceId, spaceId), eq(members.userId, userId)))
                 .returning();
 
+            if (result.length > 0) await updateMembersCount(spaceId, -1);
             return result.length > 0;
         }
     }

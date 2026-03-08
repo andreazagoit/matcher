@@ -87,9 +87,7 @@ export const spaceResolvers = {
     },
 
     Space: {
-        membersCount: async (parent: Space, _: unknown, { loaders }: GraphQLContext) => {
-            return loaders.membersCountLoader.load(parent.id);
-        },
+        membersCount: (parent: Space) => parent.membersCount,
 
         events: async (
             parent: Space,

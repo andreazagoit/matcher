@@ -2,7 +2,10 @@ import DataLoader from "dataloader";
 import { db } from "@/lib/db/drizzle";
 import { users, type User } from "@/lib/models/users/schema";
 import { members, type Member } from "@/lib/models/members/schema";
-import { eq, inArray, count, and } from "drizzle-orm";
+import { spaces, type Space } from "@/lib/models/spaces/schema";
+import { events, type Event } from "@/lib/models/events/schema";
+import { eventAttendees, type EventAttendee } from "@/lib/models/events/schema";
+import { eq, inArray, and } from "drizzle-orm";
 
 /**
  * Creates a new set of data loaders for a single request.
@@ -10,53 +13,78 @@ import { eq, inArray, count, and } from "drizzle-orm";
  */
 export function createDataLoaders(currentUserId?: string | null) {
     return {
-        /**
-         * Loads users by their IDs in a single batch.
-         */
+        // ── Users ────────────────────────────────────────────────────────────
+
         userLoader: new DataLoader<string, User | null>(async (userIds) => {
             const results = await db.query.users.findMany({
                 where: inArray(users.id, Array.from(userIds)),
             });
-
-            // Map results back to the order of userIds
-            const userMap = new Map(results.map((u) => [u.id, u]));
-            return userIds.map((id) => userMap.get(id) || null);
+            const map = new Map(results.map((u) => [u.id, u]));
+            return userIds.map((id) => map.get(id) ?? null);
         }),
 
-        /**
-         * Loads member counts for multiple spaces in a single batch.
-         */
-        membersCountLoader: new DataLoader<string, number>(async (spaceIds) => {
-            const results = await db
-                .select({
-                    spaceId: members.spaceId,
-                    count: count(),
-                })
-                .from(members)
-                .where(inArray(members.spaceId, Array.from(spaceIds)))
-                .groupBy(members.spaceId);
+        // ── Spaces ───────────────────────────────────────────────────────────
 
-            const countMap = new Map(results.map((r) => [r.spaceId, r.count]));
-            return spaceIds.map((id) => countMap.get(id) || 0);
+        spaceLoader: new DataLoader<string, Space | null>(async (spaceIds) => {
+            const results = await db.query.spaces.findMany({
+                where: inArray(spaces.id, Array.from(spaceIds)),
+            });
+            const map = new Map(results.map((s) => [s.id, s]));
+            return spaceIds.map((id) => map.get(id) ?? null);
         }),
 
-        /**
-         * Loads the current user's membership for multiple spaces in a single batch.
-         */
         myMembershipLoader: new DataLoader<string, Member | null>(async (spaceIds) => {
-            if (!currentUserId) {
-                return spaceIds.map(() => null);
-            }
-
+            if (!currentUserId) return spaceIds.map(() => null);
             const results = await db.query.members.findMany({
                 where: and(
                     eq(members.userId, currentUserId),
                     inArray(members.spaceId, Array.from(spaceIds))
                 ),
             });
+            const map = new Map(results.map((m) => [m.spaceId, m]));
+            return spaceIds.map((id) => map.get(id) ?? null);
+        }),
 
-            const membershipMap = new Map(results.map((m) => [m.spaceId, m]));
-            return spaceIds.map((id) => membershipMap.get(id) || null);
+        // ── Events ───────────────────────────────────────────────────────────
+
+        eventLoader: new DataLoader<string, Event | null>(async (eventIds) => {
+            const results = await db.query.events.findMany({
+                where: inArray(events.id, Array.from(eventIds)),
+            });
+            const map = new Map(results.map((e) => [e.id, e]));
+            return eventIds.map((id) => map.get(id) ?? null);
+        }),
+
+        /**
+         * Loads all attendees for multiple events in a single batch.
+         * Returns EventAttendee[] per eventId.
+         */
+        eventAttendeesLoader: new DataLoader<string, EventAttendee[]>(async (eventIds) => {
+            const results = await db.query.eventAttendees.findMany({
+                where: inArray(eventAttendees.eventId, Array.from(eventIds)),
+            });
+            const map = new Map<string, EventAttendee[]>();
+            for (const attendee of results) {
+                const list = map.get(attendee.eventId) ?? [];
+                list.push(attendee);
+                map.set(attendee.eventId, list);
+            }
+            return eventIds.map((id) => map.get(id) ?? []);
+        }),
+
+        /**
+         * Loads the current user's attendee record for multiple events in a single batch.
+         */
+        myAttendeeStatusLoader: new DataLoader<string, EventAttendee | null>(async (eventIds) => {
+            if (!currentUserId) return eventIds.map(() => null);
+            const results = await db.query.eventAttendees.findMany({
+                where: and(
+                    eq(eventAttendees.userId, currentUserId),
+                    inArray(eventAttendees.eventId, Array.from(eventIds)),
+                ),
+            });
+            const map = new Map(results.map((a) => [a.eventId, a]));
+            return eventIds.map((id) => map.get(id) ?? null);
         }),
     };
 }

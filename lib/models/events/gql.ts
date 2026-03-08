@@ -1,30 +1,44 @@
 import { gql } from "graphql-tag";
 
 // ============================================
+// FRAGMENTS
+// ============================================
+
+export const EVENT_CARD_FRAGMENT = gql`
+  fragment EventCardFields on Event {
+    id
+    title
+    description
+    location
+    cover
+    startsAt
+    endsAt
+    maxAttendees
+    attendeeCount
+    myAttendeeStatus
+    categories
+    spaceId
+    price
+    isPaid
+  }
+`;
+
+// ============================================
 // QUERIES
 // ============================================
 
 export const GET_SPACE_EVENTS = gql`
+  ${EVENT_CARD_FRAGMENT}
   query SpaceEvents($spaceId: ID!) {
     space(id: $spaceId) {
       id
       events {
-        id
-        title
-        description
-        location
-        startsAt
-        endsAt
-        maxAttendees
-        attendeeCount
+        ...EventCardFields
         createdBy {
           id
           name
         }
-        categories
-        price
         currency
-        isPaid
       }
     }
   }
@@ -84,19 +98,19 @@ export const GET_EVENT = gql`
 `;
 
 export const GET_MY_UPCOMING_EVENTS = gql`
+  ${EVENT_CARD_FRAGMENT}
   query MyUpcomingEvents {
     myUpcomingEvents {
-      id
-      title
-      description
-      location
-      coordinates { lat lon }
-      startsAt
-      endsAt
-      maxAttendees
-      attendeeCount
-      categories
-      spaceId
+      ...EventCardFields
+    }
+  }
+`;
+
+export const GET_ALL_EVENTS = gql`
+  ${EVENT_CARD_FRAGMENT}
+  query GetAllEvents($limit: Int, $offset: Int) {
+    events(limit: $limit, offset: $offset) {
+      ...EventCardFields
     }
   }
 `;
@@ -148,19 +162,12 @@ export const MARK_EVENT_COMPLETED = gql`
 `;
 
 export const GET_EVENT_RECOMMENDED_EVENTS = gql`
+  ${EVENT_CARD_FRAGMENT}
   query GetEventRecommendedEvents($id: ID!, $limit: Int) {
     event(id: $id) {
       id
       recommendedEvents(limit: $limit) {
-        id
-        title
-        location
-        startsAt
-        endsAt
-        attendeeCount
-        categories
-        price
-        isPaid
+        ...EventCardFields
         space {
           id
           name

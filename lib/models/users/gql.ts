@@ -1,4 +1,6 @@
 import { gql } from "graphql-tag";
+import { EVENT_CARD_FRAGMENT } from "@/lib/models/events/gql";
+import { SPACE_FRAGMENT } from "@/lib/models/spaces/gql";
 
 // ============================================
 // FRAGMENTS
@@ -97,41 +99,24 @@ export const UPDATE_LOCATION = gql`
 `;
 
 export const GET_USER_RECOMMENDED_EVENTS = gql`
+  ${EVENT_CARD_FRAGMENT}
   query GetUserRecommendedEvents($limit: Int, $offset: Int) {
     me {
       id
       recommendedEvents(limit: $limit, offset: $offset) {
-        id
-        title
-        description
-        location
-        coordinates { lat lon }
-        startsAt
-        endsAt
-        attendeeCount
-        categories
-        spaceId
+        ...EventCardFields
       }
     }
   }
 `;
 
 export const GET_RECOMMENDED_SPACES = gql`
+  ${SPACE_FRAGMENT}
   query GetRecommendedSpaces($limit: Int, $offset: Int) {
     me {
       id
       recommendedSpaces(limit: $limit, offset: $offset) {
-        id
-        name
-        slug
-        description
-        cover
-        categories
-        visibility
-        joinPolicy
-        membersCount
-        stripeAccountEnabled
-        createdAt
+        ...SpaceFields
       }
     }
   }
@@ -160,21 +145,14 @@ export const GET_RECOMMENDED_USERS = gql`
 `;
 
 export const GET_RECOMMENDED_CATEGORIES_WITH_EVENTS = gql`
+  ${EVENT_CARD_FRAGMENT}
   query GetRecommendedCategoriesWithEvents($limit: Int, $offset: Int) {
     me {
       id
       recommendedCategories(limit: $limit, offset: $offset) {
         id
         recommendedEvents(limit: 8) {
-          id
-          title
-          description
-          location
-          startsAt
-          endsAt
-          attendeeCount
-          categories
-          spaceId
+          ...EventCardFields
         }
       }
     }

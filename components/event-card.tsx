@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon, MapPinIcon, UsersIcon, CheckCircleIcon } from "lucide-react";
-import { AttendeeStatus } from "@/lib/graphql/__generated__/graphql";
+import { AttendeeStatus, type EventCardFieldsFragment } from "@/lib/graphql/__generated__/graphql";
 
 const TAG_GRADIENTS: Record<string, string> = {
   trekking: "from-emerald-500 to-teal-700",
@@ -26,25 +26,14 @@ const TAG_GRADIENTS: Record<string, string> = {
   travel: "from-sky-400 to-blue-600",
 };
 
-export function getEventGradient(tags: string[]) {
-  for (const tag of tags ?? []) {
+export function getEventGradient(categories: string[]) {
+  for (const tag of categories ?? []) {
     if (TAG_GRADIENTS[tag]) return TAG_GRADIENTS[tag];
   }
   return "from-primary/60 to-primary";
 }
 
-export interface EventCardEvent {
-  id: string;
-  title: string;
-  description?: string | null;
-  location?: string | null;
-  startsAt: string;
-  endsAt?: string | null;
-  attendeeCount: number;
-  maxAttendees?: number | null;
-  tags: string[];
-  status?: string | null;
-}
+export type EventCardEvent = EventCardFieldsFragment;
 
 interface EventCardProps {
   event: EventCardEvent;
@@ -53,21 +42,25 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, onRespond, onComplete }: EventCardProps) {
-  const startDate = new Date(event.startsAt);
+  const startDate = new Date(event.startsAt as string);
   const isPast = startDate < new Date();
-  const isPublished = event.status === "published";
-  const isCompleted = event.status === "completed";
-  const gradient = getEventGradient(event.tags ?? []);
+  const gradient = getEventGradient(event.categories ?? []);
+  const hasResponded = event.myAttendeeStatus === AttendeeStatus.Going
+    || event.myAttendeeStatus === AttendeeStatus.Attended;
 
   return (
-    <div className={`flex flex-col gap-3 group ${isCompleted ? "opacity-60" : ""}`}>
+    <div className="flex flex-col gap-3 group">
       <Link href={`/events/${event.id}`} className="block">
         <div className="aspect-square w-full relative bg-muted rounded-xl overflow-hidden ring-1 ring-border/50 group-hover:ring-primary/20 transition-all">
-          <div className={`size-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-            <span className="text-6xl font-black text-white/20 select-none group-hover:scale-110 transition-transform">
-              {event.title.charAt(0).toUpperCase()}
-            </span>
-          </div>
+          {event.cover ? (
+            <img src={event.cover} alt={event.title} className="size-full object-cover" />
+          ) : (
+            <div className={`size-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
+              <span className="text-6xl font-black text-white/20 select-none group-hover:scale-110 transition-transform">
+                {event.title.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
 
           <div className="absolute top-2 right-2">
             <Badge className="bg-white/90 text-black hover:bg-white shadow-sm backdrop-blur-sm h-6 gap-1 font-medium">
@@ -106,9 +99,9 @@ export function EventCard({ event, onRespond, onComplete }: EventCardProps) {
           </div>
         </div>
 
-        {!!event.tags?.length && (
+        {!!event.categories?.length && (
           <div className="flex flex-wrap gap-1 pt-1">
-            {event.tags.slice(0, 3).map((tag) => (
+            {event.categories.slice(0, 3).map((tag) => (
               <Badge key={tag} variant="outline" className="text-[10px] h-5 px-1.5">
                 #{tag}
               </Badge>
@@ -118,7 +111,7 @@ export function EventCard({ event, onRespond, onComplete }: EventCardProps) {
 
         {(onRespond || onComplete) && (
           <div className="flex gap-2 pt-1">
-            {onRespond && isPublished && !isPast && (
+            {onRespond && !isPast && !hasResponded && (
               <>
                 <Button size="sm" className="flex-1" onClick={() => onRespond(event.id, AttendeeStatus.Going)}>
                   Partecipo
@@ -128,7 +121,7 @@ export function EventCard({ event, onRespond, onComplete }: EventCardProps) {
                 </Button>
               </>
             )}
-            {onComplete && isPublished && isPast && !isCompleted && (
+            {onComplete && isPast && !hasResponded && (
               <Button size="sm" variant="secondary" className="gap-1 w-full" onClick={() => onComplete(event.id)}>
                 <CheckCircleIcon className="h-3.5 w-3.5" />
                 Segna completato

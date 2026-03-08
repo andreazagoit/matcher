@@ -1,41 +1,33 @@
-"use client";
-
-import { useState } from "react";
-import { useQuery, useMutation } from "@apollo/client/react";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { query } from "@/lib/graphql/apollo-client";
 import { Page } from "@/components/page";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Loader2Icon, SparklesIcon, CalendarCheckIcon } from "lucide-react";
-import { GET_MY_UPCOMING_EVENTS, RESPOND_TO_EVENT } from "@/lib/models/events/gql";
+import { CalendarIcon } from "lucide-react";
+import { GET_ALL_EVENTS } from "@/lib/models/events/gql";
 import { GET_USER_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
-import { EventCard, type EventCardEvent } from "@/components/event-card";
+import type {
+  GetAllEventsQuery,
+  GetAllEventsQueryVariables,
+  GetUserRecommendedEventsQuery,
+  GetUserRecommendedEventsQueryVariables,
+} from "@/lib/graphql/__generated__/graphql";
+import { EventCard } from "@/components/event-card";
 
-export default function EventsPage() {
-  const [tab, setTab] = useState<"recommended" | "mine">("recommended");
+export default async function EventsPage() {
+  const session = await auth.api
+    .getSession({ headers: await headers() })
+    .catch(() => null);
+  const isAuthenticated = !!session?.user;
 
-  const { data: recommendedData, loading: loadingRec, refetch: refetchRec } =
-    useQuery<{ me: { id: string; recommendedEvents: EventCardEvent[] } | null }>(GET_USER_RECOMMENDED_EVENTS, {
-      variables: { limit: 20 },
-      skip: tab !== "recommended",
-    });
-
-  const { data: myData, loading: loadingMine, refetch: refetchMine } =
-    useQuery<{ myUpcomingEvents: EventCardEvent[] }>(GET_MY_UPCOMING_EVENTS, {
-      skip: tab !== "mine",
-    });
-
-  const [respondToEvent] = useMutation(
-    RESPOND_TO_EVENT,
-    { onCompleted: () => { refetchRec(); refetchMine(); } },
-  );
-
-  const handleRespond = (eventId: string, status: string) => {
-    respondToEvent({ variables: { eventId, status } }).catch(console.error);
-  };
-
-  const recommended = (recommendedData?.me?.recommendedEvents ?? []) as EventCardEvent[];
-  const mine = (myData?.myUpcomingEvents ?? []) as EventCardEvent[];
-  const loading = tab === "recommended" ? loadingRec : loadingMine;
-  const events = tab === "recommended" ? recommended : mine;
+  const events = isAuthenticated
+    ? await query<GetUserRecommendedEventsQuery, GetUserRecommendedEventsQueryVariables>({
+        query: GET_USER_RECOMMENDED_EVENTS,
+        variables: { limit: 24 },
+      }).then((res) => res.data?.me?.recommendedEvents ?? [])
+    : await query<GetAllEventsQuery, GetAllEventsQueryVariables>({
+        query: GET_ALL_EVENTS,
+        variables: { limit: 24 },
+      }).then((res) => res.data?.events ?? []);
 
   return (
     <Page
@@ -44,42 +36,25 @@ export default function EventsPage() {
         <div className="space-y-1">
           <h1 className="text-4xl font-extrabold tracking-tight">Eventi</h1>
           <p className="text-lg text-muted-foreground font-medium">
-            Scopri e partecipa agli eventi della community
+            {isAuthenticated ? "Consigliati per te" : "Prossimi eventi in community"}
           </p>
         </div>
       }
     >
-      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="recommended" className="gap-2">
-            <SparklesIcon className="h-4 w-4" />
-            Consigliati
-          </TabsTrigger>
-          <TabsTrigger value="mine" className="gap-2">
-            <CalendarCheckIcon className="h-4 w-4" />
-            I miei
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : events.length === 0 ? (
+      {events.length === 0 ? (
         <div className="text-center py-24 bg-muted/10 rounded-2xl border-2 border-dashed border-muted-foreground/20">
           <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <h3 className="text-xl font-semibold">Nessun evento</h3>
           <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-            {tab === "recommended"
+            {isAuthenticated
               ? "Completa il tuo profilo e aggiungi interessi per ricevere suggerimenti personalizzati."
-              : "Non sei iscritto a nessun evento imminente."}
+              : "Non ci sono eventi in programma al momento."}
           </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {events.map((event) => (
-            <EventCard key={event.id} event={event as EventCardEvent} onRespond={handleRespond} />
+            <EventCard key={event.id} event={event} />
           ))}
         </div>
       )}

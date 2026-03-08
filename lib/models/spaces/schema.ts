@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   boolean,
+  integer,
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -42,6 +43,9 @@ export const spaces = pgTable(
     ownerId: uuid("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+
+    // Stats (denormalized for sorting/performance)
+    membersCount: integer("members_count").default(0).notNull(),
 
     // Stripe Connect
     stripeAccountId: text("stripe_account_id"),

@@ -35,6 +35,7 @@ export async function createSpace(params: CreateSpaceInput & { ownerId: string }
         joinPolicy: params.joinPolicy || "open",
         categories: params.categories ?? [],
         ownerId: params.ownerId,
+        membersCount: 1,
       })
       .returning();
 
@@ -89,7 +90,8 @@ export async function getSpaceBySlug(slug: string): Promise<Space | null> {
 
 export async function getAllSpaces(): Promise<Space[]> {
   return db.query.spaces.findMany({
-    orderBy: (spaces, { desc }) => [desc(spaces.createdAt)],
+    where: (spaces, { eq }) => eq(spaces.visibility, "public"),
+    orderBy: (spaces, { desc }) => [desc(spaces.membersCount), desc(spaces.createdAt)],
   });
 }
 
@@ -183,6 +185,16 @@ export async function getSpaceRecommendedEvents(
   return db.query.events.findMany({
     where: (e, { inArray }) => inArray(e.id, ids),
   });
+}
+
+/**
+ * Increment or decrement the denormalized membersCount column.
+ */
+export async function updateMembersCount(spaceId: string, delta: 1 | -1): Promise<void> {
+  await db
+    .update(spaces)
+    .set({ membersCount: sql`${spaces.membersCount} + ${delta}` })
+    .where(eq(spaces.id, spaceId));
 }
 
 /**

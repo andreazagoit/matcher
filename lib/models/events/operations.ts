@@ -196,6 +196,16 @@ export async function getSpaceEvents(spaceId: string, userId?: string, limit?: n
   });
 }
 
+export async function getAllEvents(limit = 24, offset = 0): Promise<Event[]> {
+  const now = new Date();
+  return db.query.events.findMany({
+    where: (e, { gte }) => gte(e.startsAt, now),
+    orderBy: [asc(events.startsAt)],
+    limit,
+    offset,
+  });
+}
+
 export async function getUpcomingEventsForUser(
   userId: string,
 ): Promise<Event[]> {

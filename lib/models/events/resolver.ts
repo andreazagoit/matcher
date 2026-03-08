@@ -16,12 +16,11 @@ import {
   getEventById,
   getMyAttendeeStatus,
   getEventRecommendedEvents,
-  getEventAttendees,
+  getAllEvents,
 } from "./operations";
 import type { CreateEventInput, UpdateEventInput } from "./validator";
 import { events } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
-import { getUserById } from "@/lib/models/users/operations";
 import { db } from "@/lib/db/drizzle";
 import { embedEvent } from "@/lib/models/embeddings/operations";
 import { eq } from "drizzle-orm";
@@ -57,6 +56,13 @@ export const eventResolvers = {
     ) => {
       if (!context.auth.user) return [];
       return await getUpcomingEventsForUser(context.auth.user.id);
+    },
+
+    events: async (
+      _: unknown,
+      { limit = 24, offset = 0 }: { limit?: number; offset?: number },
+    ) => {
+      return getAllEvents(limit, offset);
     },
   },
 
@@ -224,12 +230,12 @@ export const eventResolvers = {
       return context.loaders.userLoader.load(event.createdBy);
     },
 
-    attendees: async (event: { id: string }) => {
-      return await getEventAttendees(event.id);
+    attendees: async (event: { id: string }, _: unknown, context: GraphQLContext) => {
+      return context.loaders.eventAttendeesLoader.load(event.id);
     },
 
-    attendeeCount: async (event: { id: string }) => {
-      const attendees = await getEventAttendees(event.id);
+    attendeeCount: async (event: { id: string }, _: unknown, context: GraphQLContext) => {
+      const attendees = await context.loaders.eventAttendeesLoader.load(event.id);
       return attendees.filter(
         (a) => a.status === "going" || a.status === "attended",
       ).length;
@@ -242,7 +248,7 @@ export const eventResolvers = {
       context: GraphQLContext,
     ) => {
       if (!context.auth.user) return null;
-      const row = await getMyAttendeeStatus(event.id, context.auth.user.id);
+      const row = await context.loaders.myAttendeeStatusLoader.load(event.id);
       return row?.status ?? null;
     },
 
@@ -256,15 +262,13 @@ export const eventResolvers = {
       context: GraphQLContext,
     ) => {
       if (!context.auth.user || !event.price) return null;
-      const row = await getMyAttendeeStatus(event.id, context.auth.user.id);
+      const row = await context.loaders.myAttendeeStatusLoader.load(event.id);
       return row?.paymentStatus ?? null;
     },
 
     /** The space this event belongs to */
-    space: async (event: { spaceId: string }) => {
-      return await db.query.spaces.findFirst({
-        where: eq(spaces.id, event.spaceId),
-      });
+    space: async (event: { spaceId: string }, _: unknown, context: GraphQLContext) => {
+      return context.loaders.spaceLoader.load(event.spaceId);
     },
 
     recommendedEvents: async (
@@ -275,9 +279,9 @@ export const eventResolvers = {
     },
   },
 
-  EventAttendee: {
-    user: async (attendee: { userId: string }) => {
-      return await getUserById(attendee.userId);
+    EventAttendee: {
+        user: async (attendee: { userId: string }, _: unknown, context: GraphQLContext) => {
+            return context.loaders.userLoader.load(attendee.userId);
+        },
     },
-  },
 };
