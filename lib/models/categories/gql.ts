@@ -15,6 +15,7 @@ export const GET_CATEGORY = gql`
       recommendedEvents(limit: $eventsLimit) {
         id
         title
+        description
         location
         startsAt
         endsAt
@@ -23,6 +24,8 @@ export const GET_CATEGORY = gql`
         currency
         isPaid
         attendeeCount
+        maxAttendees
+        categories
       }
       recommendedSpaces(limit: $spacesLimit) {
         id

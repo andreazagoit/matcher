@@ -20,7 +20,12 @@ import type { GetAllSpacesQuery } from "@/lib/graphql/__generated__/graphql";
 
 export function SearchForm() {
     const [open, setOpen] = React.useState(false);
+    const [mounted, setMounted] = React.useState(false);
     const router = useRouter();
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
     const { data: session } = useSession();
 
     const { data } = useQuery<GetAllSpacesQuery>(GET_ALL_SPACES, { skip: !open });
@@ -50,6 +55,7 @@ export function SearchForm() {
                 <span className="hidden sm:inline">Search</span>
             </Button>
 
+            {mounted && (
             <CommandDialog open={open} onOpenChange={setOpen}>
                 <Command>
                 <CommandInput placeholder="Search spaces, people..." />
@@ -99,6 +105,7 @@ export function SearchForm() {
                 </CommandList>
                 </Command>
             </CommandDialog>
+            )}
         </>
     );
 }
