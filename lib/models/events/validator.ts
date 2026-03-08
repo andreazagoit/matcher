@@ -10,8 +10,10 @@ export const createEventSchema = z.object({
   coordinates: coordinatesSchema.optional(),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date().optional(),
-  maxAttendees: z.number().int().positive().optional(),
+  cover: z.url(),
+  images: z.array(z.url()).max(20).default([]),
   categories: z.array(categorySchema).max(10).default([]),
+  maxAttendees: z.number().int().positive().optional(),
   price: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).toLowerCase().default("eur"),
 });
@@ -23,8 +25,10 @@ export const updateEventSchema = z.object({
   coordinates: coordinatesSchema.nullable().optional(),
   startsAt: z.coerce.date().optional(),
   endsAt: z.coerce.date().optional(),
-  maxAttendees: z.number().int().positive().optional(),
+  cover: z.url().optional(),
+  images: z.array(z.url()).max(20).optional(),
   categories: z.array(categorySchema).max(10).optional(),
+  maxAttendees: z.number().int().positive().optional(),
   price: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).toLowerCase().optional(),
 });

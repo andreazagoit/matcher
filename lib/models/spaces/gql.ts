@@ -10,15 +10,14 @@ export const SPACE_FRAGMENT = gql`
     name
     slug
     description
-    image
+    cover
+    images
     categories
     visibility
     joinPolicy
-    createdAt
-    isActive
     membersCount
-    type
     stripeAccountEnabled
+    createdAt
   }
 `;
 

@@ -138,7 +138,7 @@ export const userResolvers = {
       const rows = await db
         .select()
         .from(spaces)
-        .where(and(inArray(spaces.id, ids), eq(spaces.visibility, "public"), eq(spaces.isActive, true)));
+        .where(and(inArray(spaces.id, ids), eq(spaces.visibility, "public")));
       const map = new Map(rows.map((s) => [s.id, s]));
       return ids.map((id) => map.get(id)).filter(Boolean);
     },

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { query } from "@/lib/graphql/apollo-client";
 import { GET_DAILY_MATCHES } from "@/lib/models/matches/gql";
-import { GET_RECOMMENDED_CATEGORIES, GET_RECOMMENDED_SPACES, GET_USER_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
+import { GET_RECOMMENDED_CATEGORIES_WITH_EVENTS, GET_RECOMMENDED_SPACES, GET_USER_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
 import { Card, CardContent } from "@/components/ui/card";
 import { Page } from "@/components/page";
 import { SpaceCard } from "@/components/spaces/space-card";
@@ -35,14 +35,12 @@ interface RecommendedSpace {
     name: string;
     slug: string;
     description?: string | null;
-    image?: string | null;
+    cover: string;
     categories: string[];
     visibility: string;
     joinPolicy: string;
     createdAt: string;
-    isActive?: boolean | null;
     membersCount?: number | null;
-    type?: string | null;
     stripeAccountEnabled: boolean;
 }
 
@@ -82,7 +80,7 @@ export default async function DiscoverPage() {
         }).catch(() => ({ data: { me: null } })),
 
         query<{ me: { recommendedCategories: CategoryWithEvents[] } | null }>({
-            query: GET_RECOMMENDED_CATEGORIES,
+            query: GET_RECOMMENDED_CATEGORIES_WITH_EVENTS,
             variables: { limit: 12 },
         }).catch(() => ({ data: { me: null } })),
     ]);

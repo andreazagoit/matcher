@@ -125,15 +125,13 @@ export const GET_RECOMMENDED_SPACES = gql`
         name
         slug
         description
-        image
+        cover
         categories
         visibility
         joinPolicy
-        createdAt
-        isActive
         membersCount
-        type
         stripeAccountEnabled
+        createdAt
       }
     }
   }
@@ -161,8 +159,8 @@ export const GET_RECOMMENDED_USERS = gql`
   }
 `;
 
-export const GET_RECOMMENDED_CATEGORIES = gql`
-  query GetRecommendedCategories($limit: Int, $offset: Int) {
+export const GET_RECOMMENDED_CATEGORIES_WITH_EVENTS = gql`
+  query GetRecommendedCategoriesWithEvents($limit: Int, $offset: Int) {
     me {
       id
       recommendedCategories(limit: $limit, offset: $offset) {

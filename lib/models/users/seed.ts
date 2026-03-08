@@ -1,5 +1,5 @@
-import { updateUserLocation, createUser } from "../../models/users/operations";
-import type { CreateUserInput } from "../../models/users/validator";
+import { updateUserLocation, createUser } from "./operations";
+import type { CreateUserInput } from "./validator";
 // so all locations stay in/around Milano for geospatial testing.
 const MILAN_CENTER = { lat: 45.4642, lon: 9.19 };
 

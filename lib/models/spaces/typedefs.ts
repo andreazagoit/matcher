@@ -21,14 +21,13 @@ export const spaceTypeDefs = `#graphql
     name: String!
     slug: String!
     description: String
-    image: String
+    cover: String!
+    images: [String!]!
     categories: [String!]!
     visibility: SpaceVisibility!
     joinPolicy: JoinPolicy!
     createdAt: DateTime!
-    isActive: Boolean
     membersCount: Int
-    type: SpaceType
     stripeAccountEnabled: Boolean!
     """Events belonging to this space, ordered by startsAt."""
     events(limit: Int, offset: Int): [Event!]!
@@ -38,20 +37,23 @@ export const spaceTypeDefs = `#graphql
 
   input CreateSpaceInput {
     name: String!
-    slug: String
+    slug: String!
     description: String
+    cover: String!
+    images: [String!]
+    categories: [String!]
     visibility: SpaceVisibility
     joinPolicy: JoinPolicy
-    categories: [String!]
   }
 
   input UpdateSpaceInput {
     name: String
     description: String
+    cover: String
+    images: [String!]
+    categories: [String!]
     visibility: SpaceVisibility
     joinPolicy: JoinPolicy
-    image: String
-    categories: [String!]
   }
 
   extend type Query {

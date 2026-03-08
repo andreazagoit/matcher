@@ -28,14 +28,12 @@ interface CategorySpace {
   name: string;
   slug: string;
   description?: string | null;
-  image?: string | null;
+  cover: string;
   categories: string[];
   visibility: string;
   joinPolicy: string;
   createdAt: string;
-  isActive?: boolean | null;
   membersCount?: number | null;
-  type?: string | null;
   stripeAccountEnabled: boolean;
 }
 

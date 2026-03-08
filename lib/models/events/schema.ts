@@ -28,31 +28,41 @@ export const events = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
+    // Identity
     spaceId: uuid("space_id")
       .notNull()
       .references(() => spaces.id, { onDelete: "cascade" }),
-
     title: text("title").notNull(),
     description: text("description"),
+
+    // Location
     location: text("location"),
     coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }),
 
+    // Timing
     startsAt: timestamp("starts_at").notNull(),
     endsAt: timestamp("ends_at"),
 
+    // Media
+    cover: text("cover").notNull(),
+    images: text("images").array().default([]),
+
+    // Classification
+    categories: text("categories").array().default([]),
+
+    // Capacity
     maxAttendees: integer("max_attendees"),
 
     // Ticketing — null means free event
     price: integer("price"),
     currency: text("currency").default("eur"),
 
-    // Categories (shared vocabulary from models/categories/data.ts)
-    categories: text("categories").array().default([]),
-
+    // Ownership
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
+    // Timestamps
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

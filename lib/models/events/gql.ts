@@ -40,6 +40,8 @@ export const GET_EVENT = gql`
       coordinates { lat lon }
       startsAt
       endsAt
+      cover
+      images
       maxAttendees
       attendeeCount
       myAttendeeStatus

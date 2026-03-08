@@ -18,6 +18,7 @@ import {
   getEventRecommendedEvents,
   getEventAttendees,
 } from "./operations";
+import type { CreateEventInput, UpdateEventInput } from "./validator";
 import { events } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
 import { getUserById } from "@/lib/models/users/operations";
@@ -62,24 +63,7 @@ export const eventResolvers = {
   Mutation: {
     createEvent: async (
       _: unknown,
-      {
-        input,
-      }: {
-        input: {
-          spaceId: string;
-          title: string;
-          description?: string;
-          location?: string;
-          lat?: number;
-          lon?: number;
-          startsAt: string;
-          endsAt?: string;
-          maxAttendees?: number;
-          categories?: string[];
-          price?: number;
-          currency?: string;
-        };
-      },
+      { input }: { input: Omit<CreateEventInput, "createdBy" | "coordinates"> & { lat?: number; lon?: number } },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
@@ -107,12 +91,14 @@ export const eventResolvers = {
           input.lat != null && input.lon != null
             ? { lat: input.lat, lon: input.lon }
             : undefined,
-        startsAt: new Date(input.startsAt),
-        endsAt: input.endsAt ? new Date(input.endsAt) : undefined,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
         maxAttendees: input.maxAttendees,
         categories: input.categories,
         price: input.price,
         currency: input.currency,
+        cover: input.cover,
+        images: input.images,
         createdBy: user.id,
       });
 
@@ -129,29 +115,10 @@ export const eventResolvers = {
 
     updateEvent: async (
       _: unknown,
-      {
-        id,
-        input,
-      }: {
-        id: string;
-        input: {
-          title?: string;
-          description?: string;
-          location?: string;
-          lat?: number;
-          lon?: number;
-          startsAt?: string;
-          endsAt?: string;
-          maxAttendees?: number;
-          categories?: string[];
-          price?: number;
-          currency?: string;
-        };
-      },
+      { id, input }: { id: string; input: Omit<UpdateEventInput, "coordinates"> & { lat?: number; lon?: number } },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
-      // Bypass visibility check for the creator (they always have access to their own event)
       const event = await db.query.events.findFirst({ where: eq(events.id, id) });
 
       if (!event) {
@@ -177,12 +144,14 @@ export const eventResolvers = {
           input.lat != null && input.lon != null
             ? { lat: input.lat, lon: input.lon }
             : undefined,
-        startsAt: input.startsAt ? new Date(input.startsAt) : undefined,
-        endsAt: input.endsAt ? new Date(input.endsAt) : undefined,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
         maxAttendees: input.maxAttendees,
         categories: input.categories,
         price: input.price,
         currency: input.currency,
+        cover: input.cover,
+        images: input.images,
       });
     },
 

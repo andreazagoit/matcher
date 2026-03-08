@@ -5,7 +5,7 @@ import { gql } from "graphql-tag";
 // ============================================
 
 export const UPDATE_MEMBER_ROLE = gql`
-  mutation UpdateMemberRole($spaceId: ID!, $userId: ID!, $role: String!) {
+  mutation UpdateMemberRole($spaceId: ID!, $userId: ID!, $role: MemberRole!) {
     updateMemberRole(spaceId: $spaceId, userId: $userId, role: $role) {
       id
       role

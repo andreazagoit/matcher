@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 interface SpaceHeaderProps {
     space: {
         name: string;
-        image?: string | null;
+        cover: string;
         description?: string | null;
-        tags?: string[] | null;
+        categories?: string[];
         slug: string;
         membersCount?: number | null;
         visibility: string;
@@ -22,20 +22,12 @@ export function SpaceHeader({ space, className }: SpaceHeaderProps) {
             {/* Big Image Column */}
             <div className="shrink-0">
                 <div className="h-48 w-48 md:h-64 md:w-64 rounded-2xl bg-muted border-2 border-border/50 overflow-hidden shadow-sm">
-                    {space.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={space.image}
-                            alt={space.name}
-                            className="h-full w-full object-cover"
-                        />
-                    ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-primary/5 text-primary/40">
-                            <span className="text-5xl font-bold select-none">
-                                {space.name.charAt(0).toUpperCase()}
-                            </span>
-                        </div>
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={space.cover}
+                        alt={space.name}
+                        className="h-full w-full object-cover"
+                    />
                 </div>
             </div>
 
@@ -74,11 +66,11 @@ export function SpaceHeader({ space, className }: SpaceHeaderProps) {
                     </div>
                 </div>
 
-                {!!space.tags?.length && (
+                {!!space.categories?.length && (
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                        {space.tags.map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                                #{tag}
+                        {space.categories.map((cat) => (
+                            <Badge key={cat} variant="outline" className="text-xs capitalize">
+                                {cat}
                             </Badge>
                         ))}
                     </div>

@@ -89,9 +89,6 @@ export default function DashboardPage() {
                         <Badge variant={space.visibility === "public" ? "outline" : "secondary"}>
                           {space.visibility === "public" ? "Public" : "Private"}
                         </Badge>
-                        <Badge variant={space.isActive ? "default" : "secondary"}>
-                          {space.isActive ? "Active" : "Inactive"}
-                        </Badge>
                       </div>
                     </div>
                     <CardTitle className="mt-5 text-2xl group-hover:text-primary transition-colors">{space.name}</CardTitle>

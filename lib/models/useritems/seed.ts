@@ -1,5 +1,5 @@
-import { db } from "../drizzle";
-import { userItems } from "../../models/useritems/schema";
+import { db } from "../../db/drizzle";
+import { userItems } from "./schema";
 
 
 const SAMPLE_PHOTO_URLS = [

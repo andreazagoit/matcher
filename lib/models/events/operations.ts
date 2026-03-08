@@ -11,6 +11,7 @@ import { embeddings } from "@/lib/models/embeddings/schema";
 import { eq, and, ne, gte, desc, asc, sql, inArray } from "drizzle-orm";
 import { recordImpression } from "@/lib/models/impressions/operations";
 import { embedEvent } from "@/lib/ml/client";
+import type { CreateEventInput, UpdateEventInput } from "./validator";
 
 // ─── Access Control ─────────────────────────────────────────────────
 
@@ -70,20 +71,7 @@ export async function canAccessSpace(spaceId: string, userId?: string): Promise<
 
 // ─── Events CRUD ───────────────────────────────────────────────────
 
-export async function createEvent(data: {
-  spaceId: string;
-  title: string;
-  description?: string;
-  location?: string;
-  coordinates?: { lat: number; lon: number };
-  startsAt: Date;
-  endsAt?: Date;
-  maxAttendees?: number;
-  categories?: string[];
-  price?: number;
-  currency?: string;
-  createdBy: string;
-}): Promise<Event> {
+export async function createEvent(data: CreateEventInput & { createdBy: string }): Promise<Event> {
   const [event] = await db
     .insert(events)
     .values({
@@ -100,6 +88,8 @@ export async function createEvent(data: {
       categories: data.categories ?? [],
       price: data.price ?? null,
       currency: data.currency ?? "eur",
+      cover: data.cover,
+      images: data.images ?? [],
       createdBy: data.createdBy,
     })
     .returning();
@@ -126,22 +116,8 @@ export async function createEvent(data: {
   return event;
 }
 
-export async function updateEvent(
-  id: string,
-  data: {
-    title?: string;
-    description?: string;
-    location?: string;
-    coordinates?: { lat: number; lon: number } | null;
-    startsAt?: Date;
-    endsAt?: Date;
-    maxAttendees?: number;
-    categories?: string[];
-    price?: number;
-    currency?: string;
-  },
-): Promise<Event> {
-  const { coordinates, ...rest } = data;
+export async function updateEvent(id: string, data: UpdateEventInput): Promise<Event> {
+  const { coordinates, cover, images, ...rest } = data;
   const [updated] = await db
     .update(events)
     .set({
@@ -151,6 +127,8 @@ export async function updateEvent(
           ? { x: coordinates.lon, y: coordinates.lat }
           : null,
       }),
+      ...(cover !== undefined && { cover }),
+      ...(images !== undefined && { images }),
       updatedAt: new Date(),
     })
     .where(eq(events.id, id))

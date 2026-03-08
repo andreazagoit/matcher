@@ -1,8 +1,21 @@
 import { db } from "@/lib/db/drizzle";
 import { userItems } from "./schema";
 import type { UserItem } from "./schema";
+import { users } from "@/lib/models/users/schema";
 import { eq, asc, and, gte } from "drizzle-orm";
 import { GraphQLError } from "graphql";
+
+/** Syncs users.image with the first photo userItem for the user. */
+async function syncUserProfileImage(userId: string): Promise<void> {
+  const firstPhoto = await db.query.userItems.findFirst({
+    where: and(eq(userItems.userId, userId), eq(userItems.type, "photo")),
+    orderBy: [asc(userItems.displayOrder)],
+  });
+  await db
+    .update(users)
+    .set({ image: firstPhoto?.content ?? null })
+    .where(eq(users.id, userId));
+}
 
 /** Fetch all items for a user, ordered by displayOrder. */
 export async function getUserItems(userId: string): Promise<UserItem[]> {
@@ -38,6 +51,10 @@ export async function addUserItem(
     })
     .returning();
 
+  if (input.type === "photo") {
+    await syncUserProfileImage(userId);
+  }
+
   return item;
 }
 
@@ -64,6 +81,10 @@ export async function updateUserItem(
     })
     .where(eq(userItems.id, itemId))
     .returning();
+
+  if (existing.type === "photo" && existing.displayOrder === 0) {
+    await syncUserProfileImage(userId);
+  }
 
   return updated;
 }
@@ -96,6 +117,10 @@ export async function deleteUserItem(itemId: string, userId: string): Promise<bo
       .where(eq(userItems.id, remaining[i].id));
   }
 
+  if (existing.type === "photo") {
+    await syncUserProfileImage(userId);
+  }
+
   return true;
 }
 
@@ -121,6 +146,8 @@ export async function reorderUserItems(
       .set({ displayOrder: i, updatedAt: new Date() })
       .where(and(eq(userItems.id, itemIds[i]), eq(userItems.userId, userId)));
   }
+
+  await syncUserProfileImage(userId);
 
   return getUserItems(userId);
 }

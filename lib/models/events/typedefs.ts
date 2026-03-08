@@ -18,9 +18,12 @@ export const eventTypeDefs = `#graphql
     coordinates: Coordinates
     startsAt: DateTime!
     endsAt: DateTime
-    maxAttendees: Int
+    cover: String!
+    images: [String!]!
     categories: [String!]!
-
+    maxAttendees: Int
+    price: Int
+    currency: String
     createdBy: User!
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -30,10 +33,6 @@ export const eventTypeDefs = `#graphql
     myAttendeeStatus: AttendeeStatus
     """The space this event belongs to"""
     space: Space
-    """Ticket price in cents (null = free event)"""
-    price: Int
-    """ISO 4217 currency code, e.g. 'eur'"""
-    currency: String
     """True when the event requires purchasing a ticket"""
     isPaid: Boolean!
     """Payment status for the currently authenticated user (null if free event or no purchase)"""
@@ -70,8 +69,10 @@ export const eventTypeDefs = `#graphql
     lon: Float
     startsAt: String!
     endsAt: String
-    maxAttendees: Int
+    cover: String!
+    images: [String!]
     categories: [String!]
+    maxAttendees: Int
     price: Int
     currency: String
   }
@@ -84,9 +85,10 @@ export const eventTypeDefs = `#graphql
     lon: Float
     startsAt: String
     endsAt: String
-    maxAttendees: Int
+    cover: String
+    images: [String!]
     categories: [String!]
-
+    maxAttendees: Int
     price: Int
     currency: String
   }

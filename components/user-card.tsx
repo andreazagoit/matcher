@@ -60,7 +60,7 @@ export function UserCard({ user, compatibility }: UserCardProps) {
                 </div>
             </CardHeader>
             <CardContent className="p-0">
-                <div className="relative aspect-square w-full bg-muted/30">
+                <div className="relative aspect-[4/5] w-full bg-muted/30">
                     <Avatar className="h-full w-full rounded-none">
                         <AvatarImage
                             src={firstPhoto}

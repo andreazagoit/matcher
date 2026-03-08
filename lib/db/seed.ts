@@ -1,10 +1,10 @@
 import "dotenv/config";
-import { seedUsers } from "./users";
-import { seedSpaces } from "./spaces";
-import { seedCategories, seedProfiles } from "./interests";
-import { seedEvents } from "./events";
-import { seedProfileCards } from "./useritems";
-
+import { seedCategories } from "../models/categories/seed";
+import { seedUsers } from "../models/users/seed";
+import { seedSpaces } from "../models/spaces/seed";
+import { seedEvents } from "../models/events/seed";
+import { seedProfiles } from "../models/impressions/seed";
+import { seedProfileCards } from "../models/useritems/seed";
 
 async function seed() {
   console.log("🌱 Starting seed...\n");
@@ -26,7 +26,6 @@ async function seed() {
 
     await seedProfiles(nonAdminIds);
     await seedProfileCards(nonAdminIds);
-
 
     console.log("\n✅ Seed completed successfully!");
   } catch (error) {

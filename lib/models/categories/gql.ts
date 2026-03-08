@@ -32,15 +32,13 @@ export const GET_CATEGORY = gql`
         name
         slug
         description
-        image
+        cover
         categories
         visibility
         joinPolicy
-        createdAt
-        isActive
         membersCount
-        type
         stripeAccountEnabled
+        createdAt
       }
       recommendedCategories(limit: 6)
     }
@@ -51,7 +49,9 @@ export const GET_RECOMMENDED_CATEGORIES = gql`
   query GetRecommendedCategories($limit: Int, $offset: Int) {
     me {
       id
-      recommendedCategories(limit: $limit, offset: $offset)
+      recommendedCategories(limit: $limit, offset: $offset) {
+        id
+      }
     }
   }
 `;

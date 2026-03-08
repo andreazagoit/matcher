@@ -10,13 +10,8 @@ import { embeddings } from "@/lib/models/embeddings/schema";
 import { eq, and, ne, sql, desc, gte, inArray } from "drizzle-orm";
 import { embedSpace } from "@/lib/ml/client";
 import { recordImpression } from "@/lib/models/impressions/operations";
+import type { CreateSpaceInput, UpdateSpaceInput } from "./validator";
 
-export function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 // ============================================
 // SPACE CRUD OPERATIONS
@@ -26,26 +21,16 @@ export interface CreateSpaceResult {
   space: Space;
 }
 
-export async function createSpace(params: {
-  name: string;
-  slug?: string;
-  description?: string;
-  ownerId: string;
-  visibility?: "public" | "private" | "hidden";
-  joinPolicy?: "open" | "apply" | "invite_only";
-  image?: string;
-  categories?: string[];
-}): Promise<CreateSpaceResult> {
-  const slug = params.slug || generateSlug(params.name);
-
+export async function createSpace(params: CreateSpaceInput & { ownerId: string }): Promise<CreateSpaceResult> {
   const result = await db.transaction(async (tx) => {
     const [space] = await tx
       .insert(spaces)
       .values({
         name: params.name,
-        slug,
+        slug: params.slug,
         description: params.description,
-        image: params.image,
+        cover: params.cover,
+        images: params.images ?? [],
         visibility: params.visibility || "public",
         joinPolicy: params.joinPolicy || "open",
         categories: params.categories ?? [],
@@ -127,7 +112,6 @@ export async function getSpacesByCategories(
       and(
         sql`${spaces.categories} ${sql.raw(operator)} ${catArray}::text[]`,
         eq(spaces.visibility, "public"),
-        eq(spaces.isActive, true),
       ),
     )
     .orderBy(desc(spaces.createdAt));
@@ -136,10 +120,7 @@ export async function getSpacesByCategories(
 /**
  * Update space
  */
-export async function updateSpace(
-  id: string,
-  data: Partial<Pick<Space, "name" | "slug" | "description" | "isActive" | "visibility" | "image" | "joinPolicy" | "categories">>
-): Promise<Space | null> {
+export async function updateSpace(id: string, data: UpdateSpaceInput): Promise<Space | null> {
   const [updated] = await db
     .update(spaces)
     .set({ ...data, updatedAt: new Date() })
@@ -149,7 +130,7 @@ export async function updateSpace(
   if (updated && (data.name !== undefined || data.description !== undefined || data.categories !== undefined)) {
     const embedding = await embedSpace({
       categories: updated.categories ?? [],
-      memberCount: updated.membersCount ?? 0,
+      memberCount: 0,
       eventCount: 0,
     });
     if (embedding) {

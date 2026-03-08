@@ -57,7 +57,6 @@ export const categoryResolvers = {
           and(
             sql`${spaces.categories} && ${catArray}::text[]`,
             eq(spaces.visibility, "public"),
-            eq(spaces.isActive, true),
           ),
         )
         .limit(limit)

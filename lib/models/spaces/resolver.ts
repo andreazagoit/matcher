@@ -5,18 +5,7 @@ import { members } from "@/lib/models/members/schema";
 import { createSpace, updateSpace, deleteSpace, getSpaceRecommendedEvents } from "./operations";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
-
-interface CreateSpaceInput {
-    name: string;
-    slug?: string;
-    description?: string;
-    visibility?: "public" | "private" | "hidden";
-    joinPolicy?: "open" | "apply" | "invite_only";
-    image?: string;
-    categories?: string[];
-}
-
-type UpdateSpaceInput = Partial<CreateSpaceInput>;
+import type { CreateSpaceInput, UpdateSpaceInput } from "./validator";
 
 export const spaceResolvers = {
     Query: {
