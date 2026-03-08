@@ -23,7 +23,18 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { GET_CATEGORIES } from "@/lib/models/categories/gql";
 import { CREATE_SPACE } from "@/lib/models/spaces/gql";
-import type { CreateSpaceMutation, CreateSpaceMutationVariables } from "@/lib/graphql/__generated__/graphql";
+import type { CreateSpaceMutation, CreateSpaceMutationVariables, SpaceVisibility, JoinPolicy } from "@/lib/graphql/__generated__/graphql";
+import { type CreateSpaceFormData } from "@/lib/models/spaces/validator";
+
+const FORM_DEFAULTS: CreateSpaceFormData = {
+  name: "",
+  slug: "",
+  description: undefined,
+  cover: "",
+  categories: [],
+  visibility: "public",
+  joinPolicy: "open",
+};
 
 interface CreateSpaceDialogProps {
   open: boolean;
@@ -37,24 +48,10 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
   const [error, setError] = useState<string | null>(null);
   const { data: categoriesData } = useQuery<{ categories: { id: string }[] }>(GET_CATEGORIES);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    slug: "",
-    description: "",
-    tags: [] as string[],
-    visibility: "public",
-    joinPolicy: "open",
-  });
+  const [formData, setFormData] = useState<CreateSpaceFormData>(FORM_DEFAULTS);
 
   const resetForm = () => {
-    setFormData({
-      name: "",
-      slug: "",
-      description: "",
-      tags: [],
-      visibility: "public",
-      joinPolicy: "open",
-    });
+    setFormData(FORM_DEFAULTS);
     setError(null);
   };
 
@@ -74,11 +71,12 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
         variables: {
           input: {
             name: formData.name,
-            slug: formData.slug || undefined,
+            slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
             description: formData.description,
-            tags: formData.tags.length > 0 ? formData.tags : undefined,
-            visibility: formData.visibility,
-            joinPolicy: formData.joinPolicy,
+            cover: formData.cover,
+            categories: formData.categories.length > 0 ? formData.categories : undefined,
+            visibility: formData.visibility as SpaceVisibility,
+            joinPolicy: formData.joinPolicy as JoinPolicy,
           }
         }
       });
@@ -145,10 +143,22 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="cover">Cover Image URL *</Label>
+              <Input
+                id="cover"
+                type="url"
+                value={formData.cover}
+                onChange={(e) => setFormData({ ...formData, cover: e.target.value })}
+                required
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Tags</Label>
               <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-md border p-2">
                 {(categoriesData?.categories ?? []).map(({ id: tag }) => {
-                  const isSelected = formData.tags.includes(tag);
+                  const isSelected = formData.categories.includes(tag);
                   return (
                     <Badge
                       key={tag}
@@ -157,9 +167,9 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
-                          tags: isSelected
-                            ? prev.tags.filter((t: string) => t !== tag)
-                            : [...prev.tags, tag],
+                          categories: isSelected
+                            ? prev.categories.filter((t: string) => t !== tag)
+                            : [...prev.categories, tag],
                         }))
                       }
                     >
@@ -175,7 +185,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
                 <Label htmlFor="visibility">Visibility</Label>
                 <Select
                   value={formData.visibility}
-                  onValueChange={(value) => setFormData({ ...formData, visibility: value })}
+                  onValueChange={(value) => setFormData({ ...formData, visibility: value as CreateSpaceFormData["visibility"] })}
                 >
                   <SelectTrigger id="visibility">
                     <SelectValue placeholder="Select visibility" />
@@ -192,7 +202,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onCreated }: CreateSpace
                 <Label htmlFor="joinPolicy">Join Policy</Label>
                 <Select
                   value={formData.joinPolicy}
-                  onValueChange={(value) => setFormData({ ...formData, joinPolicy: value })}
+                  onValueChange={(value) => setFormData({ ...formData, joinPolicy: value as CreateSpaceFormData["joinPolicy"] })}
                 >
                   <SelectTrigger id="joinPolicy">
                     <SelectValue placeholder="Select policy" />

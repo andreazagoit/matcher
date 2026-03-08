@@ -19,6 +19,7 @@ import {
   MARK_NOTIFICATION_READ,
   MARK_ALL_NOTIFICATIONS_READ,
 } from "@/lib/models/notifications/gql";
+import type { GetNotificationsQuery } from "@/lib/graphql/__generated__/graphql";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,7 @@ export function NotificationBell() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  const { data, refetch } = useQuery(GET_NOTIFICATIONS, {
+  const { data, refetch } = useQuery<GetNotificationsQuery>(GET_NOTIFICATIONS, {
     skip: !session?.user,
     variables: { limit: 8 },
   });

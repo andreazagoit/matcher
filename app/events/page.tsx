@@ -4,12 +4,12 @@ import { query } from "@/lib/graphql/apollo-client";
 import { Page } from "@/components/page";
 import { CalendarIcon } from "lucide-react";
 import { GET_ALL_EVENTS } from "@/lib/models/events/gql";
-import { GET_USER_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
+import { GET_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
 import type {
   GetAllEventsQuery,
   GetAllEventsQueryVariables,
-  GetUserRecommendedEventsQuery,
-  GetUserRecommendedEventsQueryVariables,
+  GetRecommendedEventsQuery,
+  GetRecommendedEventsQueryVariables,
 } from "@/lib/graphql/__generated__/graphql";
 import { EventCard } from "@/components/event-card";
 
@@ -20,14 +20,14 @@ export default async function EventsPage() {
   const isAuthenticated = !!session?.user;
 
   const events = isAuthenticated
-    ? await query<GetUserRecommendedEventsQuery, GetUserRecommendedEventsQueryVariables>({
-        query: GET_USER_RECOMMENDED_EVENTS,
+    ? await query<GetRecommendedEventsQuery, GetRecommendedEventsQueryVariables>({
+        query: GET_RECOMMENDED_EVENTS,
         variables: { limit: 24 },
-      }).then((res) => res.data?.me?.recommendedEvents ?? [])
+      }).then((res) => res.data?.recommendedEvents?.nodes ?? [])
     : await query<GetAllEventsQuery, GetAllEventsQueryVariables>({
         query: GET_ALL_EVENTS,
         variables: { limit: 24 },
-      }).then((res) => res.data?.events ?? []);
+      }).then((res) => res.data?.events?.nodes ?? []);
 
   return (
     <Page

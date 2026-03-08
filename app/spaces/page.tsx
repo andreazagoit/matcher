@@ -8,6 +8,7 @@ import { SpaceCard } from "@/components/spaces/space-card";
 import { CreateSpaceButton } from "./create-space-button";
 import type {
   GetAllSpacesQuery,
+  GetAllSpacesQueryVariables,
   GetRecommendedSpacesQuery,
   GetRecommendedSpacesQueryVariables,
 } from "@/lib/graphql/__generated__/graphql";
@@ -23,9 +24,11 @@ export default async function SpacesPage() {
     ? await query<GetRecommendedSpacesQuery, GetRecommendedSpacesQueryVariables>({
         query: GET_RECOMMENDED_SPACES,
         variables: { limit: 24 },
-      }).then((res) => res.data?.me?.recommendedSpaces ?? [])
-    : await query<GetAllSpacesQuery>({ query: GET_ALL_SPACES })
-        .then((res) => res.data?.spaces ?? []);
+      }).then((res) => res.data?.recommendedSpaces?.nodes ?? [])
+    : await query<GetAllSpacesQuery, GetAllSpacesQueryVariables>({
+        query: GET_ALL_SPACES,
+        variables: { limit: 24 },
+      }).then((res) => res.data?.spaces?.nodes ?? []);
 
   return (
     <Page

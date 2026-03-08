@@ -3,9 +3,7 @@
  */
 
 export const userTypeDefs = `#graphql
-  """
-  User — demographic, auth, and location data
-  """
+  """User — demographic, auth, and location data."""
   type User {
     id: ID!
     username: String
@@ -20,15 +18,6 @@ export const userTypeDefs = `#graphql
     updatedAt: DateTime!
     userItems: [UserItem!]!
     gender: Gender
-
-    """Recommended events based on embedding similarity. Only visible to own profile."""
-    recommendedEvents(limit: Int, offset: Int): [Event!]!
-    """Recommended spaces based on embedding similarity. Only visible to own profile."""
-    recommendedSpaces(limit: Int, offset: Int): [Space!]!
-    """Users with similar embeddings. Only visible to own profile."""
-    recommendedUsers(limit: Int, offset: Int): [User!]!
-    """Categories recommended based on embedding similarity. Only visible to own profile."""
-    recommendedCategories(limit: Int, offset: Int): [Category!]!
 
     # Orientation & identity
     sexualOrientation: [String!]!
@@ -169,6 +158,30 @@ export const userTypeDefs = `#graphql
     """Check if a username is already taken."""
     checkUsername(username: String!): Boolean!
     me: User
+
+    """
+    AI-recommended events for the authenticated viewer.
+    Returns [] for unauthenticated requests.
+    """
+    recommendedEvents(limit: Int, offset: Int): EventConnection!
+
+    """
+    AI-recommended spaces for the authenticated viewer.
+    Returns empty connection for unauthenticated requests.
+    """
+    recommendedSpaces(limit: Int, offset: Int): SpaceConnection!
+
+    """
+    Users with similar embeddings to the authenticated viewer.
+    Returns [] for unauthenticated requests.
+    """
+    recommendedUsers(limit: Int, offset: Int): [User!]!
+
+    """
+    Categories recommended for the authenticated viewer based on embedding similarity.
+    Returns [] for unauthenticated requests.
+    """
+    recommendedCategories(limit: Int, offset: Int): [Category!]!
   }
 
   extend type Mutation {

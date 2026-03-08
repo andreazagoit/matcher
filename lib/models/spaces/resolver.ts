@@ -19,11 +19,14 @@ export const spaceResolvers = {
             return result ?? null;
         },
 
-        spaces: async () => {
-            return db.query.spaces.findMany({
+        spaces: async (_: unknown, { limit = 24, offset = 0 }: { limit?: number; offset?: number }) => {
+            const rows = await db.query.spaces.findMany({
                 where: eq(spaces.visibility, "public"),
-                orderBy: (spaces, { desc }) => [desc(spaces.createdAt)],
+                orderBy: (spaces, { desc }) => [desc(spaces.membersCount), desc(spaces.createdAt)],
+                limit: limit + 1,
+                offset,
             });
+            return { nodes: rows.slice(0, limit), hasNextPage: rows.length > limit };
         },
 
         mySpaces: async (_: unknown, __: unknown, { auth }: GraphQLContext) => {
@@ -95,7 +98,8 @@ export const spaceResolvers = {
             context: GraphQLContext,
         ) => {
             const { getSpaceEvents } = await import("@/lib/models/events/operations");
-            return getSpaceEvents(parent.id, context.auth.user?.id, limit, offset);
+            const rows = await getSpaceEvents(parent.id, context.auth.user?.id, limit + 1, offset);
+            return { nodes: rows.slice(0, limit), hasNextPage: rows.length > limit };
         },
 
         recommendedEvents: async (

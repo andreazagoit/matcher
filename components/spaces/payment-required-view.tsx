@@ -9,7 +9,7 @@ interface PaymentRequiredViewProps {
     tierName?: string
     price?: number
     interval?: string
-    onPaymentComplete: () => void
+    onPaymentComplete?: () => void
 }
 
 export function PaymentRequiredView({ spaceName, tierName, price, interval, onPaymentComplete: _ }: PaymentRequiredViewProps) {

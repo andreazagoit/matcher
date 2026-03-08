@@ -98,14 +98,18 @@ export const UPDATE_LOCATION = gql`
   }
 `;
 
-export const GET_USER_RECOMMENDED_EVENTS = gql`
+// ============================================
+// RECOMMENDED (root-level queries)
+// ============================================
+
+export const GET_RECOMMENDED_EVENTS = gql`
   ${EVENT_CARD_FRAGMENT}
-  query GetUserRecommendedEvents($limit: Int, $offset: Int) {
-    me {
-      id
-      recommendedEvents(limit: $limit, offset: $offset) {
+  query GetRecommendedEvents($limit: Int, $offset: Int) {
+    recommendedEvents(limit: $limit, offset: $offset) {
+      nodes {
         ...EventCardFields
       }
+      hasNextPage
     }
   }
 `;
@@ -113,32 +117,29 @@ export const GET_USER_RECOMMENDED_EVENTS = gql`
 export const GET_RECOMMENDED_SPACES = gql`
   ${SPACE_FRAGMENT}
   query GetRecommendedSpaces($limit: Int, $offset: Int) {
-    me {
-      id
-      recommendedSpaces(limit: $limit, offset: $offset) {
+    recommendedSpaces(limit: $limit, offset: $offset) {
+      nodes {
         ...SpaceFields
       }
+      hasNextPage
     }
   }
 `;
 
 export const GET_RECOMMENDED_USERS = gql`
   query GetRecommendedUsers($limit: Int, $offset: Int) {
-    me {
+    recommendedUsers(limit: $limit, offset: $offset) {
       id
-      recommendedUsers(limit: $limit, offset: $offset) {
+      username
+      name
+      image
+      birthdate
+      gender
+      userItems {
         id
-        username
-        name
-        image
-        birthdate
-        gender
-        userItems {
-          id
-          type
-          content
-          displayOrder
-        }
+        type
+        content
+        displayOrder
       }
     }
   }
@@ -147,15 +148,11 @@ export const GET_RECOMMENDED_USERS = gql`
 export const GET_RECOMMENDED_CATEGORIES_WITH_EVENTS = gql`
   ${EVENT_CARD_FRAGMENT}
   query GetRecommendedCategoriesWithEvents($limit: Int, $offset: Int) {
-    me {
+    recommendedCategories(limit: $limit, offset: $offset) {
       id
-      recommendedCategories(limit: $limit, offset: $offset) {
-        id
-        recommendedEvents(limit: 8) {
-          ...EventCardFields
-        }
+      recommendedEvents(limit: 8) {
+        ...EventCardFields
       }
     }
   }
 `;
-

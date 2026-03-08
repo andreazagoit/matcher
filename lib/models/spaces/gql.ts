@@ -27,9 +27,12 @@ export const SPACE_FRAGMENT = gql`
 
 export const GET_ALL_SPACES = gql`
   ${SPACE_FRAGMENT}
-  query GetAllSpaces {
-    spaces {
-      ...SpaceFields
+  query GetAllSpaces($limit: Int, $offset: Int) {
+    spaces(limit: $limit, offset: $offset) {
+      nodes {
+        ...SpaceFields
+      }
+      hasNextPage
     }
   }
 `;

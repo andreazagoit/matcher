@@ -62,14 +62,15 @@ export const eventResolvers = {
       _: unknown,
       { limit = 24, offset = 0 }: { limit?: number; offset?: number },
     ) => {
-      return getAllEvents(limit, offset);
+      const rows = await getAllEvents(limit + 1, offset);
+      return { nodes: rows.slice(0, limit), hasNextPage: rows.length > limit };
     },
   },
 
   Mutation: {
     createEvent: async (
       _: unknown,
-      { input }: { input: Omit<CreateEventInput, "createdBy" | "coordinates"> & { lat?: number; lon?: number } },
+      { input }: { input: Omit<CreateEventInput, "createdBy"> },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
@@ -77,26 +78,15 @@ export const eventResolvers = {
         where: eq(spaces.id, input.spaceId),
         columns: { ownerId: true },
       });
-      if (!space) {
-        throw new GraphQLError("Space not found", {
-          extensions: { code: "NOT_FOUND" },
-        });
-      }
-      if (space.ownerId !== user.id) {
-        throw new GraphQLError("Only the space owner can create events", {
-          extensions: { code: "FORBIDDEN" },
-        });
-      }
+      if (!space) throw new GraphQLError("Space not found", { extensions: { code: "NOT_FOUND" } });
+      if (space.ownerId !== user.id) throw new GraphQLError("Only the space owner can create events", { extensions: { code: "FORBIDDEN" } });
 
       const event = await createEvent({
         spaceId: input.spaceId,
         title: input.title,
         description: input.description,
         location: input.location,
-        coordinates:
-          input.lat != null && input.lon != null
-            ? { lat: input.lat, lon: input.lon }
-            : undefined,
+        coordinates: input.coordinates,
         startsAt: input.startsAt,
         endsAt: input.endsAt,
         maxAttendees: input.maxAttendees,
@@ -108,57 +98,31 @@ export const eventResolvers = {
         createdBy: user.id,
       });
 
-      // Generate ML embedding in background (non-blocking)
       embedEvent(event.id, {
         categories: event.categories ?? [],
         startsAt: event.startsAt?.toISOString() ?? null,
         isPaid: (event.price ?? 0) > 0,
         priceCents: event.price ?? null,
-      }).catch(() => { });
+      }).catch(() => {});
 
       return event;
     },
 
     updateEvent: async (
       _: unknown,
-      { id, input }: { id: string; input: Omit<UpdateEventInput, "coordinates"> & { lat?: number; lon?: number } },
+      { id, input }: { id: string; input: UpdateEventInput },
       context: GraphQLContext,
     ) => {
       const user = requireAuth(context);
       const event = await db.query.events.findFirst({ where: eq(events.id, id) });
-
-      if (!event) {
-        throw new GraphQLError("Event not found", {
-          extensions: { code: "NOT_FOUND" },
-        });
-      }
+      if (!event) throw new GraphQLError("Event not found", { extensions: { code: "NOT_FOUND" } });
       const space = await db.query.spaces.findFirst({
         where: eq(spaces.id, event.spaceId),
         columns: { ownerId: true },
       });
-      if (!space || space.ownerId !== user.id) {
-        throw new GraphQLError("Only the space owner can update this event", {
-          extensions: { code: "FORBIDDEN" },
-        });
-      }
+      if (!space || space.ownerId !== user.id) throw new GraphQLError("Only the space owner can update this event", { extensions: { code: "FORBIDDEN" } });
 
-      return await updateEvent(id, {
-        title: input.title,
-        description: input.description,
-        location: input.location,
-        coordinates:
-          input.lat != null && input.lon != null
-            ? { lat: input.lat, lon: input.lon }
-            : undefined,
-        startsAt: input.startsAt,
-        endsAt: input.endsAt,
-        maxAttendees: input.maxAttendees,
-        categories: input.categories,
-        price: input.price,
-        currency: input.currency,
-        cover: input.cover,
-        images: input.images,
-      });
+      return updateEvent(id, input);
     },
 
     respondToEvent: async (

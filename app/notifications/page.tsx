@@ -13,11 +13,12 @@ import {
   MARK_ALL_NOTIFICATIONS_READ,
   DELETE_NOTIFICATION,
 } from "@/lib/models/notifications/gql";
+import type { GetNotificationsQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default function NotificationsPage() {
   const router = useRouter();
 
-  const { data, refetch } = useQuery(GET_NOTIFICATIONS, {
+  const { data, refetch } = useQuery<GetNotificationsQuery>(GET_NOTIFICATIONS, {
     variables: { limit: 50 },
   });
 

@@ -5,7 +5,7 @@ import { GET_DAILY_MATCHES } from "@/lib/models/matches/gql";
 import {
   GET_RECOMMENDED_CATEGORIES_WITH_EVENTS,
   GET_RECOMMENDED_SPACES,
-  GET_USER_RECOMMENDED_EVENTS,
+  GET_RECOMMENDED_EVENTS,
 } from "@/lib/models/users/gql";
 import { GET_ALL_EVENTS } from "@/lib/models/events/gql";
 import { GET_ALL_SPACES } from "@/lib/models/spaces/gql";
@@ -13,13 +13,14 @@ import type {
   GetDailyMatchesQuery,
   GetRecommendedSpacesQuery,
   GetRecommendedSpacesQueryVariables,
-  GetUserRecommendedEventsQuery,
-  GetUserRecommendedEventsQueryVariables,
+  GetRecommendedEventsQuery,
+  GetRecommendedEventsQueryVariables,
   GetRecommendedCategoriesWithEventsQuery,
   GetRecommendedCategoriesWithEventsQueryVariables,
   GetAllEventsQuery,
   GetAllEventsQueryVariables,
   GetAllSpacesQuery,
+  GetAllSpacesQueryVariables,
   SpaceFieldsFragment,
   EventCardFieldsFragment,
 } from "@/lib/graphql/__generated__/graphql";
@@ -41,22 +42,18 @@ export default async function DiscoverPage() {
   const isAuthenticated = !!session?.user;
   const hasLocation = !!cookieStore.get("matcher_lat")?.value;
 
-  // ── Authenticated: personalised data ──────────────────────────────────────
   if (isAuthenticated) {
     const [matchesRes, spacesRes, eventsRes, categoriesRes] = await Promise.all([
       query<GetDailyMatchesQuery>({ query: GET_DAILY_MATCHES })
         .catch(() => ({ data: null })),
-
       query<GetRecommendedSpacesQuery, GetRecommendedSpacesQueryVariables>({
         query: GET_RECOMMENDED_SPACES,
         variables: { limit: 8 },
       }).catch(() => ({ data: null })),
-
-      query<GetUserRecommendedEventsQuery, GetUserRecommendedEventsQueryVariables>({
-        query: GET_USER_RECOMMENDED_EVENTS,
+      query<GetRecommendedEventsQuery, GetRecommendedEventsQueryVariables>({
+        query: GET_RECOMMENDED_EVENTS,
         variables: { limit: 8 },
       }).catch(() => ({ data: null })),
-
       query<GetRecommendedCategoriesWithEventsQuery, GetRecommendedCategoriesWithEventsQueryVariables>({
         query: GET_RECOMMENDED_CATEGORIES_WITH_EVENTS,
         variables: { limit: 6 },
@@ -64,9 +61,9 @@ export default async function DiscoverPage() {
     ]);
 
     const matches = matchesRes.data?.me?.dailyMatches ?? [];
-    const spaces = (spacesRes.data?.me?.recommendedSpaces ?? []) as SpaceFieldsFragment[];
-    const events = (eventsRes.data?.me?.recommendedEvents ?? []) as EventCardFieldsFragment[];
-    const categories = (categoriesRes.data?.me?.recommendedCategories ?? [])
+    const spaces = (spacesRes.data?.recommendedSpaces?.nodes ?? []) as SpaceFieldsFragment[];
+    const events = (eventsRes.data?.recommendedEvents?.nodes ?? []) as EventCardFieldsFragment[];
+    const categories = (categoriesRes.data?.recommendedCategories ?? [])
       .filter((cat) => cat.recommendedEvents.length > 0);
 
     return (
@@ -85,7 +82,6 @@ export default async function DiscoverPage() {
         <div className="space-y-12">
           {!hasLocation && <LocationBanner />}
 
-          {/* Daily Matches */}
           {matches.length === 0 ? (
             <Card className="border-dashed py-8 bg-muted/30">
               <CardContent className="flex flex-col items-center justify-center text-center space-y-2 py-4">
@@ -103,7 +99,6 @@ export default async function DiscoverPage() {
             </ItemCarousel>
           )}
 
-          {/* Recommended Spaces */}
           {spaces.length > 0 && (
             <ItemCarousel title="Spazi consigliati" titleHref="/spaces" columns={4}>
               {spaces.map((space) => (
@@ -112,7 +107,6 @@ export default async function DiscoverPage() {
             </ItemCarousel>
           )}
 
-          {/* Recommended Events */}
           {events.length > 0 && (
             <ItemCarousel title="Eventi consigliati" titleHref="/events" columns={4}>
               {events.map((event) => (
@@ -121,7 +115,6 @@ export default async function DiscoverPage() {
             </ItemCarousel>
           )}
 
-          {/* Top categories with events */}
           {categories.map((cat) => (
             <ItemCarousel
               key={cat.id}
@@ -139,19 +132,20 @@ export default async function DiscoverPage() {
     );
   }
 
-  // ── Unauthenticated: public showcase ──────────────────────────────────────
+  // ── Unauthenticated: public showcase ────────────────────────────────────
   const [spacesRes, eventsRes] = await Promise.all([
-    query<GetAllSpacesQuery>({ query: GET_ALL_SPACES })
-      .catch(() => ({ data: null })),
-
+    query<GetAllSpacesQuery, GetAllSpacesQueryVariables>({
+      query: GET_ALL_SPACES,
+      variables: { limit: 8 },
+    }).catch(() => ({ data: null })),
     query<GetAllEventsQuery, GetAllEventsQueryVariables>({
       query: GET_ALL_EVENTS,
       variables: { limit: 8 },
     }).catch(() => ({ data: null })),
   ]);
 
-  const spaces = (spacesRes.data?.spaces ?? []).slice(0, 8) as SpaceFieldsFragment[];
-  const events = (eventsRes.data?.events ?? []) as EventCardFieldsFragment[];
+  const spaces = (spacesRes.data?.spaces?.nodes ?? []) as SpaceFieldsFragment[];
+  const events = (eventsRes.data?.events?.nodes ?? []) as EventCardFieldsFragment[];
 
   return (
     <Page

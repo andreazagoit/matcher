@@ -16,9 +16,6 @@ import {
 import { toast } from "sonner";
 import { UPDATE_USER, UPDATE_LOCATION } from "@/lib/models/users/gql";
 import type { UpdateLocationMutation } from "@/lib/graphql/__generated__/graphql";
-import { CATEGORIES } from "@/lib/models/categories/data";
-import { UserItemsEditor } from "./user-items-editor";
-
 import {
     genderEnum,
     sexualOrientationEnum,
@@ -33,19 +30,11 @@ import {
     educationLevelEnum,
     ethnicityEnum,
 } from "@/lib/models/users/schema";
-import { SUPPORTED_LANGUAGES } from "@/lib/models/users/validator";
-import type { User } from "@/lib/graphql/__generated__/graphql";
+import { SUPPORTED_LANGUAGES, type UpdateUserInput } from "@/lib/models/users/validator";
+import { CATEGORIES } from "@/lib/models/categories/data";
+import { UserItemsEditor } from "./user-items-editor";
 
-export type EditableUser = Pick<
-    User,
-    | "id" | "name" | "birthdate" | "username"
-    | "gender" | "sexualOrientation" | "heightCm"
-    | "relationshipIntent" | "relationshipStyle"
-    | "hasChildren" | "wantsChildren"
-    | "religion" | "smoking" | "drinking" | "activityLevel"
-    | "jobTitle" | "educationLevel" | "schoolName" | "languages" | "ethnicity"
-    | "location" | "tags"
->;
+export type EditableUser = UpdateUserInput & { id: string };
 
 type Props = {
     user: EditableUser;
@@ -385,15 +374,15 @@ export function EditProfileForm({ user }: Props) {
             <Separator />
 
             {/* ── Foto e Prompts ─────────────────────────────────────────── */}
-            <UserItemsEditor userId={user.id} />
+            <UserItemsEditor />
 
             {/* ── Azioni Finali ───────────────────────────────────────── */}
             <div className="sticky bottom-6 flex justify-end gap-3 mt-10 p-4 bg-background/80 backdrop-blur-xl border rounded-2xl shadow-lg">
-                <Button variant="outline" onClick={() => router.push(`/users/${user.username}`)} disabled={saving || savingTags}>
+                <Button variant="outline" onClick={() => router.push(`/users/${user.username}`)} disabled={saving}>
                     Annulla
                 </Button>
-                <Button onClick={handleSave} disabled={saving || savingTags} size="lg" className="min-w-[150px]">
-                    {(saving || savingTags) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Button onClick={handleSave} disabled={saving} size="lg" className="min-w-[150px]">
+                    {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Salva Modifiche
                 </Button>
             </div>

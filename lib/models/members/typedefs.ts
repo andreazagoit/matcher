@@ -28,6 +28,7 @@ export const memberTypeDefs = `#graphql
   }
 
   extend type Mutation {
+    """Join a space by its slug. Optionally select a paid tier."""
     joinSpace(spaceSlug: String!, tierId: ID): Member!
     leaveSpace(spaceId: ID!): Boolean!
 

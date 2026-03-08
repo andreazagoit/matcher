@@ -23,7 +23,9 @@ import type {
     UpdateSpaceMutation,
     UpdateSpaceMutationVariables,
     DeleteSpaceMutation,
-    DeleteSpaceMutationVariables
+    DeleteSpaceMutationVariables,
+    SpaceVisibility,
+    JoinPolicy,
 } from "@/lib/graphql/__generated__/graphql";
 import {
     AlertDialog,
@@ -65,8 +67,8 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
         name: space.name,
         slug: space.slug,
         description: space.description || "",
-        visibility: space.visibility,
-        joinPolicy: space.joinPolicy,
+        visibility: space.visibility as SpaceVisibility,
+        joinPolicy: space.joinPolicy as JoinPolicy,
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -193,7 +195,7 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
                                 <Label htmlFor="visibility">Visibility</Label>
                                 <Select
                                     value={formData.visibility}
-                                    onValueChange={(value) => setFormData({ ...formData, visibility: value })}
+                                    onValueChange={(value) => setFormData({ ...formData, visibility: value as SpaceVisibility })}
                                 >
                                     <SelectTrigger id="visibility">
                                         <SelectValue placeholder="Select visibility" />
@@ -211,7 +213,7 @@ export function SpaceSettingsView({ space, onUpdate }: SpaceSettingsViewProps) {
                                 <Label htmlFor="joinPolicy">Join Policy</Label>
                                 <Select
                                     value={formData.joinPolicy}
-                                    onValueChange={(value) => setFormData({ ...formData, joinPolicy: value })}
+                                    onValueChange={(value) => setFormData({ ...formData, joinPolicy: value as JoinPolicy })}
                                 >
                                     <SelectTrigger id="joinPolicy">
                                         <SelectValue placeholder="Select policy" />

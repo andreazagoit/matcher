@@ -29,7 +29,7 @@ export function SearchForm() {
     const { data: session } = useSession();
 
     const { data } = useQuery<GetAllSpacesQuery>(GET_ALL_SPACES, { skip: !open });
-    const spaces = data?.spaces ?? [];
+    const spaces = data?.spaces?.nodes ?? [];
 
     // ⌘K shortcut
     React.useEffect(() => {

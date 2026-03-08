@@ -6,36 +6,7 @@ import { Page } from "@/components/page";
 import { auth } from "@/lib/auth";
 import { recordImpression } from "@/lib/models/impressions/operations";
 import { CategoryContent } from "./category-content";
-
-interface CategoryEvent {
-  id: string;
-  title: string;
-  description?: string | null;
-  location?: string | null;
-  startsAt: string;
-  endsAt?: string | null;
-  attendeeCount: number;
-  maxAttendees?: number | null;
-  categories: string[];
-  spaceId: string;
-  price?: number | null;
-  currency?: string | null;
-  isPaid: boolean;
-}
-
-interface CategorySpace {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string | null;
-  cover: string;
-  categories: string[];
-  visibility: string;
-  joinPolicy: string;
-  createdAt: string;
-  membersCount?: number | null;
-  stripeAccountEnabled: boolean;
-}
+import type { GetCategoryQuery, GetCategoryQueryVariables } from "@/lib/graphql/__generated__/graphql";
 
 interface Props {
   params: Promise<{ categoryId: string }>;
@@ -44,14 +15,7 @@ interface Props {
 export default async function CategoryPage({ params }: Props) {
   const { categoryId } = await params;
 
-  const res = await query<{
-    category: {
-      id: string;
-      recommendedEvents: CategoryEvent[];
-      recommendedSpaces: CategorySpace[];
-      recommendedCategories: string[];
-    } | null;
-  }>({
+  const res = await query<GetCategoryQuery, GetCategoryQueryVariables>({
     query: GET_CATEGORY,
     variables: { id: categoryId, eventsLimit: 20, spacesLimit: 20 },
   });
@@ -65,10 +29,6 @@ export default async function CategoryPage({ params }: Props) {
   if (session?.user) {
     recordImpression(session.user.id, categoryId, "category", "viewed");
   }
-
-  const events = category.recommendedEvents ?? [];
-  const spaces = category.recommendedSpaces ?? [];
-  const similar = category.recommendedCategories ?? [];
 
   return (
     <Page
@@ -84,9 +44,9 @@ export default async function CategoryPage({ params }: Props) {
     >
       <CategoryContent
         categoryId={categoryId}
-        events={events}
-        spaces={spaces}
-        similar={similar}
+        events={category.recommendedEvents ?? []}
+        spaces={category.recommendedSpaces ?? []}
+        similar={category.recommendedCategories ?? []}
       />
     </Page>
   );

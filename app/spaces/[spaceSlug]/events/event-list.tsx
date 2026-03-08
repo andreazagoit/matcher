@@ -23,6 +23,17 @@ import {
   MARK_EVENT_COMPLETED,
 } from "@/lib/models/events/gql";
 import { EventCard, type EventCardEvent } from "@/components/event-card";
+import {
+  AttendeeStatus,
+  type SpaceEventsQuery,
+  type SpaceEventsQueryVariables,
+  type CreateEventMutation,
+  type CreateEventMutationVariables,
+  type RespondToEventMutation,
+  type RespondToEventMutationVariables,
+  type MarkEventCompletedMutation,
+  type MarkEventCompletedMutationVariables,
+} from "@/lib/graphql/__generated__/graphql";
 
 interface EventListProps {
   spaceId: string;
@@ -44,6 +55,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
     title: "",
     description: "",
     location: "",
+    cover: "",
     startsAt: "",
     endsAt: "",
     categories: [] as string[],
@@ -59,6 +71,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
             title: newEvent.title,
             description: newEvent.description || undefined,
             location: newEvent.location || undefined,
+            cover: newEvent.cover,
             startsAt: new Date(newEvent.startsAt).toISOString(),
             endsAt: newEvent.endsAt ? new Date(newEvent.endsAt).toISOString() : undefined,
             categories: newEvent.categories.length > 0 ? newEvent.categories : undefined,
@@ -66,7 +79,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
         },
       });
       setShowCreate(false);
-      setNewEvent({ title: "", description: "", location: "", startsAt: "", endsAt: "", categories: [] });
+      setNewEvent({ title: "", description: "", location: "", cover: "", startsAt: "", endsAt: "", categories: [] });
       refetch();
     } catch (err) {
       console.error("Failed to create event:", err);
@@ -91,7 +104,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
     }
   };
 
-  const events = data?.spaceEvents ?? [];
+  const events = data?.space?.events?.nodes ?? [];
 
   if (loading) {
     return (
@@ -145,6 +158,16 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
                     value={newEvent.location}
                     onChange={(e) => setNewEvent((p) => ({ ...p, location: e.target.value }))}
                     placeholder="Es. Piazza del Duomo, Milano"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="event-cover">Cover (URL immagine)</Label>
+                  <Input
+                    id="event-cover"
+                    value={newEvent.cover}
+                    onChange={(e) => setNewEvent((p) => ({ ...p, cover: e.target.value }))}
+                    placeholder="https://..."
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -219,7 +242,7 @@ export function EventList({ spaceId, isAdmin }: EventListProps) {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {events.map((event) => (
+          {events.map((event: EventCardEvent) => (
             <EventCard
               key={event.id}
               event={event as EventCardEvent}

@@ -423,6 +423,7 @@ export async function seedEvents(adminUserId: string) {
         images: ev.images,
         maxAttendees: ev.maxAttendees,
         categories: ev.categories,
+        currency: "eur",
         createdBy: adminUserId,
       });
       console.log(`  ✓ ${ev.title}`);

@@ -15,6 +15,11 @@ import {
 } from "./operations";
 import type { Connection } from "./schema";
 
+function requireAuth(context: GraphQLContext) {
+  if (!context.auth.user) throw new GraphQLError("Not authenticated", { extensions: { code: "UNAUTHENTICATED" } });
+  return context.auth.user;
+}
+
 export const connectionResolvers = {
   User: {
     connections: async (

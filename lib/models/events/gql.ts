@@ -33,12 +33,15 @@ export const GET_SPACE_EVENTS = gql`
     space(id: $spaceId) {
       id
       events {
-        ...EventCardFields
-        createdBy {
-          id
-          name
+        nodes {
+          ...EventCardFields
+          createdBy {
+            id
+            name
+          }
+          currency
         }
-        currency
+        hasNextPage
       }
     }
   }
@@ -110,7 +113,10 @@ export const GET_ALL_EVENTS = gql`
   ${EVENT_CARD_FRAGMENT}
   query GetAllEvents($limit: Int, $offset: Int) {
     events(limit: $limit, offset: $offset) {
-      ...EventCardFields
+      nodes {
+        ...EventCardFields
+      }
+      hasNextPage
     }
   }
 `;

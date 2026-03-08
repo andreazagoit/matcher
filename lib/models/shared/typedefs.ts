@@ -3,4 +3,19 @@ export const sharedTypeDefs = `#graphql
     lat: Float!
     lon: Float!
   }
+
+  input CoordinatesInput {
+    lat: Float!
+    lon: Float!
+  }
+
+  type SpaceConnection {
+    nodes: [Space!]!
+    hasNextPage: Boolean!
+  }
+
+  type EventConnection {
+    nodes: [Event!]!
+    hasNextPage: Boolean!
+  }
 `;

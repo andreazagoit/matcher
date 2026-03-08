@@ -90,7 +90,6 @@ export const memberResolvers = {
                     const userData = await db.query.users.findFirst({ where: eq(users.id, userId) });
                     if (!userData) return;
                     await embedUser(userId, {
-                        tags: userData.tags ?? [],
                         birthdate: userData.birthdate ?? null,
                         gender: userData.gender ?? null,
                         relationshipIntent: userData.relationshipIntent ?? null,

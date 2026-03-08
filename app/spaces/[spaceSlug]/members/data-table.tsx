@@ -47,8 +47,9 @@ import type {
     UpdateMemberRoleMutation,
     UpdateMemberRoleMutationVariables,
     RemoveMemberMutation,
-    RemoveMemberMutationVariables
+    RemoveMemberMutationVariables,
 } from "@/lib/graphql/__generated__/graphql"
+import { MemberRole } from "@/lib/graphql/__generated__/graphql"
 
 interface MembersDataTableProps {
     members: Member[]
@@ -64,7 +65,7 @@ export function MembersDataTable({
     isAdmin = false
 }: MembersDataTableProps) {
     const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-    const [pendingRole, setPendingRole] = useState<"admin" | "member" | null>(null)
+    const [pendingRole, setPendingRole] = useState<MemberRole | null>(null)
     const [isUpdating, setIsUpdating] = useState(false)
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
@@ -72,7 +73,7 @@ export function MembersDataTable({
     const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
     const [showBulkRoleDialog, setShowBulkRoleDialog] = useState(false)
     const [showBulkRemoveDialog, setShowBulkRemoveDialog] = useState(false)
-    const [bulkRole, setBulkRole] = useState<"admin" | "member">("member")
+    const [bulkRole, setBulkRole] = useState<MemberRole>(MemberRole.Member)
 
     const [updateMemberRole] = useMutation<UpdateMemberRoleMutation, UpdateMemberRoleMutationVariables>(UPDATE_MEMBER_ROLE);
     const [removeMember] = useMutation<RemoveMemberMutation, RemoveMemberMutationVariables>(REMOVE_MEMBER);
@@ -83,7 +84,7 @@ export function MembersDataTable({
         .map((k) => members[parseInt(k)])
         .filter(Boolean) as Member[]
 
-    const handleRoleChange = (newRole: "admin" | "member") => {
+    const handleRoleChange = (newRole: MemberRole) => {
         if (selectedMember && newRole !== selectedMember.role) {
             setPendingRole(newRole)
             setShowConfirmDialog(true)
@@ -186,7 +187,7 @@ export function MembersDataTable({
                     </div>
                     <Separator orientation="vertical" className="h-6" />
                     <div className="flex items-center gap-2">
-                        <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as "admin" | "member")}>
+                        <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as MemberRole)}>
                             <SelectTrigger className="w-[130px] h-8">
                                 <SelectValue />
                             </SelectTrigger>
@@ -342,7 +343,7 @@ export function MembersDataTable({
                                         <div className="flex items-center gap-3">
                                             <Select
                                                 value={selectedMember.role}
-                                                onValueChange={(value) => handleRoleChange(value as "admin" | "member")}
+                                                onValueChange={(value) => handleRoleChange(value as MemberRole)}
                                                 disabled={isUpdating}
                                             >
                                                 <SelectTrigger className="w-[180px]">

@@ -1,6 +1,6 @@
 export const categoryTypeDefs = `#graphql
   type Category {
-    id: String!
+    id: ID!
     """AI-recommended events for this category."""
     recommendedEvents(limit: Int, offset: Int): [Event!]!
     """AI-recommended spaces for this category."""
@@ -13,7 +13,7 @@ export const categoryTypeDefs = `#graphql
     """All available interest categories (unique, sorted)."""
     categories: [Category!]!
     """Single category by slug id, null if not found."""
-    category(id: String!): Category
+    category(id: ID!): Category
   }
 
   extend type Mutation {

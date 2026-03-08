@@ -11,11 +11,6 @@ export const spaceTypeDefs = `#graphql
     invite_only
   }
 
-  enum SpaceType {
-    free
-    tiered
-  }
-
   type Space {
     id: ID!
     name: String!
@@ -30,7 +25,7 @@ export const spaceTypeDefs = `#graphql
     membersCount: Int
     stripeAccountEnabled: Boolean!
     """Events belonging to this space, ordered by startsAt."""
-    events(limit: Int, offset: Int): [Event!]!
+    events(limit: Int, offset: Int): EventConnection!
     """Upcoming events from other spaces with similar embeddings (AI-recommended)."""
     recommendedEvents(limit: Int): [Event!]!
   }
@@ -58,7 +53,7 @@ export const spaceTypeDefs = `#graphql
 
   extend type Query {
     space(id: ID, slug: String): Space
-    spaces: [Space!]!
+    spaces(limit: Int, offset: Int): SpaceConnection!
     mySpaces: [Space!]!
   }
 

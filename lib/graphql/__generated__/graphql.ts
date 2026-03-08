@@ -39,7 +39,7 @@ export enum AttendeeStatus {
 
 export type Category = {
   __typename: 'Category';
-  id: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
   /** Categories with similar embeddings. */
   recommendedCategories: Array<Scalars['String']['output']>;
   /** AI-recommended events for this category. */
@@ -95,20 +95,25 @@ export type Coordinates = {
   lon: Scalars['Float']['output'];
 };
 
+export type CoordinatesInput = {
+  lat: Scalars['Float']['input'];
+  lon: Scalars['Float']['input'];
+};
+
 export type CreateEventInput = {
   categories?: InputMaybe<Array<Scalars['String']['input']>>;
+  coordinates?: InputMaybe<CoordinatesInput>;
   cover: Scalars['String']['input'];
   currency?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
-  endsAt?: InputMaybe<Scalars['String']['input']>;
+  endsAt?: InputMaybe<Scalars['DateTime']['input']>;
   images?: InputMaybe<Array<Scalars['String']['input']>>;
-  lat?: InputMaybe<Scalars['Float']['input']>;
   location?: InputMaybe<Scalars['String']['input']>;
-  lon?: InputMaybe<Scalars['Float']['input']>;
   maxAttendees?: InputMaybe<Scalars['Int']['input']>;
+  /** Price in cents (e.g. 1000 = €10.00). Omit or 0 for free events. */
   price?: InputMaybe<Scalars['Int']['input']>;
   spaceId: Scalars['ID']['input'];
-  startsAt: Scalars['String']['input'];
+  startsAt: Scalars['DateTime']['input'];
   title: Scalars['String']['input'];
 };
 
@@ -180,18 +185,19 @@ export type Event = {
   endsAt: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   images: Array<Scalars['String']['output']>;
-  /** True when the event requires purchasing a ticket */
+  /** True when the event requires purchasing a ticket. */
   isPaid: Scalars['Boolean']['output'];
   location: Maybe<Scalars['String']['output']>;
   maxAttendees: Maybe<Scalars['Int']['output']>;
-  /** Status of the currently authenticated user for this event (null if not authenticated or not RSVP'd) */
+  /** Viewer's RSVP status. Null if not authenticated or not responded. */
   myAttendeeStatus: Maybe<AttendeeStatus>;
-  /** Payment status for the currently authenticated user (null if free event or no purchase) */
+  /** Viewer's payment status. Null if free event or no purchase. */
   myPaymentStatus: Maybe<PaymentStatus>;
+  /** Price in cents (e.g. 1000 = €10.00). Null for free events. */
   price: Maybe<Scalars['Int']['output']>;
   /** Events with similar embeddings (AI-recommended). Excludes this event. */
   recommendedEvents: Array<Event>;
-  /** The space this event belongs to */
+  /** The space this event belongs to. */
   space: Maybe<Space>;
   spaceId: Scalars['ID']['output'];
   startsAt: Scalars['DateTime']['output'];
@@ -214,6 +220,12 @@ export type EventAttendee = {
   status: AttendeeStatus;
   user: Maybe<User>;
   userId: Scalars['ID']['output'];
+};
+
+export type EventConnection = {
+  __typename: 'EventConnection';
+  hasNextPage: Scalars['Boolean']['output'];
+  nodes: Array<Event>;
 };
 
 export enum Gender {
@@ -297,6 +309,7 @@ export type Mutation = {
   deleteSpace: Scalars['Boolean']['output'];
   deleteUser: Scalars['Boolean']['output'];
   deleteUserItem: Scalars['Boolean']['output'];
+  /** Join a space by its slug. Optionally select a paid tier. */
   joinSpace: Member;
   leaveSpace: Scalars['Boolean']['output'];
   markAllNotificationsRead: Scalars['Boolean']['output'];
@@ -552,18 +565,38 @@ export type Query = {
   /** Check if a username is already taken. */
   checkUsername: Scalars['Boolean']['output'];
   event: Maybe<Event>;
-  events: Array<Event>;
+  events: EventConnection;
   me: Maybe<User>;
   mySpaces: Array<Space>;
   myUpcomingEvents: Array<Event>;
+  /**
+   * Categories recommended for the authenticated viewer based on embedding similarity.
+   * Returns [] for unauthenticated requests.
+   */
+  recommendedCategories: Array<Category>;
+  /**
+   * AI-recommended events for the authenticated viewer.
+   * Returns [] for unauthenticated requests.
+   */
+  recommendedEvents: EventConnection;
+  /**
+   * AI-recommended spaces for the authenticated viewer.
+   * Returns empty connection for unauthenticated requests.
+   */
+  recommendedSpaces: SpaceConnection;
+  /**
+   * Users with similar embeddings to the authenticated viewer.
+   * Returns [] for unauthenticated requests.
+   */
+  recommendedUsers: Array<User>;
   space: Maybe<Space>;
-  spaces: Array<Space>;
+  spaces: SpaceConnection;
   user: Maybe<User>;
 };
 
 
 export type QueryCategoryArgs = {
-  id: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
 };
 
 
@@ -583,9 +616,39 @@ export type QueryEventsArgs = {
 };
 
 
+export type QueryRecommendedCategoriesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryRecommendedEventsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryRecommendedSpacesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryRecommendedUsersArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type QuerySpaceArgs = {
   id?: InputMaybe<Scalars['ID']['input']>;
   slug?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QuerySpacesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -624,7 +687,7 @@ export type Space = {
   createdAt: Scalars['DateTime']['output'];
   description: Maybe<Scalars['String']['output']>;
   /** Events belonging to this space, ordered by startsAt. */
-  events: Array<Event>;
+  events: EventConnection;
   feed: Array<Post>;
   id: Scalars['ID']['output'];
   images: Array<Scalars['String']['output']>;
@@ -664,10 +727,11 @@ export type SpaceRecommendedEventsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export enum SpaceType {
-  Free = 'free',
-  Tiered = 'tiered'
-}
+export type SpaceConnection = {
+  __typename: 'SpaceConnection';
+  hasNextPage: Scalars['Boolean']['output'];
+  nodes: Array<Space>;
+};
 
 export enum SpaceVisibility {
   Hidden = 'hidden',
@@ -683,17 +747,17 @@ export enum TierInterval {
 
 export type UpdateEventInput = {
   categories?: InputMaybe<Array<Scalars['String']['input']>>;
+  coordinates?: InputMaybe<CoordinatesInput>;
   cover?: InputMaybe<Scalars['String']['input']>;
   currency?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
-  endsAt?: InputMaybe<Scalars['String']['input']>;
+  endsAt?: InputMaybe<Scalars['DateTime']['input']>;
   images?: InputMaybe<Array<Scalars['String']['input']>>;
-  lat?: InputMaybe<Scalars['Float']['input']>;
   location?: InputMaybe<Scalars['String']['input']>;
-  lon?: InputMaybe<Scalars['Float']['input']>;
   maxAttendees?: InputMaybe<Scalars['Int']['input']>;
+  /** Price in cents (e.g. 1000 = €10.00). Omit or 0 for free events. */
   price?: InputMaybe<Scalars['Int']['input']>;
-  startsAt?: InputMaybe<Scalars['String']['input']>;
+  startsAt?: InputMaybe<Scalars['DateTime']['input']>;
   title?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -744,7 +808,7 @@ export type UpdateUserItemInput = {
   promptKey?: InputMaybe<Scalars['String']['input']>;
 };
 
-/** User — demographic, auth, and location data */
+/** User — demographic, auth, and location data. */
 export type User = {
   __typename: 'User';
   activityLevel: Maybe<ActivityLevel>;
@@ -780,14 +844,6 @@ export type User = {
   locationUpdatedAt: Maybe<Scalars['DateTime']['output']>;
   name: Scalars['String']['output'];
   notifications: NotificationsResult;
-  /** Categories recommended based on embedding similarity. Only visible to own profile. */
-  recommendedCategories: Array<Category>;
-  /** Recommended events based on embedding similarity. Only visible to own profile. */
-  recommendedEvents: Array<Event>;
-  /** Recommended spaces based on embedding similarity. Only visible to own profile. */
-  recommendedSpaces: Array<Space>;
-  /** Users with similar embeddings. Only visible to own profile. */
-  recommendedUsers: Array<User>;
   relationshipIntent: Array<Scalars['String']['output']>;
   relationshipStyle: Maybe<RelationshipStyle>;
   religion: Maybe<Religion>;
@@ -801,49 +857,21 @@ export type User = {
 };
 
 
-/** User — demographic, auth, and location data */
+/** User — demographic, auth, and location data. */
 export type UserConnectionArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-/** User — demographic, auth, and location data */
+/** User — demographic, auth, and location data. */
 export type UserFeedArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
-/** User — demographic, auth, and location data */
+/** User — demographic, auth, and location data. */
 export type UserNotificationsArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-/** User — demographic, auth, and location data */
-export type UserRecommendedCategoriesArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-/** User — demographic, auth, and location data */
-export type UserRecommendedEventsArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-/** User — demographic, auth, and location data */
-export type UserRecommendedSpacesArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-/** User — demographic, auth, and location data */
-export type UserRecommendedUsersArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -878,21 +906,13 @@ export type GetCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
 export type GetCategoriesQuery = { categories: Array<{ __typename: 'Category', id: string }> };
 
 export type GetCategoryQueryVariables = Exact<{
-  id: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
   eventsLimit?: InputMaybe<Scalars['Int']['input']>;
   spacesLimit?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type GetCategoryQuery = { category: { __typename: 'Category', id: string, recommendedCategories: Array<string>, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, startsAt: unknown, endsAt: unknown | null, spaceId: string, price: number | null, currency: string | null, isPaid: boolean, attendeeCount: number, maxAttendees: number | null, categories: Array<string> }>, recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } | null };
-
-export type GetRecommendedCategoriesQueryVariables = Exact<{
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-}>;
-
-
-export type GetRecommendedCategoriesQuery = { me: { __typename: 'User', id: string, recommendedCategories: Array<{ __typename: 'Category', id: string }> } | null };
+export type GetCategoryQuery = { category: { __typename: 'Category', id: string, recommendedCategories: Array<string>, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }>, recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } | null };
 
 export type ConnectionFieldsFragment = { __typename: 'Connection', id: string, status: ConnectionStatus, initialMessage: string | null, lastMessageAt: unknown | null, createdAt: unknown, updatedAt: unknown, unreadCount: number | null, targetUserItem: { __typename: 'UserItem', id: string, content: string, type: UserItemType }, otherUser: { __typename: 'User', id: string, name: string, image: string | null }, lastMessage: { __typename: 'Message', content: string, createdAt: unknown } | null };
 
@@ -959,7 +979,7 @@ export type SpaceEventsQueryVariables = Exact<{
 }>;
 
 
-export type SpaceEventsQuery = { space: { __typename: 'Space', id: string, events: Array<{ __typename: 'Event', currency: string | null, id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean, createdBy: { __typename: 'User', id: string, name: string } }> } | null };
+export type SpaceEventsQuery = { space: { __typename: 'Space', id: string, events: { __typename: 'EventConnection', hasNextPage: boolean, nodes: Array<{ __typename: 'Event', currency: string | null, id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean, createdBy: { __typename: 'User', id: string, name: string } }> } } | null };
 
 export type GetEventQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -979,7 +999,7 @@ export type GetAllEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetAllEventsQuery = { events: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> };
+export type GetAllEventsQuery = { events: { __typename: 'EventConnection', hasNextPage: boolean, nodes: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> } };
 
 export type UpdateEventMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -1107,10 +1127,13 @@ export type DeletePostMutation = { deletePost: boolean };
 
 export type SpaceFieldsFragment = { __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown };
 
-export type GetAllSpacesQueryVariables = Exact<{ [key: string]: never; }>;
+export type GetAllSpacesQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+}>;
 
 
-export type GetAllSpacesQuery = { spaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> };
+export type GetAllSpacesQuery = { spaces: { __typename: 'SpaceConnection', hasNextPage: boolean, nodes: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } };
 
 export type GetMySpacesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1271,13 +1294,13 @@ export type UpdateLocationMutationVariables = Exact<{
 
 export type UpdateLocationMutation = { updateLocation: { __typename: 'User', id: string, location: string | null, locationUpdatedAt: unknown | null, coordinates: { __typename: 'Coordinates', lat: number, lon: number } | null } };
 
-export type GetUserRecommendedEventsQueryVariables = Exact<{
+export type GetRecommendedEventsQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type GetUserRecommendedEventsQuery = { me: { __typename: 'User', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> } | null };
+export type GetRecommendedEventsQuery = { recommendedEvents: { __typename: 'EventConnection', hasNextPage: boolean, nodes: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> } };
 
 export type GetRecommendedSpacesQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -1285,7 +1308,7 @@ export type GetRecommendedSpacesQueryVariables = Exact<{
 }>;
 
 
-export type GetRecommendedSpacesQuery = { me: { __typename: 'User', id: string, recommendedSpaces: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } | null };
+export type GetRecommendedSpacesQuery = { recommendedSpaces: { __typename: 'SpaceConnection', hasNextPage: boolean, nodes: Array<{ __typename: 'Space', id: string, name: string, slug: string, description: string | null, cover: string, images: Array<string>, categories: Array<string>, visibility: SpaceVisibility, joinPolicy: JoinPolicy, membersCount: number | null, stripeAccountEnabled: boolean, createdAt: unknown }> } };
 
 export type GetRecommendedUsersQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -1293,7 +1316,7 @@ export type GetRecommendedUsersQueryVariables = Exact<{
 }>;
 
 
-export type GetRecommendedUsersQuery = { me: { __typename: 'User', id: string, recommendedUsers: Array<{ __typename: 'User', id: string, username: string | null, name: string, image: string | null, birthdate: string, gender: Gender | null, userItems: Array<{ __typename: 'UserItem', id: string, type: UserItemType, content: string, displayOrder: number }> }> } | null };
+export type GetRecommendedUsersQuery = { recommendedUsers: Array<{ __typename: 'User', id: string, username: string | null, name: string, image: string | null, birthdate: string, gender: Gender | null, userItems: Array<{ __typename: 'UserItem', id: string, type: UserItemType, content: string, displayOrder: number }> }> };
 
 export type GetRecommendedCategoriesWithEventsQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -1301,4 +1324,4 @@ export type GetRecommendedCategoriesWithEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetRecommendedCategoriesWithEventsQuery = { me: { __typename: 'User', id: string, recommendedCategories: Array<{ __typename: 'Category', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> }> } | null };
+export type GetRecommendedCategoriesWithEventsQuery = { recommendedCategories: Array<{ __typename: 'Category', id: string, recommendedEvents: Array<{ __typename: 'Event', id: string, title: string, description: string | null, location: string | null, cover: string, startsAt: unknown, endsAt: unknown | null, maxAttendees: number | null, attendeeCount: number, myAttendeeStatus: AttendeeStatus | null, categories: Array<string>, spaceId: string, price: number | null, isPaid: boolean }> }> };

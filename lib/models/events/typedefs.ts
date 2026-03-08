@@ -22,6 +22,7 @@ export const eventTypeDefs = `#graphql
     images: [String!]!
     categories: [String!]!
     maxAttendees: Int
+    """Price in cents (e.g. 1000 = €10.00). Null for free events."""
     price: Int
     currency: String
     createdBy: User!
@@ -29,13 +30,13 @@ export const eventTypeDefs = `#graphql
     updatedAt: DateTime!
     attendees: [EventAttendee!]!
     attendeeCount: Int!
-    """Status of the currently authenticated user for this event (null if not authenticated or not RSVP'd)"""
+    """Viewer's RSVP status. Null if not authenticated or not responded."""
     myAttendeeStatus: AttendeeStatus
-    """The space this event belongs to"""
+    """The space this event belongs to."""
     space: Space
-    """True when the event requires purchasing a ticket"""
+    """True when the event requires purchasing a ticket."""
     isPaid: Boolean!
-    """Payment status for the currently authenticated user (null if free event or no purchase)"""
+    """Viewer's payment status. Null if free event or no purchase."""
     myPaymentStatus: PaymentStatus
     """Events with similar embeddings (AI-recommended). Excludes this event."""
     recommendedEvents(limit: Int): [Event!]!
@@ -52,8 +53,6 @@ export const eventTypeDefs = `#graphql
     paymentStatus: PaymentStatus
   }
 
-
-
   enum AttendeeStatus {
     going
     interested
@@ -65,14 +64,14 @@ export const eventTypeDefs = `#graphql
     title: String!
     description: String
     location: String
-    lat: Float
-    lon: Float
-    startsAt: String!
-    endsAt: String
+    coordinates: CoordinatesInput
+    startsAt: DateTime!
+    endsAt: DateTime
     cover: String!
     images: [String!]
     categories: [String!]
     maxAttendees: Int
+    """Price in cents (e.g. 1000 = €10.00). Omit or 0 for free events."""
     price: Int
     currency: String
   }
@@ -81,43 +80,35 @@ export const eventTypeDefs = `#graphql
     title: String
     description: String
     location: String
-    lat: Float
-    lon: Float
-    startsAt: String
-    endsAt: String
+    coordinates: CoordinatesInput
+    startsAt: DateTime
+    endsAt: DateTime
     cover: String
     images: [String!]
     categories: [String!]
     maxAttendees: Int
+    """Price in cents (e.g. 1000 = €10.00). Omit or 0 for free events."""
     price: Int
     currency: String
   }
 
   extend type Query {
     event(id: ID!): Event
-    events(limit: Int, offset: Int): [Event!]!
+    events(limit: Int, offset: Int): EventConnection!
     myUpcomingEvents: [Event!]!
   }
 
   extend type Mutation {
-    """
-    Create a new event in a space.
-    """
+    """Create a new event in a space."""
     createEvent(input: CreateEventInput!): Event!
 
-    """
-    Update an existing event.
-    """
+    """Update an existing event."""
     updateEvent(id: ID!, input: UpdateEventInput!): Event!
 
-    """
-    Respond to an event (going, interested).
-    """
+    """Respond to an event (going, interested)."""
     respondToEvent(eventId: ID!, status: AttendeeStatus!): EventAttendee!
 
-    """
-    Mark an event as completed. Attendees with status 'going' become 'attended'.
-    """
+    """Mark an event as completed. Attendees with status 'going' become 'attended'."""
     markEventCompleted(eventId: ID!): Event!
   }
 `;

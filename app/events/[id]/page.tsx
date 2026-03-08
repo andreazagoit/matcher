@@ -174,7 +174,7 @@ export default function EventDetailPage() {
   const endDate = event.endsAt ? new Date(event.endsAt as string) : null;
   const isPast = startDate < new Date();
 
-  const gradient = getGradient(event.tags ?? []);
+  const gradient = getGradient(event.categories ?? []);
   const myStatus = event.myAttendeeStatus;
   const isPaid = event.isPaid;
   const myPaymentStatus = event.myPaymentStatus;
@@ -246,7 +246,7 @@ export default function EventDetailPage() {
               )}
             </p>
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground pt-0.5">
-              {event.tags && event.tags.slice(0, 3).map((tag: string) => (
+              {event.categories && event.categories.slice(0, 3).map((tag: string) => (
                 <span key={tag} className="inline-flex items-center gap-1">
                   <TagIcon className="h-3.5 w-3.5" />
                   {tag}
@@ -545,13 +545,13 @@ function DetailsTab({
         </>
       )}
 
-      {event.tags && event.tags.length > 0 && (
+      {event.categories && event.categories.length > 0 && (
         <>
           <Separator />
           <div className="space-y-3">
             <h2 className="text-base font-semibold">Tag</h2>
             <div className="flex flex-wrap gap-1.5">
-              {event.tags.map((tag: string) => (
+              {event.categories.map((tag: string) => (
                 <Badge key={tag} variant="secondary">{tag}</Badge>
               ))}
             </div>

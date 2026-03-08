@@ -15,6 +15,11 @@ export const createSpaceSchema = z.object({
   joinPolicy: z.enum(joinPolicyValues).default("open"),
 });
 
+/** Form-level schema: slug is optional (auto-generated from name if empty), images not collected in dialog. */
+export const createSpaceFormSchema = createSpaceSchema.omit({ images: true }).extend({
+  slug: z.string().max(100).optional().default(""),
+});
+
 export const updateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(1000).optional(),
@@ -26,4 +31,5 @@ export const updateSpaceSchema = z.object({
 });
 
 export type CreateSpaceInput = z.infer<typeof createSpaceSchema>;
+export type CreateSpaceFormData = z.infer<typeof createSpaceFormSchema>;
 export type UpdateSpaceInput = z.infer<typeof updateSpaceSchema>;

@@ -11,26 +11,16 @@ import type {
   JoinSpaceMutationVariables,
   LeaveSpaceMutation,
   LeaveSpaceMutationVariables,
+  MembershipTier,
 } from "@/lib/graphql/__generated__/graphql";
 import { TierSelectionModal } from "@/components/spaces/tier-selection-modal";
 import Link from "next/link";
-
-interface Tier {
-  id: string;
-  name: string;
-  description?: string | null;
-  price: number;
-  currency: string;
-  interval: string;
-  isActive: boolean;
-  spaceId: string;
-}
 
 interface Props {
   spaceSlug: string;
   spaceId: string;
   isMember: boolean;
-  tiers: Tier[];
+  tiers: MembershipTier[];
   isAuthenticated: boolean;
   isWaitingPayment?: boolean;
 }

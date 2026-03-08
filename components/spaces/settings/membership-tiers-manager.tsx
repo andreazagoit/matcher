@@ -10,8 +10,9 @@ import type {
     CreateTierMutationVariables,
     ArchiveTierMutation,
     ArchiveTierMutationVariables,
-    MembershipTier
+    MembershipTier,
 } from "@/lib/graphql/__generated__/graphql"
+import { TierInterval } from "@/lib/graphql/__generated__/graphql"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -34,11 +35,11 @@ export function MembershipTiersManager({ spaceId }: MembershipTiersManagerProps)
 
     const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
-    const [newTier, setNewTier] = useState({
+    const [newTier, setNewTier] = useState<{ name: string; description: string; price: number; interval: TierInterval }>({
         name: "",
         description: "",
         price: 0,
-        interval: "month",
+        interval: TierInterval.Month,
     });
 
     const tiers = data?.space?.tiers || [];
@@ -58,7 +59,7 @@ export function MembershipTiersManager({ spaceId }: MembershipTiersManagerProps)
             });
 
             setIsCreating(false);
-            setNewTier({ name: "", description: "", price: 0, interval: "month" });
+            setNewTier({ name: "", description: "", price: 0, interval: TierInterval.Month });
             refetch();
         } catch (error) {
             console.error(error);
@@ -150,7 +151,7 @@ export function MembershipTiersManager({ spaceId }: MembershipTiersManagerProps)
                                 <Label>Interval</Label>
                                 <Select
                                     value={newTier.interval}
-                                    onValueChange={(val) => setNewTier({ ...newTier, interval: val })}
+                                    onValueChange={(val) => setNewTier({ ...newTier, interval: val as TierInterval })}
                                 >
                                     <SelectTrigger>
                                         <SelectValue />

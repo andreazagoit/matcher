@@ -7,6 +7,7 @@ import { Page } from "@/components/page";
 import { Container } from "@/components/container";
 import { EditProfileForm } from "./edit-profile-form";
 import type { GetUserQuery, GetUserQueryVariables } from "@/lib/graphql/__generated__/graphql";
+import type { EditableUser } from "./edit-profile-form";
 
 export default async function EditProfilePage({
     params,
@@ -41,7 +42,7 @@ export default async function EditProfilePage({
                     <h1 className="text-3xl font-bold tracking-tight">Modifica il tuo profilo</h1>
                     <p className="text-muted-foreground mt-2">Aggiorna le tue informazioni, caratteristiche e interessi.</p>
                 </div>
-                <EditProfileForm user={user} />
+                <EditProfileForm user={user as unknown as EditableUser} />
             </Container>
         </Page>
     );

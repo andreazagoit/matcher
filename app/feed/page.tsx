@@ -5,9 +5,10 @@ import { GET_USER_FEED } from "@/lib/models/posts/gql";
 import { Loader2 } from "lucide-react";
 import { Page } from "@/components/page";
 import { PostCard } from "@/components/feed/post-card";
+import type { GetUserFeedQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default function FeedPage() {
-    const { data, loading } = useQuery(GET_USER_FEED);
+    const { data, loading } = useQuery<GetUserFeedQuery>(GET_USER_FEED);
     const posts = data?.me?.feed ?? [];
 
     if (loading && posts.length === 0) {
