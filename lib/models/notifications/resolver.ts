@@ -18,18 +18,16 @@ function requireAuth(context: GraphQLContext) {
 }
 
 export const notificationResolvers = {
-  User: {
+  Query: {
     notifications: async (
-      parent: { id: string },
+      _: unknown,
       { limit = 20, offset = 0 }: { limit?: number; offset?: number },
       context: GraphQLContext,
     ) => {
-      if (context.auth.user?.id !== parent.id) {
-        return { items: [], unreadCount: 0 };
-      }
+      const user = requireAuth(context);
       const [items, unreadCount] = await Promise.all([
-        getNotificationsForUser(parent.id, limit, offset),
-        getUnreadCount(parent.id),
+        getNotificationsForUser(user.id, limit, offset),
+        getUnreadCount(user.id),
       ]);
       return { items, unreadCount };
     },

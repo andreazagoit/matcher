@@ -88,10 +88,12 @@ export async function getSpaceBySlug(slug: string): Promise<Space | null> {
   return result || null;
 }
 
-export async function getAllSpaces(): Promise<Space[]> {
+export async function getAllSpaces(limit = 24, offset = 0): Promise<Space[]> {
   return db.query.spaces.findMany({
     where: (spaces, { eq }) => eq(spaces.visibility, "public"),
     orderBy: (spaces, { desc }) => [desc(spaces.membersCount), desc(spaces.createdAt)],
+    limit,
+    offset,
   });
 }
 

@@ -15,13 +15,10 @@ export const NOTIFICATION_FRAGMENT = gql`
 export const GET_NOTIFICATIONS = gql`
   ${NOTIFICATION_FRAGMENT}
   query GetNotifications($limit: Int, $offset: Int) {
-    me {
-      id
-      notifications(limit: $limit, offset: $offset) {
-        unreadCount
-        items {
-          ...NotificationFields
-        }
+    notifications(limit: $limit, offset: $offset) {
+      unreadCount
+      items {
+        ...NotificationFields
       }
     }
   }

@@ -21,32 +21,32 @@ function requireAuth(context: GraphQLContext) {
 }
 
 export const connectionResolvers = {
-  User: {
-    connections: async (
-      parent: { id: string },
+  Query: {
+    myConnections: async (
       _: unknown,
+      __: unknown,
       context: GraphQLContext,
     ) => {
-      if (context.auth.user?.id !== parent.id) return [];
-      return getActiveConnections(parent.id);
+      const user = requireAuth(context);
+      return getActiveConnections(user.id);
     },
 
-    connectionRequests: async (
-      parent: { id: string },
+    myConnectionRequests: async (
       _: unknown,
+      __: unknown,
       context: GraphQLContext,
     ) => {
-      if (context.auth.user?.id !== parent.id) return [];
-      return getMessageRequests(parent.id);
+      const user = requireAuth(context);
+      return getMessageRequests(user.id);
     },
 
     connection: async (
-      parent: { id: string },
+      _: unknown,
       { id }: { id: string },
       context: GraphQLContext,
     ) => {
-      if (context.auth.user?.id !== parent.id) return null;
-      return getConnectionById(id, parent.id);
+      const user = requireAuth(context);
+      return getConnectionById(id, user.id);
     },
   },
 

@@ -30,14 +30,14 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-    const { data, loading, error } = useQuery<{ me: { connections: Connection[] } | null }>(GET_CONVERSATIONS, {
+    const { data, loading, error } = useQuery<{ myConnections: Connection[] }>(GET_CONVERSATIONS, {
         pollInterval: 5000,
     });
 
     if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin" /></div>;
     if (error) return <div className="p-4 text-destructive">Error loading chats</div>;
 
-    const connections = data?.me?.connections ?? [];
+    const connections = data?.myConnections ?? [];
 
     if (connections.length === 0) {
         return <div className="p-4 text-center text-muted-foreground">No connections yet</div>;

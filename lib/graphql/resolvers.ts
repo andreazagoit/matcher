@@ -10,16 +10,15 @@ import { categoryResolvers } from "../models/categories/resolver";
 import { tierResolvers } from "../models/tiers/resolver";
 import { userResolvers } from "../models/users/resolver";
 
-
-
 export const resolvers = {
-
-
   Query: {
     ...eventResolvers.Query,
     ...spaceResolvers.Query,
     ...categoryResolvers.Query,
     ...userResolvers.Query,
+    ...notificationResolvers.Query,
+    ...postResolvers.Query,
+    ...connectionResolvers.Query,
   },
 
   Mutation: {
@@ -34,7 +33,6 @@ export const resolvers = {
     ...notificationResolvers.Mutation,
   },
 
-  // Relationship and specific type resolvers
   Category: categoryResolvers.Category,
   Connection: connectionResolvers.Connection,
   Event: eventResolvers.Event,
@@ -46,14 +44,11 @@ export const resolvers = {
     ...spaceResolvers.Space,
     ...memberResolvers.Space,
     ...postResolvers.Space,
-    ...tierResolvers.Space
+    ...tierResolvers.Space,
   },
   User: {
     ...userResolvers.User,
-    ...notificationResolvers.User,
     ...userItemResolvers.User,
     ...matchResolvers.User,
-    ...postResolvers.User,
-    ...connectionResolvers.User,
   },
 };

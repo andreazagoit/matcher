@@ -8,17 +8,17 @@ import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
 
 export const postResolvers = {
-    User: {
+    Query: {
         feed: async (
-            parent: { id: string },
+            _: unknown,
             { limit = 20, offset = 0 }: { limit?: number; offset?: number },
             { auth }: GraphQLContext
         ) => {
-            if (!auth.user || auth.user.id !== parent.id) return [];
+            if (!auth.user) throw new GraphQLError("Authentication required", { extensions: { code: "UNAUTHENTICATED" } });
 
             const memberships = await db.query.members.findMany({
                 where: and(
-                    eq(members.userId, parent.id),
+                    eq(members.userId, auth.user.id),
                     eq(members.status, "active")
                 ),
                 columns: { spaceId: true },

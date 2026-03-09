@@ -1,33 +1,19 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { query } from "@/lib/graphql/apollo-client";
 import { Page } from "@/components/page";
 import { CalendarIcon } from "lucide-react";
-import { GET_ALL_EVENTS } from "@/lib/models/events/gql";
 import { GET_RECOMMENDED_EVENTS } from "@/lib/models/users/gql";
 import type {
-  GetAllEventsQuery,
-  GetAllEventsQueryVariables,
   GetRecommendedEventsQuery,
   GetRecommendedEventsQueryVariables,
 } from "@/lib/graphql/__generated__/graphql";
 import { EventCard } from "@/components/event-card";
 
 export default async function EventsPage() {
-  const session = await auth.api
-    .getSession({ headers: await headers() })
-    .catch(() => null);
-  const isAuthenticated = !!session?.user;
-
-  const events = isAuthenticated
-    ? await query<GetRecommendedEventsQuery, GetRecommendedEventsQueryVariables>({
-        query: GET_RECOMMENDED_EVENTS,
-        variables: { limit: 24 },
-      }).then((res) => res.data?.recommendedEvents?.nodes ?? [])
-    : await query<GetAllEventsQuery, GetAllEventsQueryVariables>({
-        query: GET_ALL_EVENTS,
-        variables: { limit: 24 },
-      }).then((res) => res.data?.events?.nodes ?? []);
+  const res = await query<GetRecommendedEventsQuery, GetRecommendedEventsQueryVariables>({
+    query: GET_RECOMMENDED_EVENTS,
+    variables: { limit: 24 },
+  });
+  const events = res.data?.recommendedEvents?.nodes ?? [];
 
   return (
     <Page
@@ -36,7 +22,7 @@ export default async function EventsPage() {
         <div className="space-y-1">
           <h1 className="text-4xl font-extrabold tracking-tight">Eventi</h1>
           <p className="text-lg text-muted-foreground font-medium">
-            {isAuthenticated ? "Consigliati per te" : "Prossimi eventi in community"}
+            Prossimi eventi in community
           </p>
         </div>
       }
@@ -46,9 +32,7 @@ export default async function EventsPage() {
           <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <h3 className="text-xl font-semibold">Nessun evento</h3>
           <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-            {isAuthenticated
-              ? "Completa il tuo profilo e aggiungi interessi per ricevere suggerimenti personalizzati."
-              : "Non ci sono eventi in programma al momento."}
+            Non ci sono eventi in programma al momento.
           </p>
         </div>
       ) : (

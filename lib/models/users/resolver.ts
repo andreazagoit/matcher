@@ -24,9 +24,10 @@ import { spaces } from "@/lib/models/spaces/schema";
 import { members } from "@/lib/models/members/schema";
 import { embeddings } from "@/lib/models/embeddings/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
+import { getAllEvents } from "@/lib/models/events/operations";
+import { getAllSpaces } from "@/lib/models/spaces/operations";
 
 const EMPTY_SPACE_CONNECTION = { nodes: [], hasNextPage: false };
-const EMPTY_EVENT_CONNECTION = { nodes: [], hasNextPage: false };
 
 export const userResolvers = {
   Query: {
@@ -47,7 +48,10 @@ export const userResolvers = {
       { limit = 10, offset = 0 }: { limit?: number; offset?: number },
       context: GraphQLContext,
     ) => {
-      if (!context.auth.user) return EMPTY_EVENT_CONNECTION;
+      if (!context.auth.user) {
+        const rows = await getAllEvents(limit + 1, offset);
+        return { nodes: rows.slice(0, limit), hasNextPage: rows.length > limit };
+      }
       const userId = context.auth.user.id;
       const nodes = await getUserRecommendedEvents(userId, limit + 1, offset);
       return { nodes: nodes.slice(0, limit), hasNextPage: nodes.length > limit };
@@ -58,7 +62,10 @@ export const userResolvers = {
       { limit = 10, offset = 0 }: { limit?: number; offset?: number },
       context: GraphQLContext,
     ) => {
-      if (!context.auth.user) return EMPTY_SPACE_CONNECTION;
+      if (!context.auth.user) {
+        const rows = await getAllSpaces(limit + 1, offset);
+        return { nodes: rows.slice(0, limit), hasNextPage: rows.length > limit };
+      }
       const userId = context.auth.user.id;
       const joined = await db
         .select({ spaceId: members.spaceId })

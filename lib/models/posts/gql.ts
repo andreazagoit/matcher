@@ -30,11 +30,8 @@ export const POST_FRAGMENT = gql`
 export const GET_USER_FEED = gql`
   ${POST_FRAGMENT}
   query GetUserFeed($limit: Int, $offset: Int) {
-    me {
-      id
-      feed(limit: $limit, offset: $offset) {
-        ...PostFields
-      }
+    feed(limit: $limit, offset: $offset) {
+      ...PostFields
     }
   }
 `;

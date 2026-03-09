@@ -31,12 +31,12 @@ export const connectionTypeDefs = `#graphql
     createdAt: DateTime!
   }
 
-  extend type User {
-    """Accepted connections (chats) for the authenticated user."""
-    connections: [Connection!]!
-    """Pending incoming connection requests."""
-    connectionRequests: [Connection!]!
-    """Single connection by ID (must belong to the authenticated user)."""
+  extend type Query {
+    """Accepted connections (chats) for the authenticated viewer."""
+    myConnections: [Connection!]!
+    """Pending incoming connection requests for the authenticated viewer."""
+    myConnectionRequests: [Connection!]!
+    """Single connection by ID (must belong to the authenticated viewer)."""
     connection(id: ID!): Connection
   }
 

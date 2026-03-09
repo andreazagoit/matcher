@@ -39,7 +39,7 @@ export function ChatWindow({ connectionId }: ChatWindowProps) {
     const [content, setContent] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const { data, loading, error } = useQuery<{ me: { connection: Connection & { messages: Message[] } } | null }>(GET_MESSAGES, {
+    const { data, loading, error } = useQuery<{ connection: (Connection & { messages: Message[] }) | null }>(GET_MESSAGES, {
         variables: { connectionId },
         pollInterval: 3000,
     });
@@ -53,7 +53,7 @@ export function ChatWindow({ connectionId }: ChatWindowProps) {
         if (scrollRef.current) {
             scrollRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [data?.me?.connection?.messages]);
+    }, [data?.connection?.messages]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,8 +72,8 @@ export function ChatWindow({ connectionId }: ChatWindowProps) {
     if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin" /></div>;
     if (error) return <div className="flex h-full items-center justify-center text-destructive">Error loading messages</div>;
 
-    const connection = data?.me?.connection;
-    const messages = [...(data?.me?.connection?.messages ?? [])].reverse();
+    const connection = data?.connection;
+    const messages = [...(data?.connection?.messages ?? [])].reverse();
 
     return (
         <div className="flex flex-col h-full">

@@ -9,7 +9,7 @@ import type { GetUserFeedQuery } from "@/lib/graphql/__generated__/graphql";
 
 export default function FeedPage() {
     const { data, loading } = useQuery<GetUserFeedQuery>(GET_USER_FEED);
-    const posts = data?.me?.feed ?? [];
+    const posts = data?.feed ?? [];
 
     if (loading && posts.length === 0) {
         return (

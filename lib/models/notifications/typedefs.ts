@@ -24,7 +24,7 @@ export const notificationTypeDefs = `#graphql
     unreadCount: Int!
   }
 
-  extend type User {
+  extend type Query {
     notifications(limit: Int, offset: Int): NotificationsResult!
   }
 

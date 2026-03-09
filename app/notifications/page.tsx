@@ -34,8 +34,8 @@ export default function NotificationsPage() {
     onCompleted: () => refetch(),
   });
 
-  const notifications = data?.me?.notifications?.items ?? [];
-  const unread = data?.me?.notifications?.unreadCount ?? 0;
+  const notifications = data?.notifications?.items ?? [];
+  const unread = data?.notifications?.unreadCount ?? 0;
 
   const handleClick = async (id: string, href?: string | null) => {
     await markRead({ variables: { id } });
