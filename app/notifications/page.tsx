@@ -14,9 +14,11 @@ import {
   DELETE_NOTIFICATION,
 } from "@/lib/models/notifications/gql";
 import type { GetNotificationsQuery } from "@/lib/graphql/__generated__/graphql";
+import { useHaptics, hapticPatterns } from "@/hooks/useHaptics";
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const haptic = useHaptics();
 
   const { data, refetch } = useQuery<GetNotificationsQuery>(GET_NOTIFICATIONS, {
     variables: { limit: 50 },
@@ -38,6 +40,7 @@ export default function NotificationsPage() {
   const unread = data?.notifications?.unreadCount ?? 0;
 
   const handleClick = async (id: string, href?: string | null) => {
+    haptic(hapticPatterns.tap);
     await markRead({ variables: { id } });
     if (href) router.push(href);
   };
@@ -54,7 +57,7 @@ export default function NotificationsPage() {
             </p>
           </div>
           {unread > 0 && (
-            <Button variant="outline" size="sm" onClick={() => markAllRead()}>
+            <Button variant="outline" size="sm" onClick={() => { haptic(hapticPatterns.tap); markAllRead(); }}>
               Segna tutte come lette
             </Button>
           )}
@@ -113,14 +116,14 @@ export default function NotificationsPage() {
               <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 {!n.read && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); markRead({ variables: { id: n.id } }); }}
+                    onClick={(e) => { e.stopPropagation(); haptic(hapticPatterns.tap); markRead({ variables: { id: n.id } }); }}
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
                     Segna come letta
                   </button>
                 )}
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteNotification({ variables: { id: n.id } }); }}
+                  onClick={(e) => { e.stopPropagation(); haptic(hapticPatterns.delete); deleteNotification({ variables: { id: n.id } }); }}
                   className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />

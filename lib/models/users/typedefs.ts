@@ -16,7 +16,6 @@ export const userTypeDefs = `#graphql
     locationUpdatedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
-    userItems: [UserItem!]!
     gender: Gender
 
     # Orientation & identity

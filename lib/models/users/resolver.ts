@@ -16,8 +16,6 @@ import type { UpdateUserInput } from "./validator";
 import type { GraphQLContext } from "@/lib/graphql/context";
 import { GraphQLError } from "graphql";
 import { embedUser, recommendSpacesForUser } from "@/lib/models/embeddings/operations";
-import { getUserItems } from "@/lib/models/useritems/operations";
-import type { UserItem } from "@/lib/models/useritems/schema";
 import { db } from "@/lib/db/drizzle";
 import { users } from "./schema";
 import { spaces } from "@/lib/models/spaces/schema";
@@ -177,9 +175,6 @@ export const userResolvers = {
     coordinates: (parent: { coordinates?: { x: number; y: number } | null }) => {
       if (!parent.coordinates) return null;
       return { lat: parent.coordinates.y, lon: parent.coordinates.x };
-    },
-    userItems: (parent: { id: string }): Promise<UserItem[]> => {
-      return getUserItems(parent.id);
     },
   },
 };

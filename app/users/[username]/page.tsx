@@ -4,8 +4,6 @@ import { notFound } from "next/navigation";
 import { query } from "@/lib/graphql/apollo-client";
 import { GET_USER } from "@/lib/models/users/gql";
 import { Page } from "@/components/page";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
 import { LogoutButton } from "./logout-button";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
@@ -14,10 +12,11 @@ import Image from "next/image";
 import {
     Briefcase, GraduationCap, Languages, Globe, BookOpen,
     Cigarette, Wine, Dumbbell, Baby, Users, Search, Sprout,
-    Cake, User, Heart, Ruler, Pencil, MapPin
+    User, Heart, Ruler, Pencil, MapPin
 } from "lucide-react";
 import type { GetUserQuery, GetUserQueryVariables } from "@/lib/graphql/__generated__/graphql";
 import type { LucideIcon } from "lucide-react";
+import { interleaveProfileItems } from "@/lib/models/useritems/display";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getAge(birthdate: string): number {
@@ -107,16 +106,14 @@ export default async function UserProfilePage({
     const isOwnProfile = !!sessionUsername && sessionUsername === username;
 
     const age = user.birthdate ? getAge(user.birthdate) : null;
-    const initials = (user.name ?? "").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
-    const userItems: UserItemData[] = user.userItems
-        .slice()
-        .sort((a, b) => a.displayOrder - b.displayOrder);
+    const userItems = interleaveProfileItems(
+        user.userItems.slice().sort((a, b) => a.displayOrder - b.displayOrder)
+    );
 
     // ─── Top row chips (icon + label) ────────────────────────────────────────
     type ChipEntry = { icon: LucideIcon; label: string };
     const chips: ChipEntry[] = [
-        ...(age !== null ? [{ icon: Cake, label: String(age) }] : []),
         ...(user.gender ? [{ icon: User, label: tEnums(`gender.${user.gender}` as Parameters<typeof tEnums>[0]) }] : []),
         ...(user.sexualOrientation?.length ? [{ icon: Heart, label: user.sexualOrientation.map((o: string) => tEnums(`sexualOrientation.${o}` as Parameters<typeof tEnums>[0])).join(", ") }] : []),
         ...(user.heightCm ? [{ icon: Ruler, label: `${user.heightCm} cm` }] : []),
@@ -150,28 +147,30 @@ export default async function UserProfilePage({
 
     return (
         <Page breadcrumbs={[{ label: isOwnProfile ? "Il mio profilo" : (user.name ?? "") }]}>
-            <div className="pb-16 space-y-6">
+            <div className="pb-16">
 
-                {/* ── Container largo: header + caratteristiche ─────────────── */}
-                <div className="space-y-4">
+                {/* ── Two-column layout on lg+, single column on mobile ── */}
+                <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-10 lg:items-start space-y-6 lg:space-y-0">
 
-                    {/* ── Hero header ──────────────────────────────────────────── */}
-                    <div className="flex items-center gap-4 pb-2">
-                        <Avatar className="h-16 w-16 rounded-2xl border-2 border-background shadow-md shrink-0">
-                            <AvatarImage src={user.image ?? undefined} alt={user.name ?? ""} />
-                            <AvatarFallback className="rounded-2xl text-lg font-bold">{initials}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline gap-2 flex-wrap">
-                                <h1 className="text-2xl font-bold tracking-tight truncate">{user.name}</h1>
-                            </div>
+                    {/* ── Left column: identity + info (sticky on desktop) ── */}
+                    <div className="lg:sticky lg:top-6 space-y-4">
+
+                        {/* Hero header — no avatar, first photo is already visible on the right */}
+                        <div className="space-y-1">
+                            <h1 className="text-2xl font-bold tracking-tight">{user.name}
+                                {age !== null && (
+                                    <span className="text-muted-foreground font-normal ml-2">{age}</span>
+                                )}
+                            </h1>
                             {user.username && (
-                                <p className="text-xs text-muted-foreground font-mono mt-0.5">@{user.username}</p>
+                                <p className="text-xs text-muted-foreground font-mono">@{user.username}</p>
                             )}
                         </div>
+
+                        {/* Own profile actions */}
                         {isOwnProfile && (
                             <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm" asChild>
+                                <Button variant="outline" size="sm" asChild className="flex-1">
                                     <Link href={`/users/${user.username}/edit`}>
                                         <Pencil className="w-4 h-4 mr-2" />
                                         Modifica Profilo
@@ -180,71 +179,62 @@ export default async function UserProfilePage({
                                 <LogoutButton />
                             </div>
                         )}
-                    </div>
 
-                    {/* ── Info card (caratteristiche) ──────────────────────────── */}
-                    {(chips.length > 0 || rows.length > 0 || isOwnProfile) && (
-                        <div className="space-y-2">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                                {tProfile("sections.aboutMe")}
-                            </p>
-                            <div className="rounded-2xl border bg-card overflow-hidden">
-
-                                {/* Top row: age · gender · orientation · height */}
-                                {chips.length > 0 && (
-                                    <div className="flex items-center gap-3 px-4 py-3 border-b flex-wrap">
-                                        {chips.map((chip, i) => (
-                                            <span key={i} className="flex items-center gap-3">
-                                                {i > 0 && <span className="w-px h-4 bg-border shrink-0" />}
-                                                <Chip icon={chip.icon} label={chip.label} />
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
-
-                                {/* Hinge-style rows */}
-                                {rows.length > 0 && (
-                                    <div className="px-4 divide-y">
-                                        {rows.map(({ icon, value }, i) => (
-                                            <InfoRow key={i} icon={icon} value={value} />
-                                        ))}
-                                    </div>
-                                )}
-
+                        {/* Info card */}
+                        {(chips.length > 0 || rows.length > 0) && (
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                                    {tProfile("sections.aboutMe")}
+                                </p>
+                                <div className="rounded-2xl border bg-card overflow-hidden">
+                                    {chips.length > 0 && (
+                                        <div className="flex items-center gap-3 px-4 py-3 border-b flex-wrap">
+                                            {chips.map((chip, i) => (
+                                                <span key={i} className="flex items-center gap-3">
+                                                    {i > 0 && <span className="w-px h-4 bg-border shrink-0" />}
+                                                    <Chip icon={chip.icon} label={chip.label} />
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {rows.length > 0 && (
+                                        <div className="px-4 divide-y">
+                                            {rows.map(({ icon, value }, i) => (
+                                                <InfoRow key={i} icon={icon} value={value} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Interessi visibili tramite /categories */}
+                    </div>{/* fine colonna sinistra */}
 
-                </div>{/* fine container largo */}
-
-                {/* ── Container stretto: foto + prompt ──────────────────────── */}
-                <div className="mx-auto max-w-xl space-y-4">
-
-                    {userItems.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground text-sm">
-                            {tProfile("noContent")}
-                        </div>
-                    ) : (
-                        userItems.map((item) => (
-                            <div key={item.id}>
-                                {item.type === "photo" ? (
-                                    <PhotoCard url={item.content} alt={`Foto di ${user.name}`} />
-                                ) : (
-                                    <PromptCard
-                                        question={item.promptKey ? tPrompts(item.promptKey as Parameters<typeof tPrompts>[0]) : ""}
-                                        answer={item.content}
-                                    />
-                                )}
+                    {/* ── Right column: photos + prompts interleaved ── */}
+                    <div className="space-y-4 max-w-xl mx-auto lg:max-w-none">
+                        {userItems.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground text-sm">
+                                {tProfile("noContent")}
                             </div>
-                        ))
-                    )}
+                        ) : (
+                            userItems.map((item) => (
+                                <div key={item.id}>
+                                    {item.type === "photo" ? (
+                                        <PhotoCard url={item.content} alt={`Foto di ${user.name}`} />
+                                    ) : (
+                                        <PromptCard
+                                            question={item.promptKey ? tPrompts(item.promptKey as Parameters<typeof tPrompts>[0]) : ""}
+                                            answer={item.content}
+                                        />
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>{/* fine colonna destra */}
 
-                </div>{/* fine container stretto */}
+                </div>{/* fine grid */}
 
-            </div>{/* fine wrapper esterno */}
+            </div>
         </Page>
     );
 }

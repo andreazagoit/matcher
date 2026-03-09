@@ -44,8 +44,8 @@ export const userItems = pgTable(
   },
   (table) => [
     index("user_items_user_idx").on(table.userId),
-    index("user_items_order_idx").on(table.userId, table.displayOrder),
-    unique("user_items_user_order_unique").on(table.userId, table.displayOrder),
+    index("user_items_order_idx").on(table.userId, table.type, table.displayOrder),
+    unique("user_items_user_type_order_unique").on(table.userId, table.type, table.displayOrder),
   ]
 );
 

@@ -15,6 +15,7 @@ import type {
 } from "@/lib/graphql/__generated__/graphql";
 import { TierSelectionModal } from "@/components/spaces/tier-selection-modal";
 import Link from "next/link";
+import { useHaptics, hapticPatterns } from "@/hooks/useHaptics";
 
 interface Props {
   spaceSlug: string;
@@ -28,6 +29,7 @@ interface Props {
 export function JoinLeaveActions({ spaceSlug, spaceId, isMember, tiers, isAuthenticated, isWaitingPayment }: Props) {
   const router = useRouter();
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const haptic = useHaptics();
 
   const [joinSpace, { loading: joining }] = useMutation<JoinSpaceMutation, JoinSpaceMutationVariables>(JOIN_SPACE);
   const [leaveSpace] = useMutation<LeaveSpaceMutation, LeaveSpaceMutationVariables>(LEAVE_SPACE);
@@ -35,6 +37,7 @@ export function JoinLeaveActions({ spaceSlug, spaceId, isMember, tiers, isAuthen
   const handleJoin = async (tierId?: string) => {
     try {
       await joinSpace({ variables: { spaceSlug, tierId } });
+      haptic(hapticPatterns.success);
       setIsJoinModalOpen(false);
       router.refresh();
     } catch (err) {
@@ -45,6 +48,7 @@ export function JoinLeaveActions({ spaceSlug, spaceId, isMember, tiers, isAuthen
   const handleLeave = async () => {
     if (!confirm("Are you sure you want to leave this space?")) return;
     try {
+      haptic(hapticPatterns.destructive);
       await leaveSpace({ variables: { spaceId } });
       router.push("/spaces");
     } catch (err) {

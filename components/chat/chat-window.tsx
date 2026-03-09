@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Send, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth-client";
+import { useHaptics, hapticPatterns } from "@/hooks/useHaptics";
 
 
 interface Participant {
@@ -38,6 +39,7 @@ export function ChatWindow({ connectionId }: ChatWindowProps) {
     const { data: session } = useSession();
     const [content, setContent] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
+    const haptic = useHaptics();
 
     const { data, loading, error } = useQuery<{ connection: (Connection & { messages: Message[] }) | null }>(GET_MESSAGES, {
         variables: { connectionId },
@@ -63,6 +65,7 @@ export function ChatWindow({ connectionId }: ChatWindowProps) {
             await sendMessage({
                 variables: { connectionId, content: content.trim() }
             });
+            haptic(hapticPatterns.send);
             setContent("");
         } catch (err) {
             console.error("Failed to send", err);

@@ -22,13 +22,19 @@ import {
 import type { GetNotificationsQuery } from "@/lib/graphql/__generated__/graphql";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { useHaptics, hapticPatterns } from "@/hooks/useHaptics";
 
 export function NotificationBell() {
   const { data: session } = useSession();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const haptic = useHaptics();
+
+  useEffect(() => setMounted(true), []);
 
   const { data, refetch } = useQuery<GetNotificationsQuery>(GET_NOTIFICATIONS, {
-    skip: !session?.user,
+    skip: !mounted || !session?.user,
     variables: { limit: 8 },
   });
 
@@ -40,12 +46,13 @@ export function NotificationBell() {
     onCompleted: () => refetch(),
   });
 
-  if (!session?.user) return null;
+  if (!mounted || !session?.user) return null;
 
   const unread = data?.notifications?.unreadCount ?? 0;
   const notifications = data?.notifications?.items ?? [];
 
   const handleClick = async (id: string, href?: string | null) => {
+    haptic(hapticPatterns.tap);
     await markRead({ variables: { id } });
     if (href) router.push(href);
   };
@@ -68,7 +75,7 @@ export function NotificationBell() {
           <span>Notifiche</span>
           {unread > 0 && (
             <button
-              onClick={() => markAllRead()}
+              onClick={() => { haptic(hapticPatterns.tap); markAllRead(); }}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Segna tutte come lette

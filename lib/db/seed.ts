@@ -4,7 +4,6 @@ import { seedUsers } from "../models/users/seed";
 import { seedSpaces } from "../models/spaces/seed";
 import { seedEvents } from "../models/events/seed";
 import { seedProfiles } from "../models/impressions/seed";
-import { seedProfileCards } from "../models/useritems/seed";
 
 async function seed() {
   console.log("🌱 Starting seed...\n");
@@ -25,7 +24,6 @@ async function seed() {
       .map(([, user]) => user.id);
 
     await seedProfiles(nonAdminIds);
-    await seedProfileCards(nonAdminIds);
 
     console.log("\n✅ Seed completed successfully!");
   } catch (error) {

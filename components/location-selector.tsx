@@ -16,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { useMutation } from "@apollo/client/react";
 import { UPDATE_LOCATION } from "@/lib/models/users/gql";
+import { useHaptics, hapticPatterns } from "@/hooks/useHaptics";
 
 /**
  * Location Selector
@@ -29,6 +30,7 @@ export function LocationSelector() {
     const [isLocating, setIsLocating] = useState(false);
     const [open, setOpen] = useState(false);
     const [updateLocation] = useMutation(UPDATE_LOCATION);
+    const haptic = useHaptics();
 
     // Initial load from cookies
     useEffect(() => {
@@ -95,7 +97,7 @@ export function LocationSelector() {
                 updateLocation({
                     variables: { lat: newLat, lon: newLng },
                 })
-                    .then(() => toast.success("Position updated!"))
+                    .then(() => { haptic(hapticPatterns.success); toast.success("Position updated!"); })
                     .catch(() => {
                         // Keep local cookies even if server update fails (e.g. guest user).
                         toast.warning("Posizione salvata localmente, ma non sul profilo.");

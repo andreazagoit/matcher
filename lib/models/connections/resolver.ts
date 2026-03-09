@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/drizzle";
 import { messages } from "../messages/schema";
 import { users } from "../users/schema";
+import { userItems } from "../useritems/schema";
 import { eq, and, ne, desc, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 import type { GraphQLContext } from "@/lib/graphql/context";
@@ -157,6 +158,10 @@ export const connectionResolvers = {
 
     messages: async (parent: Connection) => {
       return getMessages(parent.id);
+    },
+
+    targetUserItem: async (parent: Connection) => {
+      return db.query.userItems.findFirst({ where: eq(userItems.id, parent.targetUserItemId) });
     },
   },
 

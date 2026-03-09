@@ -7,6 +7,7 @@ import {
   type CreateUserInput,
   type UpdateUserInput,
 } from "./validator";
+import { userItems } from "@/lib/models/useritems/schema";
 import { eq, and, gte, inArray, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 import { embeddings } from "@/lib/models/embeddings/schema";
@@ -15,7 +16,8 @@ import { eventAttendees } from "@/lib/models/events/schema";
 import { embedUser } from "@/lib/ml/client";
 
 /**
- * Create a new user record.
+ * Create a new user record, optionally with profile photos and prompts.
+ * All inserts happen in a single transaction.
  */
 export async function createUser(
   input: CreateUserInput
@@ -34,40 +36,64 @@ export async function createUser(
     throw new GraphQLError("Username already taken", { extensions: { code: "USERNAME_TAKEN" } });
   }
 
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      username: validatedInput.username,
-      name: validatedInput.name,
-      email: validatedInput.email,
-      birthdate: validatedInput.birthdate,
-      ...(validatedInput.gender && { gender: validatedInput.gender }),
+  const newUser = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(users)
+      .values({
+        username: validatedInput.username,
+        name: validatedInput.name,
+        email: validatedInput.email,
+        birthdate: validatedInput.birthdate,
+        ...(validatedInput.gender && { gender: validatedInput.gender }),
+        ...(validatedInput.sexualOrientation && { sexualOrientation: validatedInput.sexualOrientation }),
+        ...(validatedInput.heightCm !== undefined && { heightCm: validatedInput.heightCm }),
+        ...(validatedInput.relationshipIntent && { relationshipIntent: validatedInput.relationshipIntent }),
+        ...(validatedInput.relationshipStyle && { relationshipStyle: validatedInput.relationshipStyle }),
+        ...(validatedInput.hasChildren && { hasChildren: validatedInput.hasChildren }),
+        ...(validatedInput.wantsChildren && { wantsChildren: validatedInput.wantsChildren }),
+        ...(validatedInput.religion && { religion: validatedInput.religion }),
+        ...(validatedInput.smoking && { smoking: validatedInput.smoking }),
+        ...(validatedInput.drinking && { drinking: validatedInput.drinking }),
+        ...(validatedInput.activityLevel && { activityLevel: validatedInput.activityLevel }),
+        ...(validatedInput.jobTitle && { jobTitle: validatedInput.jobTitle }),
+        ...(validatedInput.educationLevel && { educationLevel: validatedInput.educationLevel }),
+        ...(validatedInput.schoolName && { schoolName: validatedInput.schoolName }),
+        ...(validatedInput.languages && { languages: validatedInput.languages }),
+        ...(validatedInput.ethnicity && { ethnicity: validatedInput.ethnicity }),
+        ...(validatedInput.location && { location: validatedInput.location }),
+      })
+      .returning();
 
-      // Orientation & identity
-      ...(validatedInput.sexualOrientation && { sexualOrientation: validatedInput.sexualOrientation }),
-      ...(validatedInput.heightCm !== undefined && { heightCm: validatedInput.heightCm }),
+    // Insert photos and prompts if provided
+    const allItems = [
+      ...(validatedInput.photos ?? []).map((p, i) => ({
+        userId: created.id,
+        type: "photo" as const,
+        promptKey: null,
+        content: p.content,
+        displayOrder: i,
+      })),
+      ...(validatedInput.prompts ?? []).map((p, i) => ({
+        userId: created.id,
+        type: "prompt" as const,
+        promptKey: p.promptKey,
+        content: p.content,
+        displayOrder: (validatedInput.photos?.length ?? 0) + i,
+      })),
+    ];
 
-      // Relational intent
-      ...(validatedInput.relationshipIntent && { relationshipIntent: validatedInput.relationshipIntent }),
-      ...(validatedInput.relationshipStyle && { relationshipStyle: validatedInput.relationshipStyle }),
-      ...(validatedInput.hasChildren && { hasChildren: validatedInput.hasChildren }),
-      ...(validatedInput.wantsChildren && { wantsChildren: validatedInput.wantsChildren }),
+    if (allItems.length > 0) {
+      await tx.insert(userItems).values(allItems);
+      // Sync users.image to first photo
+      const firstPhoto = allItems.find((i) => i.type === "photo");
+      if (firstPhoto) {
+        await tx.update(users).set({ image: firstPhoto.content }).where(eq(users.id, created.id));
+        created.image = firstPhoto.content;
+      }
+    }
 
-      // Lifestyle
-      ...(validatedInput.religion && { religion: validatedInput.religion }),
-      ...(validatedInput.smoking && { smoking: validatedInput.smoking }),
-      ...(validatedInput.drinking && { drinking: validatedInput.drinking }),
-      ...(validatedInput.activityLevel && { activityLevel: validatedInput.activityLevel }),
-
-      // Identity & background
-      ...(validatedInput.jobTitle && { jobTitle: validatedInput.jobTitle }),
-      ...(validatedInput.educationLevel && { educationLevel: validatedInput.educationLevel }),
-      ...(validatedInput.schoolName && { schoolName: validatedInput.schoolName }),
-      ...(validatedInput.languages && { languages: validatedInput.languages }),
-      ...(validatedInput.ethnicity && { ethnicity: validatedInput.ethnicity }),
-      ...(validatedInput.location && { location: validatedInput.location }),
-    })
-    .returning();
+    return created;
+  });
 
   // Generate and store embedding
   const embedding = await embedUser({
@@ -93,25 +119,22 @@ export async function createUser(
 
 /**
  * Update an existing user record with partial data.
+ * If photos or prompts are provided, they fully replace the existing items of that type.
  */
 export async function updateUser(
   id: string,
   input: UpdateUserInput
 ): Promise<User> {
-  // Validate input with Zod
   const validatedInput = updateUserSchema.parse(input);
 
   const existingUser = await db.query.users.findFirst({
     where: eq(users.id, id),
   });
-
   if (!existingUser) {
     throw new Error("User not found");
   }
 
-  const updateData: Partial<NewUser> = {
-    updatedAt: new Date(),
-  };
+  const updateData: Partial<NewUser> = { updatedAt: new Date() };
 
   if (validatedInput.username !== undefined) {
     const taken = await db.query.users.findFirst({ where: eq(users.username, validatedInput.username) });
@@ -124,27 +147,81 @@ export async function updateUser(
   if (validatedInput.email !== undefined) updateData.email = validatedInput.email;
   if (validatedInput.birthdate !== undefined) updateData.birthdate = validatedInput.birthdate;
   if (validatedInput.gender !== undefined) updateData.gender = validatedInput.gender;
-
-  // Orientation & identity
   if (validatedInput.sexualOrientation !== undefined) updateData.sexualOrientation = validatedInput.sexualOrientation;
   if (validatedInput.heightCm !== undefined) updateData.heightCm = validatedInput.heightCm;
-
-  // Relational intent
   if (validatedInput.relationshipIntent !== undefined) updateData.relationshipIntent = validatedInput.relationshipIntent;
   if (validatedInput.relationshipStyle !== undefined) updateData.relationshipStyle = validatedInput.relationshipStyle;
   if (validatedInput.hasChildren !== undefined) updateData.hasChildren = validatedInput.hasChildren;
   if (validatedInput.wantsChildren !== undefined) updateData.wantsChildren = validatedInput.wantsChildren;
-
-  // Lifestyle
   if (validatedInput.religion !== undefined) updateData.religion = validatedInput.religion;
   if (validatedInput.smoking !== undefined) updateData.smoking = validatedInput.smoking;
   if (validatedInput.drinking !== undefined) updateData.drinking = validatedInput.drinking;
   if (validatedInput.activityLevel !== undefined) updateData.activityLevel = validatedInput.activityLevel;
-  const [updatedUser] = await db
-    .update(users)
-    .set(updateData)
-    .where(eq(users.id, id))
-    .returning();
+  if (validatedInput.jobTitle !== undefined) updateData.jobTitle = validatedInput.jobTitle;
+  if (validatedInput.educationLevel !== undefined) updateData.educationLevel = validatedInput.educationLevel;
+  if (validatedInput.schoolName !== undefined) updateData.schoolName = validatedInput.schoolName;
+  if (validatedInput.languages !== undefined) updateData.languages = validatedInput.languages;
+  if (validatedInput.ethnicity !== undefined) updateData.ethnicity = validatedInput.ethnicity;
+  if (validatedInput.location !== undefined) updateData.location = validatedInput.location;
+
+  const updatedUser = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+
+    // Replace photos if provided
+    if (validatedInput.photos !== undefined) {
+      await tx.delete(userItems).where(
+        and(eq(userItems.userId, id), eq(userItems.type, "photo"))
+      );
+      if (validatedInput.photos.length > 0) {
+        await tx.insert(userItems).values(
+          validatedInput.photos.map((p, i) => ({
+            userId: id,
+            type: "photo" as const,
+            promptKey: null,
+            content: p.content,
+            displayOrder: i,
+          }))
+        );
+        // Sync users.image to first photo
+        await tx.update(users)
+          .set({ image: validatedInput.photos[0].content })
+          .where(eq(users.id, id));
+        updated.image = validatedInput.photos[0].content;
+      } else {
+        await tx.update(users).set({ image: null }).where(eq(users.id, id));
+        updated.image = null;
+      }
+    }
+
+    // Replace prompts if provided
+    if (validatedInput.prompts !== undefined) {
+      await tx.delete(userItems).where(
+        and(eq(userItems.userId, id), eq(userItems.type, "prompt"))
+      );
+      if (validatedInput.prompts.length > 0) {
+        // displayOrder continues after photos
+        const photoCount = validatedInput.photos?.length
+          ?? (await tx.select().from(userItems).where(
+            and(eq(userItems.userId, id), eq(userItems.type, "photo"))
+          )).length;
+        await tx.insert(userItems).values(
+          validatedInput.prompts.map((p, i) => ({
+            userId: id,
+            type: "prompt" as const,
+            promptKey: p.promptKey,
+            content: p.content,
+            displayOrder: photoCount + i,
+          }))
+        );
+      }
+    }
+
+    return updated;
+  });
 
   // Regenerate embedding if any profile-relevant field changed
   const profileFields = ["gender", "relationshipIntent", "smoking", "drinking", "activityLevel", "birthdate"] as const;

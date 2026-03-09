@@ -17,6 +17,8 @@ import {
 import { SUPPORTED_LANGUAGES } from "@/lib/models/shared/validator";
 export { SUPPORTED_LANGUAGES };
 
+import { MIN_PHOTOS, MIN_PROMPTS, MAX_PHOTOS, MAX_PROMPTS, photoItemSchema, promptItemSchema } from "@/lib/models/useritems/validator";
+
 const usernameSchema = z
   .string()
   .min(3, "Username must be at least 3 characters")
@@ -53,6 +55,10 @@ export const createUserSchema = z.object({
   languages: z.array(z.enum(SUPPORTED_LANGUAGES)).optional(),
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
   location: z.string().max(255).optional(),
+
+  // Profile items (optional at creation, validated separately for min counts)
+  photos: z.array(photoItemSchema).max(MAX_PHOTOS).optional(),
+  prompts: z.array(promptItemSchema).max(MAX_PROMPTS).optional(),
 });
 
 
@@ -86,6 +92,10 @@ export const updateUserSchema = z.object({
   languages: z.array(z.enum(SUPPORTED_LANGUAGES)).optional(),
   ethnicity: z.enum(ethnicityEnum.enumValues).optional(),
   location: z.string().max(255).optional(),
+
+  // Profile items — quando presenti sostituiscono tutti gli items esistenti
+  photos: z.array(photoItemSchema).max(MAX_PHOTOS).optional(),
+  prompts: z.array(promptItemSchema).max(MAX_PROMPTS).optional(),
 });
 
 /**
@@ -115,6 +125,18 @@ export const signupFormSchema = z.object({
   initialInterests: z.array(z.string()).default([]),
   username: usernameSchema,
   email: z.string().email(),
+  /** URLs delle foto del profilo. Min ${MIN_PHOTOS}, max ${MAX_PHOTOS}. */
+  photos: z
+    .array(photoItemSchema)
+    .min(MIN_PHOTOS, `Aggiungi almeno ${MIN_PHOTOS} foto`)
+    .max(MAX_PHOTOS, `Massimo ${MAX_PHOTOS} foto`)
+    .default([]),
+  /** Prompt del profilo. Min ${MIN_PROMPTS}, max ${MAX_PROMPTS}. */
+  prompts: z
+    .array(promptItemSchema)
+    .min(MIN_PROMPTS, `Aggiungi almeno ${MIN_PROMPTS} prompt`)
+    .max(MAX_PROMPTS, `Massimo ${MAX_PROMPTS} prompt`)
+    .default([]),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

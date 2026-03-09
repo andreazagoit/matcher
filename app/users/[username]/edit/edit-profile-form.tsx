@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { UPDATE_USER, UPDATE_LOCATION } from "@/lib/models/users/gql";
 import type { UpdateLocationMutation } from "@/lib/graphql/__generated__/graphql";
+import { useHaptics, hapticPatterns } from "@/hooks/useHaptics";
 import {
     genderEnum,
     sexualOrientationEnum,
@@ -31,10 +32,19 @@ import {
     ethnicityEnum,
 } from "@/lib/models/users/schema";
 import { SUPPORTED_LANGUAGES, type UpdateUserInput } from "@/lib/models/users/validator";
-import { CATEGORIES } from "@/lib/models/categories/data";
-import { UserItemsEditor } from "./user-items-editor";
+import { MIN_PHOTOS, MIN_PROMPTS } from "@/lib/models/useritems/validator";
+import {
+    UserItemsEditor,
+    userItemsToLocal,
+    localPhotosToInput,
+    localPromptsToInput,
+    type UserItemsState,
+} from "./user-items-editor";
 
-export type EditableUser = UpdateUserInput & { id: string };
+export type EditableUser = UpdateUserInput & {
+    id: string;
+    userItems?: { type: string; content: string; promptKey?: string | null; displayOrder: number }[];
+};
 
 type Props = {
     user: EditableUser;
@@ -74,9 +84,9 @@ const ENUM_VALUES: Record<EnumKey, readonly string[]> = {
 export function EditProfileForm({ user }: Props) {
     const tEnums = useTranslations("enums");
     const router = useRouter();
+    const haptic = useHaptics();
 
     // Form state
-    const [name, setName] = useState(user.name ?? "");
     const [height, setHeight] = useState(user.heightCm?.toString() ?? "");
     const [jobTitle, setJobTitle] = useState(user.jobTitle ?? "");
     const [schoolName, setSchoolName] = useState(user.schoolName ?? "");
@@ -100,6 +110,13 @@ export function EditProfileForm({ user }: Props) {
         activityLevel: user.activityLevel ?? null,
         educationLevel: user.educationLevel ?? null,
         ethnicity: user.ethnicity ?? null,
+    });
+
+    // Items state — initialized from server data, kept local until save
+    const initial = userItemsToLocal(user.userItems ?? []);
+    const [itemsState, setItemsState] = useState<UserItemsState>({
+        photos: initial.photos,
+        prompts: initial.prompts,
     });
 
     // Location state
@@ -130,19 +147,19 @@ export function EditProfileForm({ user }: Props) {
             toast.error("Geolocalizzazione non supportata dal tuo browser.");
             return;
         }
-
         setLocatingUser(true);
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 const { latitude, longitude } = position.coords;
                 try {
-                    // Server-side: updateUserLocation chiama Nominatim e salva location + coordinates
                     const res = await updateLocation({ variables: { lat: latitude, lon: longitude } });
                     const city = res.data?.updateLocation?.location;
                     if (city) {
                         setCurrentCityName(city);
+                        haptic(hapticPatterns.success);
                         toast.success(`Posizione rilevata: ${city}`);
                     } else {
+                        haptic(hapticPatterns.success);
                         toast.success("Posizione aggiornata");
                     }
                 } catch (err) {
@@ -157,27 +174,32 @@ export function EditProfileForm({ user }: Props) {
                 toast.error("Impossibile accedere alla tua posizione. Controlla i permessi.");
                 setLocatingUser(false);
             },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 
     async function handleSave() {
+        if (itemsState.photos.length < MIN_PHOTOS) {
+            toast.error(`Aggiungi almeno ${MIN_PHOTOS} foto prima di salvare`);
+            return;
+        }
+        if (itemsState.prompts.length < MIN_PROMPTS) {
+            toast.error(`Aggiungi almeno ${MIN_PROMPTS} prompt prima di salvare`);
+            return;
+        }
         try {
             await updateUser({
                 variables: {
                     id: user.id,
                     input: {
-                        name: name.trim() || undefined,
                         heightCm: height ? parseInt(height, 10) : undefined,
                         jobTitle: jobTitle.trim() || undefined,
                         schoolName: schoolName.trim() || undefined,
                         sexualOrientation: Array.from(selectedOrientations),
                         relationshipIntent: Array.from(selectedIntents),
                         languages: Array.from(selectedLanguages),
+                        photos: localPhotosToInput(itemsState.photos),
+                        prompts: localPromptsToInput(itemsState.prompts),
                         ...Object.fromEntries(
                             (Object.keys(enumFields) as EnumKey[])
                                 .map((k) => [k, enumFields[k] ?? undefined])
@@ -186,6 +208,7 @@ export function EditProfileForm({ user }: Props) {
                 },
             });
             toast.success("Profilo aggiornato con successo");
+            haptic(hapticPatterns.success);
             router.push(`/users/${user.username}`);
             router.refresh();
         } catch (err) {
@@ -194,14 +217,26 @@ export function EditProfileForm({ user }: Props) {
         }
     }
 
+    const photoCount = itemsState.photos.length;
+    const promptCount = itemsState.prompts.length;
+
     return (
         <div className="space-y-10">
+            {/* ── Foto e Prompts ─────────────────────────────────────────── */}
+            <UserItemsEditor
+                initialPhotos={itemsState.photos}
+                initialPrompts={itemsState.prompts}
+                onChange={setItemsState}
+            />
+
+            <Separator />
+
             {/* ── Posizione ────────────────────────────────────────────── */}
             <section className="space-y-4">
                 <h3 className="text-xl font-semibold">Posizione attuale</h3>
                 <div className="rounded-xl border bg-card p-6 flex flex-col md:flex-row items-center gap-4 justify-between">
                     <div>
-                        <p className="font-medium">{currentCityName ? currentCityName : "Posizione sconosciuta"}</p>
+                        <p className="font-medium">{currentCityName ?? "Posizione sconosciuta"}</p>
                         <p className="text-sm text-muted-foreground mt-1">Aggiorna le coordinate per scoprire Spazi, Eventi e Persone intorno a te. Utilizziamo OpenStreetMap.</p>
                     </div>
                     <Button onClick={handleUpdateLocation} disabled={locatingUser} className="shrink-0">
@@ -213,18 +248,10 @@ export function EditProfileForm({ user }: Props) {
 
             <Separator />
 
-            {/* ── Caratteristiche Generali ───────────────────────────────── */}
+            {/* ── Generalità e Background ───────────────────────────────── */}
             <section className="space-y-6">
                 <h3 className="text-xl font-semibold">Generalità e Background</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Field label="Nome">
-                        <Input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Il tuo nome"
-                        />
-                    </Field>
-
                     <Field label="Professione">
                         <Input
                             value={jobTitle}
@@ -252,7 +279,6 @@ export function EditProfileForm({ user }: Props) {
                         />
                     </Field>
 
-                    {/* All single-select enums */}
                     {(Object.keys(ENUM_VALUES) as EnumKey[]).map((key) => (
                         <Field key={key} label={tEnums(`${key}Label` as Parameters<typeof tEnums>[0])}>
                             <Select
@@ -280,7 +306,7 @@ export function EditProfileForm({ user }: Props) {
 
             <Separator />
 
-            {/* ── Identità e Intenti (Multi) ────────────────────────────── */}
+            {/* ── Identità e Intenti ────────────────────────────── */}
             <section className="space-y-6">
                 <h3 className="text-xl font-semibold">Identità e Cosa cerchi</h3>
                 <div className="space-y-6">
@@ -318,27 +344,6 @@ export function EditProfileForm({ user }: Props) {
 
             <Separator />
 
-            {/* ── Interessi / Categorie ──────────────────────────────────────── */}
-            <section className="space-y-4">
-                <h3 className="text-xl font-semibold">Interessi e Hobby</h3>
-                <p className="text-sm text-muted-foreground">
-                    Le tue preferenze vengono aggiornate automaticamente visitando le pagine delle categorie.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                    {CATEGORIES.map((cat) => (
-                        <a
-                            key={cat}
-                            href={`/categories/${cat}`}
-                            className="inline-flex items-center rounded-full border bg-card px-4 py-1.5 text-sm font-medium capitalize hover:bg-accent transition-colors"
-                        >
-                            {cat}
-                        </a>
-                    ))}
-                </div>
-            </section>
-
-            <Separator />
-
             {/* ── Lingue ─────────────────────────────────────────── */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -371,19 +376,27 @@ export function EditProfileForm({ user }: Props) {
                 </div>
             </section>
 
-            <Separator />
-
-            {/* ── Foto e Prompts ─────────────────────────────────────────── */}
-            <UserItemsEditor />
-
             {/* ── Azioni Finali ───────────────────────────────────────── */}
             <div className="sticky bottom-6 flex justify-end gap-3 mt-10 p-4 bg-background/80 backdrop-blur-xl border rounded-2xl shadow-lg">
                 <Button variant="outline" onClick={() => router.push(`/users/${user.username}`)} disabled={saving}>
                     Annulla
                 </Button>
-                <Button onClick={handleSave} disabled={saving} size="lg" className="min-w-[150px]">
+                <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    size="lg"
+                    className="min-w-[150px]"
+                    title={photoCount < MIN_PHOTOS || promptCount < MIN_PROMPTS
+                        ? `Servono almeno ${MIN_PHOTOS} foto e ${MIN_PROMPTS} prompt`
+                        : undefined}
+                >
                     {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Salva Modifiche
+                    {(photoCount < MIN_PHOTOS || promptCount < MIN_PROMPTS) && (
+                        <span className="ml-2 text-xs opacity-70">
+                            ({photoCount}/{MIN_PHOTOS} foto · {promptCount}/{MIN_PROMPTS} prompt)
+                        </span>
+                    )}
                 </Button>
             </div>
         </div>

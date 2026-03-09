@@ -39,6 +39,7 @@ import {
   type RespondToEventMutation,
   type RespondToEventMutationVariables,
 } from "@/lib/graphql/__generated__/graphql";
+import { useHaptics } from "@/hooks/useHaptics";
 
 function formatPrice(cents: number, currency: string) {
   return new Intl.NumberFormat("it-IT", {
@@ -357,6 +358,7 @@ function DetailsTab({
   respondToEvent: (opts: any) => void;
   handleBuyTicket: () => void;
 }) {
+  const haptic = useHaptics();
   return (
     <div className="space-y-8">
       {successBanner && (
@@ -432,7 +434,7 @@ function DetailsTab({
                   size="sm"
                   variant="outline"
                   disabled={responding}
-                  onClick={() => respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Interested } })}
+                  onClick={() => { haptic("confirm"); respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Interested } }); }}
                 >
                   {responding && <Loader2Icon className="h-3.5 w-3.5 animate-spin mr-1.5" />}
                   Cambia in Interessato
@@ -441,7 +443,7 @@ function DetailsTab({
                 <Button
                   size="sm"
                   disabled={responding}
-                  onClick={() => respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Going } })}
+                  onClick={() => { haptic("succes"); respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Going } }); }}
                 >
                   {responding && <Loader2Icon className="h-3.5 w-3.5 animate-spin mr-1.5" />}
                   Confermo partecipazione
@@ -450,7 +452,7 @@ function DetailsTab({
                 <>
                   <Button
                     disabled={responding}
-                    onClick={() => respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Going } })}
+                    onClick={() => { haptic("success"); respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Going } }); }}
                   >
                     {responding && <Loader2Icon className="h-4 w-4 animate-spin mr-2" />}
                     Partecipo
@@ -458,7 +460,7 @@ function DetailsTab({
                   <Button
                     variant="outline"
                     disabled={responding}
-                    onClick={() => respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Interested } })}
+                    onClick={() => { haptic("confirm"); respondToEvent({ variables: { eventId: event.id, status: AttendeeStatus.Interested } }); }}
                   >
                     Sono interessato
                   </Button>
@@ -589,6 +591,7 @@ function ManageTab({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateEvent: (opts: any) => void;
 }) {
+  const haptic = useHaptics();
   const [editData, setEditData] = useState({
     title: event.title ?? "",
     description: event.description ?? "",
@@ -617,6 +620,7 @@ function ManageTab({
         },
       },
     });
+    haptic("success");
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };

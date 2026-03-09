@@ -19,22 +19,7 @@ export const userItemTypeDefs = `#graphql
     prompt
   }
 
-  input AddUserItemInput {
-    type: UserItemType!
-    promptKey: String
-    content: String!
-    displayOrder: Int
-  }
-
-  input UpdateUserItemInput {
-    content: String
-    promptKey: String
-  }
-
-  extend type Mutation {
-    addUserItem(input: AddUserItemInput!): UserItem!
-    updateUserItem(itemId: ID!, input: UpdateUserItemInput!): UserItem!
-    deleteUserItem(itemId: ID!): Boolean!
-    reorderUserItems(itemIds: [ID!]!): [UserItem!]!
+  extend type User {
+    userItems: [UserItem!]!
   }
 `;
